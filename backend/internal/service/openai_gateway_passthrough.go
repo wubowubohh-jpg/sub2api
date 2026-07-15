@@ -651,6 +651,18 @@ func (s *OpenAIGatewayService) handleErrorResponsePassthrough(
 		Detail:               upstreamDetail,
 		UpstreamResponseBody: upstreamDetail,
 	})
+	if status, _, errMsg, matched := applyErrorPassthroughRule(
+		c,
+		account.Platform,
+		resp.StatusCode,
+		body,
+		http.StatusBadGateway,
+		"upstream_error",
+		"Upstream request failed",
+	); matched {
+		writeOpenAIPassthroughErrorEnvelope(c, status, resp.Header, errMsg)
+		return fmt.Errorf("upstream error: %d (passthrough rule matched)", resp.StatusCode)
+	}
 	// context-window 超限是确定性请求失败（shouldFailoverOpenAIPassthroughResponse
 	// 已保证不切号），其文案对客户端可操作（如触发自动压缩）；在净化信封内保留
 	// 脱敏后的上游消息，而不是抹成通用文案。

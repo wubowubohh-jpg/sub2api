@@ -1925,6 +1925,9 @@ func (h *OpenAIGatewayHandler) recoverAnthropicMessagesPanic(c *gin.Context, str
 }
 
 func (h *OpenAIGatewayHandler) ensureResponsesDependencies(c *gin.Context, reqLog *zap.Logger) bool {
+	if h != nil && h.errorPassthroughService != nil {
+		service.BindErrorPassthroughService(c, h.errorPassthroughService)
+	}
 	missing := h.missingResponsesDependencies()
 	if len(missing) == 0 {
 		return true
@@ -2093,24 +2096,12 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 
 	// 先检查透传规则
 	if h.errorPassthroughService != nil && len(responseBody) > 0 {
-		if rule := h.errorPassthroughService.MatchRule("openai", statusCode, responseBody); rule != nil {
-			// 确定响应状态码
-			respCode := statusCode
-			if !rule.PassthroughCode && rule.ResponseCode != nil {
-				respCode = *rule.ResponseCode
-			}
-
-			// 确定响应消息
-			msg := service.ExtractUpstreamErrorMessage(responseBody)
-			if !rule.PassthroughBody && rule.CustomMessage != nil {
-				msg = *rule.CustomMessage
-			}
-
-			if rule.SkipMonitoring {
-				c.Set(service.OpsSkipPassthroughKey, true)
-			}
-
-			h.handleStreamingAwareError(c, respCode, "upstream_error", msg, streamStarted)
+		service.BindErrorPassthroughService(c, h.errorPassthroughService)
+		if respCode, errType, msg, matched := service.ApplyErrorPassthroughRule(
+			c, service.PlatformOpenAI, statusCode, responseBody,
+			http.StatusBadGateway, "upstream_error", "Upstream request failed",
+		); matched {
+			h.handleStreamingAwareError(c, respCode, errType, msg, streamStarted)
 			return
 		}
 	}

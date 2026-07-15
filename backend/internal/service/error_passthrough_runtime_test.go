@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/model"
@@ -365,6 +366,146 @@ func TestGeminiWriteGeminiMappedError_SetsResponseCommitted(t *testing.T) {
 	assert.True(t, IsResponseCommitted(c), "Gemini path must mark response committed")
 }
 
+func TestApplyErrorPassthroughRule_FiltersBodyAndUpstreamHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name   string
+		status int
+		body   []byte
+	}{
+		{
+			name:   "Cloudflare JSON diagnostic",
+			status: http.StatusBadGateway,
+			body:   []byte(`{"cloudflare_error":true,"detail":"The origin www.xiaobaishu.org did not respond to Cloudflare","instance":"a1ba23f3789bc146","ray_id":"a1ba23f3789bc146","type":"https://developers.cloudflare.com/support/error-502/","zone":"www.xiaobaishu.org"}`),
+		},
+		{
+			name:   "Cloudflare HTML error page",
+			status: http.StatusGatewayTimeout,
+			body:   []byte(`<html><title>Cloudflare gateway error</title><p>www.xiaobaishu.org</p><span>Ray ID: a1ba23f3789bc146</span></html>`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			for key, value := range map[string]string{
+				"Alt-Svc":          `h3=":443"`,
+				"Content-Encoding": "gzip",
+				"Content-Length":   "999",
+				"Content-Location": "https://www.xiaobaishu.org/error",
+				"Link":             `<https://www.xiaobaishu.org/status>; rel="help"`,
+				"Location":         "https://www.xiaobaishu.org/cdn-cgi/error",
+				"Report-To":        `{"url":"https://www.xiaobaishu.org/report"}`,
+				"Set-Cookie":       "debug=1; Domain=www.xiaobaishu.org",
+				"Server":           "cloudflare",
+				"CF-Ray":           "a1ba23f3789bc146",
+				"Via":              "www.xiaobaishu.org",
+				"WWW-Authenticate": `Bearer realm="www.xiaobaishu.org"`,
+				"X-Request-ID":     "a1ba23f3789bc146",
+				"Retry-After":      "120",
+			} {
+				c.Header(key, value)
+			}
+
+			ruleSvc := &ErrorPassthroughService{}
+			ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{
+				newKeywordFilterRule("cloudflare", http.StatusBadGateway, "Upstream service temporarily unavailable"),
+			})
+			BindErrorPassthroughService(c, ruleSvc)
+
+			status, errType, errMsg, matched := applyErrorPassthroughRule(
+				c,
+				PlatformOpenAI,
+				tt.status,
+				tt.body,
+				http.StatusBadGateway,
+				"upstream_error",
+				"Upstream request failed",
+			)
+
+			require.True(t, matched)
+			require.Equal(t, http.StatusBadGateway, status)
+			require.Equal(t, "upstream_error", errType)
+			require.Equal(t, "Upstream service temporarily unavailable", errMsg)
+			for _, secret := range []string{"xiaobaishu.org", "a1ba23f3789bc146", "developers.cloudflare.com", "origin"} {
+				require.NotContains(t, strings.ToLower(errMsg), secret)
+			}
+			for _, header := range []string{"Alt-Svc", "Content-Encoding", "Content-Length", "Content-Location", "Link", "Location", "Report-To", "Set-Cookie", "Server", "CF-Ray", "Via", "WWW-Authenticate", "X-Request-ID"} {
+				require.Empty(t, c.Writer.Header().Get(header), header)
+			}
+			require.Empty(t, c.Writer.Header().Get("Retry-After"))
+			require.Equal(t, "no-store", c.Writer.Header().Get("Cache-Control"))
+		})
+	}
+}
+
+func TestOpenAIPassthroughError_AppliesConfiguredFilterRule(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Header("Location", "https://www.xiaobaishu.org/cdn-cgi/error")
+	c.Header("CF-Ray", "a1ba23f3789bc146")
+
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{
+		newKeywordFilterRule("cloudflare", http.StatusBadGateway, "Upstream service temporarily unavailable"),
+	})
+	BindErrorPassthroughService(c, ruleSvc)
+
+	resp := &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Header: http.Header{
+			"Content-Type": []string{"text/html"},
+			"Location":     []string{"https://www.xiaobaishu.org/cdn-cgi/error"},
+			"CF-Ray":       []string{"a1ba23f3789bc146"},
+		},
+	}
+	body := []byte(`<html><title>Cloudflare error</title><p>www.xiaobaishu.org</p><span>Ray ID: a1ba23f3789bc146</span></html>`)
+	svc := &OpenAIGatewayService{}
+	account := &Account{ID: 7, Name: "openai", Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+
+	err := svc.handleErrorResponsePassthrough(context.Background(), resp, c, account, nil, body)
+
+	require.Error(t, err)
+	require.Equal(t, http.StatusBadGateway, rec.Code)
+	require.Contains(t, rec.Body.String(), "Upstream service temporarily unavailable")
+	for _, secret := range []string{"cloudflare", "xiaobaishu.org", "a1ba23f3789bc146", "cdn-cgi"} {
+		require.NotContains(t, strings.ToLower(rec.Body.String()), secret)
+	}
+	require.Empty(t, rec.Header().Get("Location"))
+	require.Empty(t, rec.Header().Get("CF-Ray"))
+}
+
+func TestApplyErrorPassthroughRule_FilteredRuleFailsClosedWithoutCustomMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+
+	rule := newKeywordFilterRule("cloudflare", http.StatusBadGateway, "unused")
+	rule.CustomMessage = nil // Simulate a legacy or manually corrupted record.
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{rule})
+	BindErrorPassthroughService(c, ruleSvc)
+
+	_, _, errMsg, matched := applyErrorPassthroughRule(
+		c,
+		PlatformOpenAI,
+		http.StatusGatewayTimeout,
+		[]byte(`{"detail":"Cloudflare failed for www.xiaobaishu.org","ray_id":"a1ba23f3789bc146"}`),
+		http.StatusBadGateway,
+		"upstream_error",
+		"Upstream request failed",
+	)
+
+	require.True(t, matched)
+	require.Equal(t, "Upstream request failed", errMsg)
+	require.NotContains(t, strings.ToLower(errMsg), "cloudflare")
+	require.NotContains(t, errMsg, "xiaobaishu.org")
+}
+
 func newNonFailoverPassthroughRule(statusCode int, keyword string, respCode int, customMessage string) *model.ErrorPassthroughRule {
 	return &model.ErrorPassthroughRule{
 		ID:              1,
@@ -374,6 +515,21 @@ func newNonFailoverPassthroughRule(statusCode int, keyword string, respCode int,
 		ErrorCodes:      []int{statusCode},
 		Keywords:        []string{keyword},
 		MatchMode:       model.MatchModeAll,
+		PassthroughCode: false,
+		ResponseCode:    &respCode,
+		PassthroughBody: false,
+		CustomMessage:   &customMessage,
+	}
+}
+
+func newKeywordFilterRule(keyword string, respCode int, customMessage string) *model.ErrorPassthroughRule {
+	return &model.ErrorPassthroughRule{
+		ID:              1,
+		Name:            "keyword-filter-rule",
+		Enabled:         true,
+		Priority:        1,
+		Keywords:        []string{keyword},
+		MatchMode:       model.MatchModeAny,
 		PassthroughCode: false,
 		ResponseCode:    &respCode,
 		PassthroughBody: false,

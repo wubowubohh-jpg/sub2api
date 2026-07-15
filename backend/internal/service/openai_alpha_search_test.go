@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -142,4 +143,45 @@ func TestForwardAlphaSearchReturnsFailoverBeforeWriting(t *testing.T) {
 	require.Equal(t, openAIPlatformAlphaSearchURL, upstream.lastReq.URL.String())
 	require.False(t, c.Writer.Written())
 	require.Empty(t, recorder.Body.String())
+}
+
+func TestForwardAlphaSearchAppliesConfiguredHTMLFilter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"id":"search-session","model":"gpt-5.6-sol","commands":{}}`)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/alpha/search", bytes.NewReader(body))
+	c.Header("Location", "https://www.xiaobaishu.org/cdn-cgi/error")
+
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{
+		newKeywordFilterRule("cloudflare", http.StatusBadGateway, "Upstream service temporarily unavailable"),
+	})
+	BindErrorPassthroughService(c, ruleSvc)
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Header:     http.Header{"Content-Type": []string{"text/html"}},
+		Body:       io.NopCloser(strings.NewReader(`<html><title>Cloudflare error</title><p>www.xiaobaishu.org</p><span>Ray ID: a1ba23f3789bc146</span></html>`)),
+	}}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	account := &Account{
+		ID:       9,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "sk-test",
+		},
+	}
+
+	result, err := svc.ForwardAlphaSearch(context.Background(), c, account, body)
+
+	require.NoError(t, err)
+	require.Nil(t, result)
+	require.Equal(t, http.StatusBadGateway, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "Upstream service temporarily unavailable")
+	for _, secret := range []string{"cloudflare", "xiaobaishu.org", "a1ba23f3789bc146", "cdn-cgi"} {
+		require.NotContains(t, strings.ToLower(recorder.Body.String()), secret)
+	}
+	require.Empty(t, recorder.Header().Get("Location"))
 }

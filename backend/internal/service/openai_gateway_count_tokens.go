@@ -129,6 +129,19 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 			upstreamDetail = truncateString(string(respBody), maxBytes)
 		}
 		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+		if status, errType, errMsg, matched := applyErrorPassthroughRule(
+			c,
+			account.Platform,
+			resp.StatusCode,
+			respBody,
+			http.StatusBadGateway,
+			"upstream_error",
+			"Upstream request failed",
+		); matched {
+			MarkResponseCommitted(c)
+			writeAnthropicCountTokensError(c, status, errType, errMsg)
+			return fmt.Errorf("input_tokens upstream error: %d (passthrough rule matched)", resp.StatusCode)
+		}
 
 		errMsg := "Upstream request failed"
 		switch resp.StatusCode {

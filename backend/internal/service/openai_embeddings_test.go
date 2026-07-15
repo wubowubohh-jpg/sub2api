@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -103,4 +104,47 @@ func TestForwardEmbeddings_APIKeyPassthroughRecordsUsageAndBatchInput(t *testing
 	require.Equal(t, "world", gjson.GetBytes(upstream.lastBody, "input.1").String())
 	require.Equal(t, "float", gjson.GetBytes(upstream.lastBody, "encoding_format").String())
 	require.Equal(t, int64(256), gjson.GetBytes(upstream.lastBody, "dimensions").Int())
+}
+
+func TestForwardEmbeddings_AppliesConfiguredErrorFilter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	reqBody := []byte(`{"model":"embedding-model","input":"hello"}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/embeddings", bytes.NewReader(reqBody))
+	c.Header("Location", "https://www.xiaobaishu.org/cdn-cgi/error")
+
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{
+		newKeywordFilterRule("cloudflare", http.StatusBadGateway, "Upstream service temporarily unavailable"),
+	})
+	BindErrorPassthroughService(c, ruleSvc)
+
+	upstreamBody := `{"cloudflare_error":true,"detail":"Cloudflare failed for www.xiaobaishu.org","ray_id":"a1ba23f3789bc146","zone":"www.xiaobaishu.org"}`
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+	}}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	account := &Account{
+		ID:       43,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://api.example.com",
+		},
+	}
+
+	result, err := svc.ForwardEmbeddings(context.Background(), c, account, reqBody, "")
+
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.Equal(t, http.StatusBadGateway, rec.Code)
+	require.Contains(t, rec.Body.String(), "Upstream service temporarily unavailable")
+	for _, secret := range []string{"cloudflare", "xiaobaishu.org", "a1ba23f3789bc146", "zone", "detail"} {
+		require.NotContains(t, strings.ToLower(rec.Body.String()), secret)
+	}
+	require.Empty(t, rec.Header().Get("Location"))
 }

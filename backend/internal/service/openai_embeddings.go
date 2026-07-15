@@ -139,6 +139,28 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(
 				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
 			}
 		}
+		upstreamDetail := ""
+		if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
+			maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
+			if maxBytes <= 0 {
+				maxBytes = 2048
+			}
+			upstreamDetail = truncateString(string(respBody), maxBytes)
+		}
+		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
+		if status, errType, errMsg, matched := applyErrorPassthroughRule(
+			c,
+			account.Platform,
+			resp.StatusCode,
+			respBody,
+			http.StatusBadGateway,
+			"upstream_error",
+			"Upstream request failed",
+		); matched {
+			MarkResponseCommitted(c)
+			writeOpenAIEmbeddingsError(c, status, errType, errMsg)
+			return nil, fmt.Errorf("upstream returned status %d (passthrough rule matched)", resp.StatusCode)
+		}
 		writeOpenAIEmbeddingsUpstreamResponse(c, resp, respBody, s.responseHeaderFilter)
 		return nil, fmt.Errorf("upstream returned status %d", resp.StatusCode)
 	}

@@ -78,6 +78,28 @@ func (s *OpenAIGatewayService) ForwardAlphaSearch(ctx context.Context, c *gin.Co
 				RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
 			}
 		}
+		upstreamDetail := ""
+		if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
+			maxBytes := s.cfg.Gateway.LogUpstreamErrorBodyMaxBytes
+			if maxBytes <= 0 {
+				maxBytes = 2048
+			}
+			upstreamDetail = truncateString(string(respBody), maxBytes)
+		}
+		setOpsUpstreamError(c, resp.StatusCode, upstreamMessage, upstreamDetail)
+		if status, _, errMsg, matched := applyErrorPassthroughRule(
+			c,
+			account.Platform,
+			resp.StatusCode,
+			respBody,
+			http.StatusBadGateway,
+			"upstream_error",
+			"Upstream request failed",
+		); matched {
+			MarkResponseCommitted(c)
+			writeOpenAIPassthroughErrorEnvelope(c, status, resp.Header, errMsg)
+			return nil, nil
+		}
 	}
 
 	if !account.IsShadow() {
