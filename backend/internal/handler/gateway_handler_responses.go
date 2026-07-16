@@ -329,5 +329,26 @@ func (h *GatewayHandler) handleResponsesFailoverExhausted(c *gin.Context, lastEr
 		h.responsesErrorResponse(c, http.StatusBadGateway, "upstream_error", service.OpenAISilentRefusalClientMessage())
 		return
 	}
+	if lastErr != nil && h.errorPassthroughService != nil && len(lastErr.ResponseBody) > 0 {
+		platform := service.PlatformAnthropic
+		if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && forcedPlatform != "" {
+			platform = forcedPlatform
+		} else if apiKey, ok := middleware2.GetAPIKeyFromContext(c); ok && apiKey.Group != nil && apiKey.Group.Platform != "" {
+			platform = apiKey.Group.Platform
+		}
+		service.BindErrorPassthroughService(c, h.errorPassthroughService)
+		if responseCode, errType, message, matched := service.ApplyErrorPassthroughRule(
+			c,
+			platform,
+			statusCode,
+			lastErr.ResponseBody,
+			http.StatusBadGateway,
+			"upstream_error",
+			"Upstream request failed",
+		); matched {
+			h.responsesErrorResponse(c, responseCode, errType, message)
+			return
+		}
+	}
 	h.responsesErrorResponse(c, statusCode, "server_error", "All available accounts exhausted")
 }

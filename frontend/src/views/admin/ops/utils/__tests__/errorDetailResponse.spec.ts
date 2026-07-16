@@ -29,7 +29,7 @@ function makeDetail(overrides: Partial<OpsErrorDetail>): OpsErrorDetail {
 }
 
 describe('errorDetailResponse', () => {
-  it('prefers upstream payload for request modal when error_body is generic gateway wrapper', () => {
+  it('keeps the client response for request modal when error_body is a generic gateway wrapper', () => {
     const detail = makeDetail({
       error_body: JSON.stringify({
         type: 'error',
@@ -41,7 +41,7 @@ describe('errorDetailResponse', () => {
       upstream_error_detail: '{"provider_message":"real upstream detail"}'
     })
 
-    expect(resolvePrimaryResponseBody(detail, 'request')).toBe('{"provider_message":"real upstream detail"}')
+    expect(resolvePrimaryResponseBody(detail, 'request')).toBe(detail.error_body)
   })
 
   it('keeps error_body for request modal when body is not generic wrapper', () => {
