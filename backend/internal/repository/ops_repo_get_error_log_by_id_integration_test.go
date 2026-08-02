@@ -57,6 +57,35 @@ func TestGetErrorLogByID_APIKeyPrefixAndUpstreamStatus(t *testing.T) {
 
 	credentialFailure, err := repo.GetErrorLogByID(ctx, credentialFailureID)
 	require.NoError(t, err)
+	require.Equal(t, 503, credentialFailure.StatusCode)
 	require.NotNil(t, credentialFailure.UpstreamStatusCode)
 	require.Zero(t, *credentialFailure.UpstreamStatusCode)
+
+	upstreamStatus := 504
+	timeoutID, err := repo.InsertErrorLog(ctx, &service.OpsInsertErrorLogInput{
+		RequestID:          "request-timeout-status-contract",
+		ErrorPhase:         "upstream",
+		ErrorType:          "api_error",
+		Severity:           "error",
+		StatusCode:         499,
+		UpstreamStatusCode: &upstreamStatus,
+		CreatedAt:          time.Now(),
+	})
+	require.NoError(t, err)
+
+	timeoutDetail, err := repo.GetErrorLogByID(ctx, timeoutID)
+	require.NoError(t, err)
+	require.Equal(t, 499, timeoutDetail.StatusCode)
+	require.NotNil(t, timeoutDetail.UpstreamStatusCode)
+	require.Equal(t, 504, *timeoutDetail.UpstreamStatusCode)
+
+	timeoutList, err := repo.ListErrorLogs(ctx, &service.OpsErrorLogFilter{
+		RequestID: "request-timeout-status-contract",
+		View:      "all",
+	})
+	require.NoError(t, err)
+	require.Len(t, timeoutList.Errors, 1)
+	require.Equal(t, 499, timeoutList.Errors[0].StatusCode)
+	require.NotNil(t, timeoutList.Errors[0].UpstreamStatusCode)
+	require.Equal(t, 504, *timeoutList.Errors[0].UpstreamStatusCode)
 }

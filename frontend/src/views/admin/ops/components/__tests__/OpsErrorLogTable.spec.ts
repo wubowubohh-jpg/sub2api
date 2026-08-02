@@ -16,7 +16,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
 const TooltipStub = { template: '<div><slot /></div>' }
 const PaginationStub = { template: '<div class="pagination-stub" />' }
 
-function mountTable(row: Partial<OpsErrorLog>) {
+function mountTable(row: Partial<OpsErrorLog>, errorType?: 'request' | 'upstream') {
   const base = {
     id: 1,
     created_at: '2026-06-05T23:59:50Z',
@@ -39,7 +39,7 @@ function mountTable(row: Partial<OpsErrorLog>) {
   } as OpsErrorLog
 
   return mount(OpsErrorLogTable, {
-    props: { rows: [base], total: 1, loading: false, page: 1, pageSize: 20 },
+    props: { rows: [base], total: 1, loading: false, page: 1, pageSize: 20, errorType },
     global: { stubs: { 'el-tooltip': TooltipStub, Pagination: PaginationStub } },
   })
 }
@@ -81,6 +81,22 @@ describe('OpsErrorLogTable user/api-key/account columns', () => {
 // 防回归:组件用 admin.ops.errorLog.* 命名空间。若键写错命名空间(如误放到
 // errorDetail),界面会显示原始路径字符串而非译文。vitest 的 vue-i18n 为 runtime-only
 // (无消息编译器,t() 对任何键都回退返回 key),故直接校验 locale 对象的命名空间含这些键。
+describe('OpsErrorLogTable status semantics', () => {
+  it('shows the downstream status in request view', () => {
+    const wrapper = mountTable({ status_code: 499, upstream_status_code: 504 }, 'request')
+
+    expect(wrapper.text()).toContain('499')
+    expect(wrapper.text()).not.toContain('504')
+  })
+
+  it('shows the provider status in upstream view', () => {
+    const wrapper = mountTable({ status_code: 499, upstream_status_code: 504 }, 'upstream')
+
+    expect(wrapper.text()).toContain('504')
+    expect(wrapper.text()).not.toContain('499')
+  })
+})
+
 describe('OpsErrorLogTable i18n keys exist in the errorLog namespace', () => {
   const locales: Record<string, any> = { zh: zhLocale, en: enLocale }
   for (const [name, msgs] of Object.entries(locales)) {

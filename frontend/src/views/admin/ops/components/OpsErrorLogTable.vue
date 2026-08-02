@@ -108,8 +108,8 @@
 
         <template #cell-status="{ row }">
           <div class="flex items-center gap-1.5">
-            <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium" :class="getStatusClass(row.status_code)">
-              {{ row.status_code }}
+            <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium" :class="getStatusClass(displayStatusCode(row))">
+              {{ displayStatusCode(row) }}
             </span>
             <span
               v-if="row.severity"
@@ -284,6 +284,8 @@ interface Props {
   loading: boolean
   page: number
   pageSize: number
+  /** Selects the client or provider status without changing the API field semantics. */
+  errorType?: 'request' | 'upstream'
   /** 用户邮箱可点击(emit userClick),仅在有弹窗承接的使用方开启 */
   userClickable?: boolean
   /** 列设置:仅显示这些 key 的列;不传则全量 */
@@ -303,6 +305,13 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+function displayStatusCode(log: OpsErrorLog): number {
+  if (props.errorType === 'upstream') {
+    return log.upstream_status_code ?? log.status_code
+  }
+  return log.status_code
+}
 
 function onSort(key: string, order: 'asc' | 'desc') {
   emit('sort', mapErrorSortKey(key), order)
