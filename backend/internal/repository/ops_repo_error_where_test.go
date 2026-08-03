@@ -46,37 +46,3 @@ func TestBuildOpsErrorLogsWhere_UserQueryUsesExistsSubquery(t *testing.T) {
 		t.Fatalf("where should include EXISTS user email condition: %s", where)
 	}
 }
-
-func TestOpsErrorLogsStatusCodeSemanticsByView(t *testing.T) {
-	requestFilter := &service.OpsErrorLogFilter{
-		StatusCodes: []int{499},
-		SortBy:      "status_code",
-		SortOrder:   "asc",
-	}
-	requestWhere, _ := buildOpsErrorLogsWhere(requestFilter)
-	if !strings.Contains(requestWhere, "COALESCE(e.status_code, 0) = ANY($") {
-		t.Fatalf("request view must filter by downstream status: %s", requestWhere)
-	}
-	if strings.Contains(requestWhere, "COALESCE(e.upstream_status_code, e.status_code, 0) = ANY($") {
-		t.Fatalf("request view must not filter by upstream status: %s", requestWhere)
-	}
-	requestOrder := opsErrorLogsOrderBy(requestFilter)
-	if requestOrder != "COALESCE(e.status_code, 0) ASC, e.id ASC" {
-		t.Fatalf("request view status order = %q", requestOrder)
-	}
-
-	upstreamFilter := &service.OpsErrorLogFilter{
-		IncludeRecoveredUpstream: true,
-		StatusCodes:              []int{504},
-		SortBy:                   "status_code",
-		SortOrder:                "desc",
-	}
-	upstreamWhere, _ := buildOpsErrorLogsWhere(upstreamFilter)
-	if !strings.Contains(upstreamWhere, "COALESCE(e.upstream_status_code, e.status_code, 0) = ANY($") {
-		t.Fatalf("provider-health view must filter by upstream-first status: %s", upstreamWhere)
-	}
-	upstreamOrder := opsErrorLogsOrderBy(upstreamFilter)
-	if upstreamOrder != "COALESCE(e.upstream_status_code, e.status_code, 0) DESC, e.id DESC" {
-		t.Fatalf("provider-health view status order = %q", upstreamOrder)
-	}
-}

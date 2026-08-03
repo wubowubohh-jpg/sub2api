@@ -41,5 +41,5 @@ export function resolvePrimaryResponseBody(
 
   // Request details must reflect the actual client-visible response. Raw
   // provider diagnostics remain available in the dedicated upstream section.
-  return errorBody
+  return errorBody || upstreamPayload
 }

@@ -69,16 +69,13 @@ describe('errorDetailResponse', () => {
     expect(resolvePrimaryResponseBody(detail, 'upstream')).toBe('provider 503 overloaded')
   })
 
-  it('does not expose upstream payload as the client response when error_body is empty', () => {
+  it('falls back to upstream payload when request error_body is empty', () => {
     const detail = makeDetail({
       error_body: '',
-      upstream_error_detail: '<html><title>504 Gateway Time-out</title></html>'
+      upstream_error_message: 'dial tcp timeout'
     })
 
-    expect(resolvePrimaryResponseBody(detail, 'request')).toBe('')
-    expect(resolvePrimaryResponseBody(detail, 'upstream')).toBe(
-      '<html><title>504 Gateway Time-out</title></html>'
-    )
+    expect(resolvePrimaryResponseBody(detail, 'request')).toBe('dial tcp timeout')
   })
 
   it('resolves upstream payload by detail -> events -> message priority', () => {

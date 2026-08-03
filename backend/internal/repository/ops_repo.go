@@ -186,9 +186,10 @@ func opsErrorLogsOrderBy(filter *service.OpsErrorLogFilter) string {
 	case "model":
 		column = "COALESCE(NULLIF(TRIM(e.requested_model), ''), e.model)"
 	case "status_code":
-		// Request views sort by the client-visible status; provider-health views
-		// keep their upstream-first effective status semantics.
-		column = opsErrorLogsStatusCodeExpr(filter)
+		// 与展示列/过滤保持同义:列表展示 COALESCE(upstream_status_code, status_code, 0),
+		// status_code 过滤也用同一表达式,故排序必须一致——否则 recovered upstream 行
+		//（status_code<400 但展示上游 5xx）排序键与显示值/分页切分不符。
+		column = "COALESCE(e.upstream_status_code, e.status_code, 0)"
 	default:
 		column = "e.created_at"
 	}
@@ -198,16 +199,6 @@ func opsErrorLogsOrderBy(filter *service.OpsErrorLogFilter) string {
 		dir = "ASC"
 	}
 	return fmt.Sprintf("%s %s, e.id %s", column, dir, dir)
-}
-
-// opsErrorLogsStatusCodeExpr keeps request-error queries aligned with the
-// client-visible status while preserving upstream-first semantics for the
-// provider-health view, which includes recovered requests.
-func opsErrorLogsStatusCodeExpr(filter *service.OpsErrorLogFilter) string {
-	if filter != nil && filter.IncludeRecoveredUpstream {
-		return "COALESCE(e.upstream_status_code, e.status_code, 0)"
-	}
-	return "COALESCE(e.status_code, 0)"
 }
 
 func (r *opsRepository) ListErrorLogs(ctx context.Context, filter *service.OpsErrorLogFilter) (*service.OpsErrorLogList, error) {
@@ -249,8 +240,7 @@ SELECT
   COALESCE(e.error_owner, ''),
   COALESCE(e.error_source, ''),
   e.severity,
-  COALESCE(e.status_code, 0),
-  e.upstream_status_code,
+  COALESCE(e.upstream_status_code, e.status_code, 0),
   COALESCE(e.platform, ''),
   COALESCE(e.model, ''),
   COALESCE(e.resolved, false),
@@ -298,7 +288,6 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 	for rows.Next() {
 		var item service.OpsErrorLog
 		var statusCode sql.NullInt64
-		var upstreamStatusCode sql.NullInt64
 		var clientIP sql.NullString
 		var userID sql.NullInt64
 		var apiKeyID sql.NullInt64
@@ -322,7 +311,6 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 			&item.Source,
 			&item.Severity,
 			&statusCode,
-			&upstreamStatusCode,
 			&item.Platform,
 			&item.Model,
 			&item.Resolved,
@@ -363,10 +351,6 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 		}
 		item.ResolvedByUserName = resolvedByName
 		item.StatusCode = int(statusCode.Int64)
-		if upstreamStatusCode.Valid {
-			v := int(upstreamStatusCode.Int64)
-			item.UpstreamStatusCode = &v
-		}
 		if clientIP.Valid {
 			s := clientIP.String
 			item.ClientIP = &s
@@ -427,7 +411,7 @@ SELECT
   COALESCE(e.error_owner, ''),
   COALESCE(e.error_source, ''),
   e.severity,
-  COALESCE(e.status_code, 0),
+  COALESCE(e.upstream_status_code, e.status_code, 0),
   COALESCE(e.platform, ''),
   COALESCE(e.model, ''),
   COALESCE(e.resolved, false),
@@ -994,12 +978,12 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	}
 	if len(filter.StatusCodes) > 0 {
 		args = append(args, pq.Array(filter.StatusCodes))
-		clauses = append(clauses, opsErrorLogsStatusCodeExpr(filter)+" = ANY($"+itoa(len(args))+")")
+		clauses = append(clauses, "COALESCE(e.upstream_status_code, e.status_code, 0) = ANY($"+itoa(len(args))+")")
 	} else if filter.StatusCodesOther {
 		// "Other" means: status codes not in the common list.
 		known := []int{400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504, 529}
 		args = append(args, pq.Array(known))
-		clauses = append(clauses, "NOT ("+opsErrorLogsStatusCodeExpr(filter)+" = ANY($"+itoa(len(args))+"))")
+		clauses = append(clauses, "NOT (COALESCE(e.upstream_status_code, e.status_code, 0) = ANY($"+itoa(len(args))+"))")
 	}
 	// Exact correlation keys (preferred for request↔upstream linkage).
 	if rid := strings.TrimSpace(filter.RequestID); rid != "" {
