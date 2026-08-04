@@ -133,16 +133,12 @@
 
                   <td class="px-4 py-4">
                     <template v-if="row.monitor">
-                      <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs font-medium text-gray-800 dark:text-dark-100">{{ row.monitor.primary_model }}</span>
-                        <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" :class="statusBadgeClass(row.monitor.primary_status)">
-                          {{ statusLabel(row.monitor.primary_status) }}
-                        </span>
-                      </div>
-                      <div v-if="row.monitor.extra_models.length" class="mt-2 flex flex-wrap gap-1.5">
+                      <div class="flex flex-wrap gap-1.5">
                         <span
-                          v-for="model in row.monitor.extra_models"
+                          v-for="model in monitorModels(row.monitor)"
                           :key="model.model"
+                          :data-model="model.model"
+                          :data-model-status="model.status"
                           class="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-1 text-[10px] text-gray-600 dark:border-dark-600 dark:text-dark-300"
                         >
                           <span class="h-1.5 w-1.5 rounded-full" :class="statusDotClass(model.status)" />
@@ -155,8 +151,12 @@
 
                   <td class="px-4 py-4">
                     <div class="flex flex-col items-start gap-2">
-                      <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusBadgeClass(row.monitor?.primary_status || '')">
-                        {{ row.monitor ? statusLabel(row.monitor.primary_status) : t('channelStatus.noRecord') }}
+                      <span
+                        class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
+                        :class="statusBadgeClass(groupMonitorStatus(row.monitor))"
+                        :data-group-status="groupMonitorStatus(row.monitor) || 'unknown'"
+                      >
+                        {{ row.monitor ? statusLabel(groupMonitorStatus(row.monitor)) : t('channelStatus.noRecord') }}
                       </span>
                       <span class="text-xs text-gray-400">{{ latestProbeText(row) }}</span>
                     </div>
@@ -244,21 +244,27 @@
                 <div class="min-w-0">
                   <h2 class="truncate font-semibold text-gray-900 dark:text-white">{{ row.group.name }}</h2>
                   <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                    {{ providerLabel(row.group.platform) }} · {{ row.monitor?.primary_model || t('channelStatus.noMonitor') }}
+                    {{ providerLabel(row.group.platform) }} · {{ row.group.is_exclusive ? t('channelStatus.exclusive') : t('channelStatus.public') }}
                   </p>
                 </div>
                 <div class="text-right">
                   <div class="font-mono text-base font-semibold text-gray-900 dark:text-white">{{ formatRate(row.group.effective_rate) }}x</div>
-                  <span class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium" :class="statusBadgeClass(row.monitor?.primary_status || '')">
-                    {{ row.monitor ? statusLabel(row.monitor.primary_status) : t('channelStatus.noRecord') }}
+                  <span
+                    class="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    :class="statusBadgeClass(groupMonitorStatus(row.monitor))"
+                    :data-group-status="groupMonitorStatus(row.monitor) || 'unknown'"
+                  >
+                    {{ row.monitor ? statusLabel(groupMonitorStatus(row.monitor)) : t('channelStatus.noRecord') }}
                   </span>
                 </div>
               </div>
 
-              <div v-if="row.monitor?.extra_models.length" class="flex flex-wrap gap-1.5">
+              <div v-if="row.monitor" class="flex flex-wrap gap-1.5">
                 <span
-                  v-for="model in row.monitor.extra_models"
+                  v-for="model in monitorModels(row.monitor)"
                   :key="model.model"
+                  :data-model="model.model"
+                  :data-model-status="model.status"
                   class="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-1 text-[10px] text-gray-600 dark:border-dark-600 dark:text-dark-300"
                 >
                   <span class="h-1.5 w-1.5 rounded-full" :class="statusDotClass(model.status)" />
@@ -348,6 +354,12 @@ type HallWindow = '6h' | '24h' | '7d' | '30d'
 interface HallRow {
   group: HallGroup
   monitor: UserMonitorView | null
+}
+
+interface MonitorModelStatus {
+  model: string
+  status: MonitorStatus
+  latency_ms: number | null
 }
 
 const { t } = useI18n()
@@ -511,6 +523,23 @@ function latestRecordText(monitor: UserMonitorView | null) {
 function latestProbeText(row: HallRow) {
   const checkedAt = latestRecord(row.monitor)?.checked_at || row.group.metrics.latest_probe_at
   return checkedAt ? formatRelativeTime(checkedAt) : t('channelStatus.noData')
+}
+
+function monitorModels(monitor: UserMonitorView): MonitorModelStatus[] {
+  return [{
+    model: monitor.primary_model,
+    status: monitor.primary_status,
+    latency_ms: monitor.primary_latency_ms,
+  }, ...monitor.extra_models]
+}
+
+function groupMonitorStatus(monitor: UserMonitorView | null): MonitorStatus | '' {
+  if (!monitor) return ''
+  const statuses = monitorModels(monitor).map(model => model.status)
+  if (statuses.some(status => status === 'operational' || status === 'degraded')) return 'operational'
+  if (statuses.some(status => status === 'failed')) return 'failed'
+  if (statuses.some(status => status === 'error')) return 'error'
+  return ''
 }
 
 function statusDotClass(status: MonitorStatus) {

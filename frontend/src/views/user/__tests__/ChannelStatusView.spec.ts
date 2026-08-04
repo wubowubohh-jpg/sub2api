@@ -103,11 +103,11 @@ describe('ChannelStatusView supplier hall', () => {
         provider: 'openai',
         group_name: 'A0001-codex-plus',
         primary_model: 'gpt-5.5',
-        primary_status: 'operational',
+        primary_status: 'failed',
         primary_latency_ms: 390,
         primary_ping_latency_ms: 42,
         availability_7d: 99.2,
-        extra_models: [{ model: 'gpt-5.4', status: 'degraded', latency_ms: 680 }],
+        extra_models: [{ model: 'gpt-5.4', status: 'operational', latency_ms: 680 }],
         timeline: [
           { status: 'operational', latency_ms: 390, ping_latency_ms: 42, checked_at: '2026-08-05T01:00:00Z' },
           { status: 'failed', latency_ms: null, ping_latency_ms: 50, checked_at: '2026-08-05T00:55:00Z' },
@@ -143,6 +143,10 @@ describe('ChannelStatusView supplier hall', () => {
     expect(text).toContain('0.05x')
     expect(text).toContain('gpt-5.5')
     expect(text).toContain('gpt-5.4')
+    const modelBlocks = wrapper.findAll('tr[data-group-id="7"] [data-model]')
+    expect(modelBlocks.map(block => block.attributes('data-model'))).toEqual(['gpt-5.5', 'gpt-5.4'])
+    expect(modelBlocks.map(block => block.attributes('data-model-status'))).toEqual(['failed', 'operational'])
+    expect(wrapper.get('tr[data-group-id="7"] [data-group-status]').attributes('data-group-status')).toBe('operational')
     expect(text).toContain('390ms')
     expect(text).toContain('42ms')
     expect(text).toContain('99.5%')
