@@ -128,6 +128,9 @@ func GroupFromServiceShallow(g *service.Group) *Group {
 		return nil
 	}
 	out := groupFromServiceBase(g)
+	if g.SupplierID != nil {
+		out.Description = ""
+	}
 	return &out
 }
 

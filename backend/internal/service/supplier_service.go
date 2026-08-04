@@ -58,6 +58,19 @@ type SupplierResourceApplication struct {
 	RateMultiplier  *float64 `json:"rate_multiplier"`
 }
 
+type SupplierResourceAdminUpdate struct {
+	GroupName           string   `json:"group_name"`
+	RelayName           string   `json:"relay_name"`
+	RelayURL            string   `json:"relay_url"`
+	APIKey              string   `json:"api_key"`
+	MonitorModel        string   `json:"monitor_model"`
+	SupportedModels     []string `json:"supported_models"`
+	ProbeEnabled        bool     `json:"upstream_billing_probe_enabled"`
+	RateMultiplier      float64  `json:"rate_multiplier"`
+	AdminRateAdjustment *float64 `json:"admin_rate_adjustment"`
+	ReviewNote          string   `json:"review_note"`
+}
+
 const supplierCredentialCipherPrefix = "enc:v1:"
 
 type SupplierResourceProbeView struct {
@@ -493,6 +506,180 @@ func (s *SupplierService) AdminUpdateResourceRequestRate(ctx context.Context, re
 	return s.updateResourceRequestRate(ctx, nil, requestID, rate, adjustment)
 }
 
+// AdminUpdateResourceRequest updates all administrator-editable resource
+// fields. Approved resources keep their request, group, account and monitor in
+// sync in one transaction.
+func (s *SupplierService) AdminUpdateResourceRequest(ctx context.Context, requestID int64, in SupplierResourceAdminUpdate) (*SupplierResourceRequestView, error) {
+	req, err := s.db.SupplierResourceRequest.Get(ctx, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("resource application not found")
+	}
+
+	groupName, err := supplierMarketplaceGroupName(req.SupplierID, in.GroupName)
+	if err != nil {
+		return nil, err
+	}
+	relayName := strings.TrimSpace(in.RelayName)
+	if relayName == "" || len([]rune(relayName)) > 100 {
+		return nil, fmt.Errorf("invalid relay name")
+	}
+	relayURL, err := urlvalidator.ValidateHTTPSURL(strings.TrimSpace(in.RelayURL), urlvalidator.ValidationOptions{AllowPrivate: false})
+	if err != nil {
+		return nil, fmt.Errorf("invalid relay url")
+	}
+	models, monitorModel, err := normalizeSupplierResourceModels(in.SupportedModels, in.MonitorModel)
+	if err != nil {
+		return nil, err
+	}
+	if !validSupplierRate(in.RateMultiplier) {
+		return nil, fmt.Errorf("invalid supplier rate")
+	}
+	if in.AdminRateAdjustment != nil && !validSupplierRate(*in.AdminRateAdjustment) {
+		return nil, fmt.Errorf("invalid administrator rate increment")
+	}
+	if req.GroupID == nil && in.AdminRateAdjustment != nil {
+		return nil, fmt.Errorf("administrator rate increment requires an approved resource")
+	}
+
+	groupQuery := s.db.Group.Query().Where(group.NameEQ(groupName))
+	if req.GroupID != nil {
+		groupQuery.Where(group.IDNEQ(*req.GroupID))
+	}
+	if exists, queryErr := groupQuery.Exist(ctx); queryErr != nil {
+		return nil, queryErr
+	} else if exists {
+		return nil, fmt.Errorf("supplier group name already exists")
+	}
+	if exists, queryErr := s.db.SupplierResourceRequest.Query().Where(
+		supplierresourcerequest.IDNEQ(req.ID),
+		supplierresourcerequest.GroupNameEQ(groupName),
+		supplierresourcerequest.StatusIn(supplierresourcerequest.StatusPending, supplierresourcerequest.StatusApproved),
+	).Exist(ctx); queryErr != nil {
+		return nil, queryErr
+	} else if exists {
+		return nil, fmt.Errorf("supplier group name already exists")
+	}
+
+	apiKey := strings.TrimSpace(in.APIKey)
+	var requestCiphertext, monitorCiphertext string
+	if apiKey != "" {
+		requestCiphertext, err = s.encryptSupplierAPIKey(apiKey)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt api key: %w", err)
+		}
+		if req.MonitorID != nil {
+			if s.encryptor == nil {
+				return nil, fmt.Errorf("supplier credential encryption is not configured")
+			}
+			monitorCiphertext, err = s.encryptor.Encrypt(apiKey)
+			if err != nil {
+				return nil, fmt.Errorf("encrypt monitor api key: %w", err)
+			}
+		}
+	}
+
+	modelMapping := make(map[string]any, len(models))
+	extraModels := make([]string, 0, len(models)-1)
+	for _, model := range models {
+		modelMapping[model] = model
+		if model != monitorModel {
+			extraModels = append(extraModels, model)
+		}
+	}
+
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	requestUpdate := tx.SupplierResourceRequest.UpdateOneID(req.ID).
+		SetGroupName(groupName).
+		SetRelayName(relayName).
+		SetRelayURL(relayURL).
+		SetModel(monitorModel).
+		SetSupportedModels(models).
+		SetProbeEnabled(in.ProbeEnabled).
+		SetRateMultiplier(in.RateMultiplier).
+		SetReviewNote(strings.TrimSpace(in.ReviewNote))
+	if requestCiphertext != "" {
+		requestUpdate.SetAPIKeyEncrypted(requestCiphertext)
+	}
+	if _, err = requestUpdate.Save(ctx); err != nil {
+		return nil, err
+	}
+
+	if req.GroupID != nil {
+		g, groupErr := tx.Group.Query().Where(group.ID(*req.GroupID), group.SupplierID(req.SupplierID)).Only(ctx)
+		if groupErr != nil {
+			return nil, fmt.Errorf("supplier group not found")
+		}
+		groupUpdate := tx.Group.UpdateOne(g).
+			SetName(groupName).
+			SetDescription(relayName).
+			SetRateMultiplier(in.RateMultiplier)
+		if in.AdminRateAdjustment != nil {
+			groupUpdate.SetSupplierAdminAdjustment(*in.AdminRateAdjustment)
+		}
+		if _, err = groupUpdate.Save(ctx); err != nil {
+			return nil, err
+		}
+
+		if req.AccountID == nil || req.MonitorID == nil {
+			return nil, fmt.Errorf("approved resource is missing its runtime resources")
+		}
+		a, accountErr := tx.Account.Query().Where(account.ID(*req.AccountID), account.SupplierID(req.SupplierID)).Only(ctx)
+		if accountErr != nil {
+			return nil, fmt.Errorf("supplier account not found")
+		}
+		credentials := shallowCopyMap(a.Credentials)
+		if credentials == nil {
+			credentials = make(map[string]any)
+		}
+		credentials["base_url"] = relayURL
+		credentials["model_mapping"] = modelMapping
+		if apiKey != "" {
+			credentials["api_key"] = apiKey
+		}
+		extra := shallowCopyMap(a.Extra)
+		if extra == nil {
+			extra = make(map[string]any)
+		}
+		extra[UpstreamBillingProbeEnabledExtraKey] = in.ProbeEnabled
+		if !in.ProbeEnabled {
+			extra[UpstreamBillingRateSyncEnabledExtraKey] = false
+		}
+		if _, err = tx.Account.UpdateOne(a).SetName(relayName).SetCredentials(credentials).SetExtra(extra).Save(ctx); err != nil {
+			return nil, err
+		}
+
+		monitor, monitorErr := tx.ChannelMonitor.Query().Where(channelmonitor.ID(*req.MonitorID), channelmonitor.GroupID(*req.GroupID)).Only(ctx)
+		if monitorErr != nil {
+			return nil, fmt.Errorf("supplier monitor not found")
+		}
+		monitorUpdate := tx.ChannelMonitor.UpdateOne(monitor).
+			SetName(relayName).
+			SetEndpoint(relayURL).
+			SetPrimaryModel(monitorModel).
+			SetExtraModels(extraModels).
+			SetGroupName(groupName)
+		if monitorCiphertext != "" {
+			monitorUpdate.SetAPIKeyEncrypted(monitorCiphertext)
+		}
+		if _, err = monitorUpdate.Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	if req.GroupID != nil && s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, *req.GroupID)
+	}
+	return s.resourceRequestView(ctx, req.SupplierID, req.ID)
+}
+
 func (s *SupplierService) updateResourceRequestRate(ctx context.Context, supplierID *int64, requestID int64, rate, adjustment *float64) (*SupplierResourceRequestView, error) {
 	if rate == nil && adjustment == nil {
 		return nil, fmt.Errorf("rate update is required")
@@ -827,7 +1014,18 @@ func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, 
 		return nil, err
 	}
 	defer tx.Rollback()
-	g, err := tx.Group.Create().SetSupplierID(req.SupplierID).SetName(groupName).SetDescription(req.RelayName).SetPlatform("openai").SetSubscriptionType("standard").SetRateMultiplier(req.RateMultiplier).SetStatus("active").SetIsExclusive(false).Save(ctx)
+	g, err := tx.Group.Create().
+		SetSupplierID(req.SupplierID).
+		SetName(groupName).
+		SetDescription(req.RelayName).
+		SetPlatform("openai").
+		SetSubscriptionType("standard").
+		SetRateMultiplier(req.RateMultiplier).
+		SetStatus("active").
+		SetIsExclusive(false).
+		SetRpmLimit(0).
+		SetMaxReasoningEffort("").
+		Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1374,7 +1572,7 @@ func (s *SupplierService) UpdateAccount(ctx context.Context, supplierID, account
 func (s *SupplierService) PublicGroups(ctx context.Context) ([]*dbent.Group, error) {
 	owner := group.HasSupplierWith(supplier.StatusEQ(supplier.StatusApproved))
 	owner = group.Or(group.SupplierIDIsNil(), owner)
-	return s.db.Group.Query().Where(group.StatusEQ("active"), group.SupplierForcedOffline(false), owner).WithSupplier().Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).All(ctx)
+	return s.db.Group.Query().Where(group.StatusEQ("active"), group.SupplierForcedOffline(false), owner).Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).All(ctx)
 }
 
 func (s *SupplierService) EffectiveRate(ctx context.Context, g *dbent.Group) (float64, float64, error) {

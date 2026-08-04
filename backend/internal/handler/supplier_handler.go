@@ -19,6 +19,17 @@ type SupplierHandler struct {
 	accountTestService *service.AccountTestService
 }
 
+type supplierHallItem struct {
+	ID            int64                        `json:"id"`
+	Name          string                       `json:"name"`
+	Description   string                       `json:"description"`
+	Platform      string                       `json:"platform"`
+	EffectiveRate float64                      `json:"effective_rate"`
+	Status        string                       `json:"status"`
+	IsExclusive   bool                         `json:"is_exclusive"`
+	Metrics       service.SupplierGroupMetrics `json:"metrics"`
+}
+
 func NewSupplierHandler(svc *service.SupplierService, accountTestService *service.AccountTestService) *SupplierHandler {
 	return &SupplierHandler{svc: svc, accountTestService: accountTestService}
 }
@@ -410,23 +421,9 @@ func (h *SupplierHandler) Hall(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	type item struct {
-		ID              int64                        `json:"id"`
-		Name            string                       `json:"name"`
-		Description     string                       `json:"description"`
-		Platform        string                       `json:"platform"`
-		BaseRate        float64                      `json:"base_rate"`
-		AdminAdjustment float64                      `json:"admin_adjustment"`
-		EffectiveRate   float64                      `json:"effective_rate"`
-		SupplierID      *int64                       `json:"supplier_id,omitempty"`
-		SupplierName    string                       `json:"supplier_name,omitempty"`
-		Status          string                       `json:"status"`
-		IsExclusive     bool                         `json:"is_exclusive"`
-		Metrics         service.SupplierGroupMetrics `json:"metrics"`
-	}
-	out := make([]item, 0, len(groups))
+	out := make([]supplierHallItem, 0, len(groups))
 	for _, g := range groups {
-		rate, adj, _ := h.svc.EffectiveRate(c, g)
+		rate, _, _ := h.svc.EffectiveRate(c, g)
 		window := 6 * time.Hour
 		switch c.Query("window") {
 		case "24h":
@@ -437,13 +434,7 @@ func (h *SupplierHandler) Hall(c *gin.Context) {
 			window = 30 * 24 * time.Hour
 		}
 		metrics, _ := h.svc.GroupMetrics(c, g.ID, time.Now().Add(-window))
-		name := ""
-		if g.Edges.Supplier != nil {
-			name = g.Edges.Supplier.Name
-		} else {
-			name = "平台分组"
-		}
-		out = append(out, item{g.ID, g.Name, ptrString(g.Description), g.Platform, g.RateMultiplier, adj, rate, g.SupplierID, name, g.Status, g.IsExclusive, metrics})
+		out = append(out, supplierHallItem{g.ID, g.Name, ptrString(g.Description), g.Platform, rate, g.Status, g.IsExclusive, metrics})
 	}
 	c.JSON(http.StatusOK, gin.H{"groups": out})
 }
@@ -664,6 +655,25 @@ func (h *SupplierHandler) AdminUpdateResourceRequestRate(c *gin.Context) {
 	item, err := h.svc.AdminUpdateResourceRequestRate(
 		c, id, in.RateMultiplier, in.AdminRateAdjustment,
 	)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *SupplierHandler) AdminUpdateResourceRequest(c *gin.Context) {
+	id, parseErr := strconv.ParseInt(c.Param("request_id"), 10, 64)
+	if parseErr != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application id"})
+		return
+	}
+	var in service.SupplierResourceAdminUpdate
+	if c.ShouldBindJSON(&in) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource update"})
+		return
+	}
+	item, err := h.svc.AdminUpdateResourceRequest(c, id, in)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

@@ -73,7 +73,7 @@
           <table class="w-full min-w-[980px] text-sm">
             <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-gray-950"><tr><th class="p-4">分组</th><th>中转站</th><th>地址</th><th>模型</th><th>状态</th><th class="pr-4 text-right">操作</th></tr></thead>
             <tbody>
-              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4"><div class="font-medium">{{ r.group_name }}</div><div class="mt-1 text-xs text-gray-500">供应商提交 {{ formatRate(r.rate_multiplier) }}</div><div class="mt-1 text-xs font-medium text-emerald-700">有效倍率 {{ formatRate(resourceEffectiveRate(r)) }}</div><div class="mt-1 max-w-64 text-xs text-gray-400">{{ resourceRateFormula(r) }}</div></td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td><div class="flex max-w-64 flex-wrap gap-1"><span v-for="model in resourceModels(r)" :key="model" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">{{ model }}</span></div><div class="mt-1 text-xs text-gray-400">监听 {{ r.monitor_model || r.probe_model || r.model }}</div></td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td><td class="space-x-3 pr-4 text-right"><button class="text-sky-700 hover:text-sky-800" @click="openResourceRate(r)">修改倍率</button><button v-if="r.status === 'pending'" class="text-sky-700 hover:text-sky-800" @click="openResourceTest(r)">模型测试</button><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button></td></tr>
+              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4"><div class="font-medium">{{ r.group_name }}</div><div class="mt-1 text-xs text-gray-500">供应商提交 {{ formatRate(r.rate_multiplier) }}</div><div class="mt-1 text-xs font-medium text-emerald-700">有效倍率 {{ formatRate(resourceEffectiveRate(r)) }}</div><div class="mt-1 max-w-64 text-xs text-gray-400">{{ resourceRateFormula(r) }}</div></td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td><div class="flex max-w-64 flex-wrap gap-1"><span v-for="model in resourceModels(r)" :key="model" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">{{ model }}</span></div><div class="mt-1 text-xs text-gray-400">监听 {{ r.monitor_model || r.probe_model || r.model }}</div></td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td><td class="space-x-3 pr-4 text-right"><button class="text-sky-700 hover:text-sky-800" @click="openResourceEdit(r)">编辑资源</button><button v-if="r.status === 'pending'" class="text-sky-700 hover:text-sky-800" @click="openResourceTest(r)">模型测试</button><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button></td></tr>
               <tr v-if="!resourcePage.length"><td colspan="6" class="p-16 text-center text-gray-400">暂无资源审核记录</td></tr>
             </tbody>
           </table>
@@ -103,26 +103,91 @@
       :test-endpoint="testingResourceEndpoint"
       @close="closeResourceTest"
     />
-    <BaseDialog :show="editingRateResource !== null" title="修改资源倍率" width="narrow" @close="closeResourceRate">
-      <div v-if="editingRateResource" class="space-y-4">
-        <p class="text-sm text-gray-500">{{ editingRateResource.group_name }} · {{ editingRateResource.relay_name }}</p>
-        <label class="block text-sm">
-          <span class="input-label">供应商提交倍率</span>
-          <input v-model.number="adminRateForm.rate_multiplier" type="number" min="0" step="0.0001" class="input mt-1 w-full" />
-        </label>
-        <label class="block text-sm">
-          <span class="input-label">管理员增加倍率</span>
-          <input v-model.number="adminRateForm.admin_rate_adjustment" type="number" min="0" step="0.0001" class="input mt-1 w-full" :disabled="!editingRateResource.group_id" />
-          <span v-if="!editingRateResource.group_id" class="mt-1 block text-xs text-amber-600">审核通过并创建分组后可设置。</span>
-        </label>
-        <div class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-          {{ editingRatePreview }}
+    <BaseDialog :show="editingResource !== null" title="编辑供应商资源" width="wide" @close="closeResourceEdit">
+      <div v-if="editingResource" class="space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-4 dark:border-gray-800">
+          <div>
+            <div class="font-medium text-gray-900 dark:text-white">申请 #{{ editingResource.id }}</div>
+            <div class="mt-1 text-xs text-gray-500">供应商 ID {{ editingResource.supplier_id }} · {{ statusLabel(editingResource.status) }}</div>
+          </div>
+          <div class="text-right text-xs text-gray-500">
+            <div v-if="editingResource.group_id">分组 {{ editingResource.group_id }}</div>
+            <div v-if="editingResource.account_id">账号 {{ editingResource.account_id }} · 监听 {{ editingResource.monitor_id }}</div>
+          </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block text-sm">
+            <span class="input-label">大厅分组后缀</span>
+            <input v-model.trim="resourceEditForm.group_name" maxlength="90" class="input mt-1 w-full" />
+          </label>
+          <label class="block text-sm">
+            <span class="input-label">中转站名称</span>
+            <input v-model.trim="resourceEditForm.relay_name" maxlength="100" class="input mt-1 w-full" />
+          </label>
+          <label class="block text-sm md:col-span-2">
+            <span class="input-label">API 基础地址</span>
+            <input v-model.trim="resourceEditForm.relay_url" type="url" class="input mt-1 w-full" />
+          </label>
+          <label class="block text-sm md:col-span-2">
+            <span class="input-label">替换 API Key</span>
+            <input v-model="resourceEditForm.api_key" type="password" autocomplete="new-password" placeholder="留空保持当前凭据" class="input mt-1 w-full" />
+          </label>
+          <label class="block text-sm">
+            <span class="input-label">供应商基础倍率</span>
+            <input v-model.number="resourceEditForm.rate_multiplier" type="number" min="0" step="0.0001" class="input mt-1 w-full" />
+          </label>
+          <label class="block text-sm">
+            <span class="input-label">管理员增加倍率</span>
+            <input v-model.number="resourceEditForm.admin_rate_adjustment" type="number" min="0" step="0.0001" class="input mt-1 w-full" :disabled="!editingResource.group_id" />
+            <span v-if="!editingResource.group_id" class="mt-1 block text-xs text-amber-600">审核通过并创建分组后可设置。</span>
+          </label>
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-gray-700 dark:text-gray-200">支持模型</legend>
+          <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <label
+              v-for="model in resourceModelCatalog"
+              :key="model"
+              class="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+              :class="resourceEditForm.supported_models.includes(model) ? 'border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-700 dark:bg-teal-900/20 dark:text-teal-200' : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300'"
+            >
+              <input :checked="resourceEditForm.supported_models.includes(model)" type="checkbox" class="h-4 w-4 rounded" @change="toggleResourceModel(model)" />
+              <span class="truncate">{{ model }}</span>
+            </label>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <input v-model.trim="customResourceModel" class="input min-w-0 flex-1" placeholder="添加其他模型 ID" @keydown.enter.prevent="addResourceModel" />
+            <button type="button" class="btn btn-secondary" @click="addResourceModel">添加模型</button>
+          </div>
+        </fieldset>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block text-sm">
+            <span class="input-label">默认监听模型</span>
+            <select v-model="resourceEditForm.monitor_model" class="input mt-1 w-full">
+              <option v-for="model in resourceEditForm.supported_models" :key="model" :value="model">{{ model }}</option>
+            </select>
+          </label>
+          <div class="flex items-center justify-between rounded-lg border px-4 py-3 dark:border-gray-700">
+            <div class="text-sm font-medium text-gray-700 dark:text-gray-200">探测上游倍率</div>
+            <Toggle v-model="resourceEditForm.upstream_billing_probe_enabled" />
+          </div>
+          <label class="block text-sm md:col-span-2">
+            <span class="input-label">审核备注</span>
+            <textarea v-model="resourceEditForm.review_note" rows="3" class="input mt-1 w-full resize-y" />
+          </label>
+        </div>
+
+        <div class="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          {{ resourceEditPreview }}
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-secondary" :disabled="rateSaving" @click="closeResourceRate">取消</button>
-        <button class="btn btn-primary" :disabled="rateSaving || !adminRateValid" @click="saveResourceRate">
-          {{ rateSaving ? '保存中' : '保存倍率' }}
+        <button class="btn btn-secondary" :disabled="resourceSaving" @click="closeResourceEdit">取消</button>
+        <button class="btn btn-primary" :disabled="resourceSaving || !resourceEditValid" @click="saveResourceEdit">
+          {{ resourceSaving ? '保存中' : '保存全部修改' }}
         </button>
       </template>
     </BaseDialog>
@@ -133,6 +198,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Toggle from '@/components/common/Toggle.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { adminSupplierAPI, type Supplier, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
 import type { ClaudeModel } from '@/types'
@@ -148,10 +214,32 @@ const items = ref<Supplier[]>([])
 const resourceRequests = ref<SupplierResourceRequest[]>([])
 const withdrawals = ref<SupplierWithdrawal[]>([])
 const testingResource = ref<SupplierResourceRequest | null>(null)
-const editingRateResource = ref<SupplierResourceRequest | null>(null)
-const rateSaving = ref(false)
+const editingResource = ref<SupplierResourceRequest | null>(null)
+const resourceSaving = ref(false)
+const customResourceModel = ref('')
 const settingsSaving = ref(false)
-const adminRateForm = reactive({ rate_multiplier: 0, admin_rate_adjustment: 0 })
+const builtInResourceModels = [
+  'gpt-5.4',
+  'gpt-5.4-mini',
+  'gpt-5.5',
+  'gpt-5.6',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+  'gpt-5.3-codex-spark',
+]
+const resourceEditForm = reactive({
+  group_name: '',
+  relay_name: '',
+  relay_url: '',
+  api_key: '',
+  rate_multiplier: 0,
+  admin_rate_adjustment: 0,
+  monitor_model: '',
+  supported_models: [] as string[],
+  upstream_billing_probe_enabled: true,
+  review_note: '',
+})
 const error = ref('')
 const settings = reactive({ global_rate_adjustment: 0, settlement_delay_days: 7 })
 const settingsValid = computed(() => {
@@ -200,18 +288,29 @@ const testingResourceModels = computed<ClaudeModel[]>(() => {
 const testingResourceEndpoint = computed(() => testingResource.value
   ? `/admin/suppliers/resource-requests/${testingResource.value.id}/test`
   : '')
-const adminRateValid = computed(() => {
-  const rate = Number(adminRateForm.rate_multiplier)
-  const adjustment = Number(adminRateForm.admin_rate_adjustment)
-  return Number.isFinite(rate) && rate >= 0 && Number.isFinite(adjustment) && adjustment >= 0
+const resourceModelCatalog = computed(() => [...new Set([...builtInResourceModels, ...resourceEditForm.supported_models])])
+const resourceEditValid = computed(() => {
+  const rate = Number(resourceEditForm.rate_multiplier)
+  const adjustment = Number(resourceEditForm.admin_rate_adjustment)
+  return Boolean(
+    resourceEditForm.group_name.trim()
+    && resourceEditForm.relay_name.trim()
+    && resourceEditForm.relay_url.trim()
+    && Number.isFinite(rate)
+    && rate >= 0
+    && Number.isFinite(adjustment)
+    && adjustment >= 0
+    && resourceEditForm.supported_models.length
+    && resourceEditForm.supported_models.includes(resourceEditForm.monitor_model),
+  )
 })
-const editingRatePreview = computed(() => {
-  if (!editingRateResource.value) return ''
-  const applied = Number(adminRateForm.rate_multiplier)
-  const adjustment = editingRateResource.value.group_id
-    ? Number(adminRateForm.admin_rate_adjustment)
-    : resourceAdjustment(editingRateResource.value)
-  return `设置倍率 ${formatRate(applied)} + 管理员增加 ${formatRate(adjustment)} = 有效倍率 ${formatRate(applied + adjustment)}`
+const resourceEditPreview = computed(() => {
+  if (!editingResource.value) return ''
+  const rate = Number(resourceEditForm.rate_multiplier)
+  const adjustment = editingResource.value.group_id
+    ? Number(resourceEditForm.admin_rate_adjustment)
+    : resourceAdjustment(editingResource.value)
+  return `有效倍率 ${formatRate(rate + adjustment)} = 基础倍率 ${formatRate(rate)} + 管理员增加 ${formatRate(adjustment)}`
 })
 
 function resourceModels(resource: SupplierResourceRequest) {
@@ -290,33 +389,76 @@ async function reviewResource(id: number, approved: boolean) {
 }
 function openResourceTest(resource: SupplierResourceRequest) { testingResource.value = resource }
 function closeResourceTest() { testingResource.value = null }
-function openResourceRate(resource: SupplierResourceRequest) {
-  editingRateResource.value = resource
-  adminRateForm.rate_multiplier = Number(resource.rate_multiplier || 0)
-  adminRateForm.admin_rate_adjustment = resourceAdjustment(resource)
+function resourceGroupSuffix(resource: SupplierResourceRequest) {
+  return resource.group_name_suffix || resource.group_name.replace(/^A\d+-/, '')
 }
-function closeResourceRate() {
-  if (rateSaving.value) return
-  editingRateResource.value = null
+
+function openResourceEdit(resource: SupplierResourceRequest) {
+  editingResource.value = resource
+  resourceEditForm.group_name = resourceGroupSuffix(resource)
+  resourceEditForm.relay_name = resource.relay_name
+  resourceEditForm.relay_url = resource.relay_url
+  resourceEditForm.api_key = ''
+  resourceEditForm.rate_multiplier = Number(resource.rate_multiplier || 0)
+  resourceEditForm.admin_rate_adjustment = resourceAdjustment(resource)
+  resourceEditForm.supported_models = [...resourceModels(resource)]
+  resourceEditForm.monitor_model = resource.monitor_model || resource.probe_model || resource.model || resourceEditForm.supported_models[0] || ''
+  resourceEditForm.upstream_billing_probe_enabled = resource.upstream_billing_probe_enabled ?? resource.probe_enabled ?? true
+  resourceEditForm.review_note = resource.review_note || ''
+  customResourceModel.value = ''
 }
-async function saveResourceRate() {
-  if (!editingRateResource.value || !adminRateValid.value) return
-  rateSaving.value = true
+
+function closeResourceEdit() {
+  if (resourceSaving.value) return
+  editingResource.value = null
+}
+
+function toggleResourceModel(model: string) {
+  const index = resourceEditForm.supported_models.indexOf(model)
+  if (index >= 0) {
+    resourceEditForm.supported_models.splice(index, 1)
+    if (resourceEditForm.monitor_model === model) {
+      resourceEditForm.monitor_model = resourceEditForm.supported_models[0] || ''
+    }
+  } else {
+    resourceEditForm.supported_models.push(model)
+    if (!resourceEditForm.monitor_model) resourceEditForm.monitor_model = model
+  }
+}
+
+function addResourceModel() {
+  const model = customResourceModel.value.trim()
+  if (!model) return
+  if (!resourceEditForm.supported_models.includes(model)) resourceEditForm.supported_models.push(model)
+  if (!resourceEditForm.monitor_model) resourceEditForm.monitor_model = model
+  customResourceModel.value = ''
+}
+
+async function saveResourceEdit() {
+  if (!editingResource.value || !resourceEditValid.value) return
+  resourceSaving.value = true
   error.value = ''
   try {
-    const resource = editingRateResource.value
-    const updated = await adminSupplierAPI.updateResourceRate(
-      resource.id,
-      Number(adminRateForm.rate_multiplier),
-      resource.group_id ? Number(adminRateForm.admin_rate_adjustment) : undefined,
-    )
+    const resource = editingResource.value
+    const updated = await adminSupplierAPI.updateResourceRequest(resource.id, {
+      group_name: resourceEditForm.group_name.trim(),
+      relay_name: resourceEditForm.relay_name.trim(),
+      relay_url: resourceEditForm.relay_url.trim(),
+      api_key: resourceEditForm.api_key.trim() || undefined,
+      monitor_model: resourceEditForm.monitor_model,
+      supported_models: [...resourceEditForm.supported_models],
+      upstream_billing_probe_enabled: resourceEditForm.upstream_billing_probe_enabled,
+      rate_multiplier: Number(resourceEditForm.rate_multiplier),
+      admin_rate_adjustment: resource.group_id ? Number(resourceEditForm.admin_rate_adjustment) : undefined,
+      review_note: resourceEditForm.review_note,
+    })
     const index = resourceRequests.value.findIndex(item => item.id === updated.id)
     if (index >= 0) resourceRequests.value[index] = updated
-    editingRateResource.value = null
+    editingResource.value = null
   } catch (e) {
-    error.value = extractApiErrorMessage(e, '倍率更新失败')
+    error.value = extractApiErrorMessage(e, '资源更新失败')
   } finally {
-    rateSaving.value = false
+    resourceSaving.value = false
   }
 }
 async function updateWithdrawal(id: number, status: 'approved' | 'rejected') { const note = status === 'rejected' ? (prompt('驳回原因') || '') : ''; await adminSupplierAPI.reviewWithdrawal(id, status, note); await loadTab('withdrawals', true) }

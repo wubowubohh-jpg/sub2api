@@ -244,6 +244,11 @@ func TestSupplierReviewResourceRequestCreatesTestableOpenAIAccount(t *testing.T)
 	createdGroup := svc.db.Group.GetX(ctx, *approved.GroupID)
 	require.Equal(t, fmt.Sprintf("A%04d-Approved Group", sp.ID), createdGroup.Name)
 	require.InDelta(t, 0.06, createdGroup.RateMultiplier, 0.000001)
+	require.Nil(t, createdGroup.DailyLimitUsd)
+	require.Nil(t, createdGroup.WeeklyLimitUsd)
+	require.Nil(t, createdGroup.MonthlyLimitUsd)
+	require.Zero(t, createdGroup.RpmLimit)
+	require.Empty(t, createdGroup.MaxReasoningEffort)
 	require.Equal(t, AccountTypeAPIKey, account.Type)
 	require.Equal(t, "sk-approved-secret", account.Credentials["api_key"])
 	require.Equal(t, "https://relay.example.com/v1", account.Credentials["base_url"])
@@ -354,6 +359,78 @@ func TestSupplierResourceRateUpdatesConfiguredRateImmediately(t *testing.T) {
 	require.Equal(t, "configured", view.RateSource)
 	require.InDelta(t, 0.06, view.AppliedRateMultiplier, 0.000001)
 	require.InDelta(t, 0.08, view.EffectiveRateMultiplier, 0.000001)
+}
+
+func TestAdminUpdateSupplierResourceSynchronizesRuntimeResources(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	svc.encryptor = supplierTestEncryptor{}
+	invalidator := &authCacheInvalidatorStub{}
+	svc.authCacheInvalidator = invalidator
+	user := svc.db.User.Create().SetEmail("admin-resource-edit@example.com").SetPasswordHash("x").SaveX(ctx)
+	sp := svc.db.Supplier.Create().SetUserID(user.ID).SetName("Editable Supplier").SetRelayURL("https://supplier.example.com").SetStatus("approved").SaveX(ctx)
+	req := svc.db.SupplierResourceRequest.Create().
+		SetSupplierID(sp.ID).
+		SetGroupName("original").
+		SetRelayName("Original Relay").
+		SetRelayURL("https://old.example.com/v1").
+		SetAPIKeyEncrypted("encrypted:sk-old-secret").
+		SetModel("gpt-5.5").
+		SetSupportedModels([]string{"gpt-5.5"}).
+		SetProbeEnabled(true).
+		SetRateMultiplier(0.04).
+		SaveX(ctx)
+	approved, err := svc.ReviewResourceRequest(ctx, req.ID, user.ID, true, "initial review")
+	require.NoError(t, err)
+
+	adjustment := 0.015
+	view, err := svc.AdminUpdateResourceRequest(ctx, approved.ID, SupplierResourceAdminUpdate{
+		GroupName:           "premium-line",
+		RelayName:           "Premium Relay",
+		RelayURL:            "https://new.example.com/api",
+		APIKey:              "sk-new-secret",
+		MonitorModel:        "gpt-5.6",
+		SupportedModels:     []string{"gpt-5.6", "gpt-5.5"},
+		ProbeEnabled:        false,
+		RateMultiplier:      0.075,
+		AdminRateAdjustment: &adjustment,
+		ReviewNote:          "administrator updated all resource fields",
+	})
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf("A%04d-premium-line", sp.ID), view.GroupName)
+	require.Equal(t, "Premium Relay", view.RelayName)
+	require.Equal(t, "https://new.example.com/api", view.RelayURL)
+	require.Equal(t, "gpt-5.6", view.Model)
+	require.Equal(t, []string{"gpt-5.6", "gpt-5.5"}, view.SupportedModels)
+	require.False(t, view.ProbeEnabled)
+	require.InDelta(t, 0.075, view.RateMultiplier, 0.000001)
+	require.InDelta(t, adjustment, view.AdminRateAdjustment, 0.000001)
+	require.Equal(t, "administrator updated all resource fields", view.ReviewNote)
+
+	storedRequest := svc.db.SupplierResourceRequest.GetX(ctx, approved.ID)
+	require.Equal(t, "enc:v1:encrypted:sk-new-secret", storedRequest.APIKeyEncrypted)
+	storedGroup := svc.db.Group.GetX(ctx, *approved.GroupID)
+	require.Equal(t, view.GroupName, storedGroup.Name)
+	require.Equal(t, "Premium Relay", *storedGroup.Description)
+	require.InDelta(t, 0.075, storedGroup.RateMultiplier, 0.000001)
+	require.NotNil(t, storedGroup.SupplierAdminAdjustment)
+	require.InDelta(t, adjustment, *storedGroup.SupplierAdminAdjustment, 0.000001)
+
+	storedAccount := svc.db.Account.GetX(ctx, *approved.AccountID)
+	require.Equal(t, "Premium Relay", storedAccount.Name)
+	require.Equal(t, "sk-new-secret", storedAccount.Credentials["api_key"])
+	require.Equal(t, "https://new.example.com/api", storedAccount.Credentials["base_url"])
+	require.Equal(t, map[string]any{"gpt-5.6": "gpt-5.6", "gpt-5.5": "gpt-5.5"}, storedAccount.Credentials["model_mapping"])
+	require.Equal(t, false, storedAccount.Extra[UpstreamBillingProbeEnabledExtraKey])
+	require.Equal(t, false, storedAccount.Extra[UpstreamBillingRateSyncEnabledExtraKey])
+
+	storedMonitor := svc.db.ChannelMonitor.GetX(ctx, *approved.MonitorID)
+	require.Equal(t, "Premium Relay", storedMonitor.Name)
+	require.Equal(t, "https://new.example.com/api", storedMonitor.Endpoint)
+	require.Equal(t, "gpt-5.6", storedMonitor.PrimaryModel)
+	require.Equal(t, []string{"gpt-5.5"}, storedMonitor.ExtraModels)
+	require.Equal(t, view.GroupName, storedMonitor.GroupName)
+	require.Equal(t, "encrypted:sk-new-secret", storedMonitor.APIKeyEncrypted)
+	require.Equal(t, []int64{*approved.GroupID}, invalidator.groupIDs)
 }
 
 func TestSupplierPendingResourceRateUpdateDoesNotTriggerReview(t *testing.T) {

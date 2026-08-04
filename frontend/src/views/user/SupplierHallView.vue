@@ -39,11 +39,10 @@
 
         <div v-else>
           <div class="hidden overflow-x-auto md:block">
-          <table class="w-full min-w-[1620px] text-left text-sm">
+          <table class="w-full min-w-[1480px] text-left text-sm">
             <thead class="border-b border-gray-200 bg-gray-50 text-xs font-medium text-gray-500 dark:border-dark-700 dark:bg-dark-800/60 dark:text-dark-400">
               <tr>
                 <th class="px-4 py-3">分组</th>
-                <th class="px-4 py-3">供应商</th>
                 <th class="px-4 py-3">最终倍率</th>
                 <th class="px-4 py-3">状态</th>
                 <th class="px-4 py-3">首 Token</th>
@@ -62,14 +61,8 @@
                   <div class="font-semibold text-gray-900 dark:text-white">{{ group.name }}</div>
                   <div class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ group.platform }}</div>
                 </td>
-                <td class="px-4 py-4 font-medium text-gray-700 dark:text-dark-200">
-                  {{ group.supplier_name || '平台自营' }}
-                </td>
                 <td class="px-4 py-4">
                   <div class="font-mono font-semibold text-gray-900 dark:text-white">{{ formatRate(group.effective_rate) }}</div>
-                  <div v-if="group.supplier_id" class="mt-1 whitespace-nowrap text-xs text-gray-400">
-                    基础 {{ formatRate(group.base_rate) }} · 调整 {{ signedRate(group.admin_adjustment) }}
-                  </div>
                 </td>
                 <td class="px-4 py-4">
                   <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">可用</span>
@@ -110,7 +103,7 @@
                 </td>
               </tr>
               <tr v-if="!groups.length">
-                <td colspan="12" class="px-5 py-20 text-center text-gray-400">暂无启用分组</td>
+                <td colspan="11" class="px-5 py-20 text-center text-gray-400">暂无启用分组</td>
               </tr>
             </tbody>
           </table>
@@ -121,7 +114,7 @@
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <h2 class="truncate font-semibold text-gray-900 dark:text-white">{{ group.name }}</h2>
-                  <p class="mt-1 truncate text-xs text-gray-500 dark:text-dark-400">{{ group.supplier_name || '平台自营' }} · {{ group.platform }}</p>
+                  <p class="mt-1 truncate text-xs text-gray-500 dark:text-dark-400">{{ group.platform }}</p>
                 </div>
                 <span class="inline-flex flex-shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">可用</span>
               </div>
@@ -130,7 +123,6 @@
                   <div class="text-xs text-gray-400">最终倍率</div>
                   <div class="mt-1 font-mono text-lg font-semibold text-gray-900 dark:text-white">{{ formatRate(group.effective_rate) }}</div>
                 </div>
-                <div v-if="group.supplier_id" class="text-right text-xs text-gray-400">基础 {{ formatRate(group.base_rate) }}<br />调整 {{ signedRate(group.admin_adjustment) }}</div>
               </div>
               <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
                 <div><dt class="text-gray-400">首 Token</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(group.metrics.avg_first_token_ms, ' ms') }}</dd></div>
@@ -185,12 +177,9 @@ function selectWindow(value: (typeof windows)[number]) {
 }
 
 function formatRate(value: number) {
-  return Number(value).toFixed(4)
-}
-
-function signedRate(value: number) {
   const number = Number(value)
-  return `${number >= 0 ? '+' : ''}${number.toFixed(4)}`
+  if (!Number.isFinite(number)) return '--'
+  return number.toFixed(4).replace(/\.?0+$/, '')
 }
 
 function formatMetric(value: number | undefined, suffix: string, digits = 0) {
