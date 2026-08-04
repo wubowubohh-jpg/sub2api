@@ -151,6 +151,8 @@ describe('ChannelStatusView supplier hall', () => {
     expect(text).toContain('42ms')
     expect(text).toContain('99.5%')
     expect(wrapper.get('[data-test="timeline"]').text()).toBe('operational,failed')
+    expect(wrapper.get('tr[data-group-id="7"] td[data-metric="availability"] [data-monitor-detail]').exists()).toBe(true)
+    expect(wrapper.find('tr[data-group-id="7"] td[data-actions] [data-monitor-detail]').exists()).toBe(false)
     expect(text).toContain('使用此分组')
 
     const rowIds = () => wrapper.findAll('tbody tr[data-group-id]').map(row => row.attributes('data-group-id'))

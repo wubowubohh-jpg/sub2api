@@ -189,8 +189,25 @@
                     <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_ping_latency_ms, 'ms') }}</span>
                   </td>
 
-                  <td class="px-4 py-4">
-                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.availability, '%', 1) }}</span>
+                  <td class="px-4 py-4" data-metric="availability">
+                    <button
+                      v-if="row.monitor"
+                      type="button"
+                      class="group inline-flex flex-col items-start gap-1 text-left"
+                      data-monitor-detail
+                      @click="openDetail(row.monitor)"
+                    >
+                      <span class="font-medium text-gray-700 group-hover:text-primary-700 dark:text-dark-200 dark:group-hover:text-primary-300">
+                        {{ formatMetric(row.group.metrics.availability, '%', 1) }}
+                      </span>
+                      <span class="inline-flex items-center gap-1 text-[11px] font-medium text-gray-400 group-hover:text-primary-700 dark:text-dark-500 dark:group-hover:text-primary-300">
+                        <Icon name="eye" size="xs" />
+                        {{ t('channelStatus.monitorDetail') }}
+                      </span>
+                    </button>
+                    <span v-else class="font-medium text-gray-700 dark:text-dark-200">
+                      {{ formatMetric(row.group.metrics.availability, '%', 1) }}
+                    </span>
                   </td>
 
                   <td class="px-3 py-4">
@@ -212,17 +229,8 @@
                     </div>
                   </td>
 
-                  <td class="px-3 py-4 text-right">
-                    <div class="flex flex-col items-end gap-2">
-                      <button
-                        v-if="row.monitor"
-                        type="button"
-                        class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-primary-700 dark:text-dark-300 dark:hover:text-primary-300"
-                        @click="openDetail(row.monitor)"
-                      >
-                        <Icon name="eye" size="xs" />
-                        {{ t('channelStatus.monitorDetail') }}
-                      </button>
+                  <td class="px-3 py-4 text-right" data-actions>
+                    <div class="flex flex-col items-end">
                       <RouterLink
                         :to="{ path: '/keys', query: { group: String(row.group.id) } }"
                         class="btn btn-secondary btn-sm inline-flex items-center gap-1.5 whitespace-nowrap text-primary-700 dark:text-primary-300"
@@ -280,7 +288,25 @@
               <dl class="grid grid-cols-2 gap-x-3 gap-y-4 border-y border-gray-100 py-4 text-xs dark:border-dark-700 sm:grid-cols-4">
                 <div><dt class="text-gray-400">{{ t('channelStatus.dialogLatency') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_latency_ms, 'ms') }}</dd></div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.endpointPing') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_ping_latency_ms, 'ms') }}</dd></div>
-                <div><dt class="text-gray-400">{{ t('channelStatus.availability') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.availability, '%', 1) }}</dd></div>
+                <div>
+                  <dt class="text-gray-400">{{ t('channelStatus.availability') }}</dt>
+                  <dd class="mt-1">
+                    <button
+                      v-if="row.monitor"
+                      type="button"
+                      class="inline-flex flex-wrap items-center gap-1 font-medium text-gray-700 hover:text-primary-700 dark:text-dark-200 dark:hover:text-primary-300"
+                      data-monitor-detail
+                      @click="openDetail(row.monitor)"
+                    >
+                      <span>{{ formatMetric(row.group.metrics.availability, '%', 1) }}</span>
+                      <Icon name="eye" size="xs" />
+                      <span>{{ t('channelStatus.monitorDetail') }}</span>
+                    </button>
+                    <span v-else class="font-medium text-gray-700 dark:text-dark-200">
+                      {{ formatMetric(row.group.metrics.availability, '%', 1) }}
+                    </span>
+                  </dd>
+                </div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.cacheHit') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.cache_hit_rate, '%', 1) }}</dd></div>
               </dl>
 
@@ -293,17 +319,7 @@
                 {{ t('channelStatus.noRecord') }}
               </div>
 
-              <div class="flex items-center justify-between gap-3">
-                <button
-                  v-if="row.monitor"
-                  type="button"
-                  class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-dark-300"
-                  @click="openDetail(row.monitor)"
-                >
-                  <Icon name="eye" size="xs" />
-                  {{ t('channelStatus.monitorDetail') }}
-                </button>
-                <span v-else />
+              <div class="flex items-center justify-end">
                 <RouterLink
                   :to="{ path: '/keys', query: { group: String(row.group.id) } }"
                   class="btn btn-secondary btn-sm inline-flex items-center gap-1.5 whitespace-nowrap text-primary-700 dark:text-primary-300"
