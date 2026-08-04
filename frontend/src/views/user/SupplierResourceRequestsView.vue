@@ -265,8 +265,8 @@
           />
         </label>
         <div v-if="editingRateRequest" class="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:bg-dark-800 dark:text-dark-300">
-          探测开启且取得倍率时采用探测结果；其余情况采用本次设置。管理员增加倍率为
-          {{ signedRate(adminRateAdjustment(editingRateRequest)) }}。
+          实际倍率：本次设置 {{ formatRate(Number(newRateMultiplier)) }} + 管理员增加
+          {{ signedRate(adminRateAdjustment(editingRateRequest)) }}
         </div>
       </form>
       <template #footer>
@@ -390,8 +390,7 @@ function adminRateAdjustment(request: SupplierResourceRequest) {
 function appliedRate(request: SupplierResourceRequest) {
   const serverValue = Number(request.applied_rate_multiplier)
   if (Number.isFinite(serverValue)) return serverValue
-  const detected = upstreamRate(request)
-  return probeEnabled(request) && detected !== null ? detected : Number(request.rate_multiplier || 0)
+  return Number(request.rate_multiplier || 0)
 }
 
 function effectiveRate(request: SupplierResourceRequest) {
@@ -404,10 +403,7 @@ function signedRate(value: number) {
 }
 
 function rateFormula(request: SupplierResourceRequest) {
-  const source = request.rate_source === 'probe' || (probeEnabled(request) && upstreamRate(request) !== null)
-    ? '探测倍率'
-    : '设置倍率'
-  return `${source} ${formatRate(appliedRate(request))} + 管理员增加 ${formatRate(adminRateAdjustment(request))}`
+  return `设置倍率 ${formatRate(appliedRate(request))} + 管理员增加 ${formatRate(adminRateAdjustment(request))}`
 }
 
 function probeUpdatedAt(request: SupplierResourceRequest) {
@@ -497,7 +493,7 @@ async function updateRate() {
     )
     const index = requests.value.findIndex(item => item.id === updated.id)
     if (index >= 0) requests.value[index] = updated
-    appStore.showSuccess('供应商提交倍率已更新')
+    appStore.showSuccess('供应商倍率已更新并实时生效')
     editingRateRequest.value = null
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, '更新倍率失败'))

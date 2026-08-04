@@ -20,7 +20,7 @@ export interface Supplier {
 export interface SupplierGroup { id:number; name:string; description?:string; platform:string; rate_multiplier:number; status:string; is_exclusive:boolean; sort_order:number }
 export interface HallMetrics { request_count:number; avg_latency_ms?:number; avg_first_token_ms?:number; probe_latency_ms?:number; cache_hit_rate?:number; tps?:number; availability?:number; latest_probe_at?:string; timeline:Array<{at:string;requests:number}> }
 export interface HallGroup { id:number; name:string; description:string; platform:string; base_rate:number; admin_adjustment:number; effective_rate:number; supplier_id?:number; supplier_name?:string; status:string; is_exclusive:boolean; metrics:HallMetrics }
-export interface SupplierSettings { global_rate_adjustment:number; minimum_withdrawal_usd:number; platform_supply_enabled:boolean; platform_supplier_name:string }
+export interface SupplierSettings { global_rate_adjustment:number; settlement_delay_days:number }
 export interface SupplierWithdrawal { id:number; supplier_id:number; request_no:string; amount_cny:number; method:string; status:'pending'|'approved'|'rejected'|'paid'; review_note:string; payment_proof_key?:string; created_at:string }
 export type SupplierProbeStatus = 'pending' | 'probing' | 'available' | 'failed' | 'disabled' | 'credential_invalid' | 'no_data'
 export interface SupplierResourceProbe {

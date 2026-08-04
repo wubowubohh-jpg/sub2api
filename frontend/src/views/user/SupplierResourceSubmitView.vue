@@ -44,7 +44,7 @@
             placeholder="0.04"
             class="input w-full"
           />
-          <span class="input-hint">例如填写 0.04；管理员的全局或局部调整会在此基础上叠加。</span>
+          <span class="input-hint">例如填写 0.04；实际倍率为此数值加管理员全局或分组调整，上游探测结果仅用于参考。</span>
         </label>
 
         <label class="block">

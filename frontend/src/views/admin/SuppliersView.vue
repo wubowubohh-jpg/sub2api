@@ -11,17 +11,34 @@
 
       <div v-if="error" class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</div>
 
-      <section class="rounded-lg border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div class="mb-4">
-          <h2 class="font-medium">供应与结算设置</h2>
-          <p class="mt-1 text-xs text-gray-500">设置变更只影响后续供应展示和提现校验。</p>
+      <section class="rounded-lg border bg-white px-5 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+        <div class="flex flex-wrap items-start justify-between gap-4 border-b pb-4 dark:border-gray-800">
+          <div>
+            <h2 class="font-medium text-gray-900 dark:text-white">供应商规则</h2>
+            <p class="mt-1 text-xs text-gray-500">统一管理供应商分组加价和收益转为可提现余额的时间。</p>
+          </div>
+          <button
+            class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-600 dark:hover:bg-teal-700"
+            :disabled="settingsSaving || !settingsValid"
+            @click="saveSettings"
+          >
+            {{ settingsSaving ? '保存中...' : '保存设置' }}
+          </button>
         </div>
-        <div class="flex flex-wrap items-end gap-4">
-          <label class="text-sm">自营供应商名称<input v-model="settings.platform_supplier_name" class="mt-1 block w-48 rounded-lg border px-3 py-2 dark:border-gray-700 dark:bg-gray-950" /></label>
-          <label class="flex h-10 items-center gap-2 text-sm"><input v-model="settings.platform_supply_enabled" type="checkbox" class="h-4 w-4" />启用平台自营供应</label>
-          <label class="text-sm">全局倍率调整<input v-model.number="settings.global_rate_adjustment" type="number" step="0.01" class="mt-1 block w-40 rounded-lg border px-3 py-2 dark:border-gray-700 dark:bg-gray-950" /></label>
-          <label class="text-sm">最低提现（USD）<input v-model.number="settings.minimum_withdrawal_usd" type="number" min="0.01" step="1" class="mt-1 block w-40 rounded-lg border px-3 py-2 dark:border-gray-700 dark:bg-gray-950" /></label>
-          <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-teal-600 dark:hover:bg-teal-700" @click="saveSettings">保存设置</button>
+        <div class="grid gap-5 pt-4 md:grid-cols-2">
+          <label class="block text-sm">
+            <span class="font-medium text-gray-700 dark:text-gray-200">供应商全局倍率调整</span>
+            <input v-model.number="settings.global_rate_adjustment" type="number" step="0.01" class="mt-2 block w-full max-w-xs rounded-lg border px-3 py-2 dark:border-gray-700 dark:bg-gray-950" />
+            <span class="mt-1.5 block text-xs leading-5 text-gray-500">分组未设置单独调整时，按“供应商基础倍率 + 此调整值”计算有效倍率。</span>
+          </label>
+          <label class="block text-sm">
+            <span class="font-medium text-gray-700 dark:text-gray-200">收益可提现等待时间</span>
+            <div class="mt-2 flex max-w-xs items-center gap-2">
+              <input v-model.number="settings.settlement_delay_days" type="number" min="0" max="365" step="1" class="block w-full rounded-lg border px-3 py-2 dark:border-gray-700 dark:bg-gray-950" />
+              <span class="shrink-0 text-gray-500">天</span>
+            </div>
+            <span class="mt-1.5 block text-xs leading-5 text-gray-500">只影响保存后产生的收益；设置为 0 天时，收益当天进入可提现周期。</span>
+          </label>
         </div>
       </section>
 
@@ -133,9 +150,18 @@ const withdrawals = ref<SupplierWithdrawal[]>([])
 const testingResource = ref<SupplierResourceRequest | null>(null)
 const editingRateResource = ref<SupplierResourceRequest | null>(null)
 const rateSaving = ref(false)
+const settingsSaving = ref(false)
 const adminRateForm = reactive({ rate_multiplier: 0, admin_rate_adjustment: 0 })
 const error = ref('')
-const settings = reactive({ global_rate_adjustment: 0, minimum_withdrawal_usd: 100, platform_supply_enabled: true, platform_supplier_name: '平台自营' })
+const settings = reactive({ global_rate_adjustment: 0, settlement_delay_days: 7 })
+const settingsValid = computed(() => {
+  const adjustment = Number(settings.global_rate_adjustment)
+  const delayDays = Number(settings.settlement_delay_days)
+  return Number.isFinite(adjustment)
+    && Number.isInteger(delayDays)
+    && delayDays >= 0
+    && delayDays <= 365
+})
 
 const tabs = computed(() => [
   { value: 'suppliers' as Tab, label: '入驻与余额', count: items.value.length },
@@ -181,15 +207,11 @@ const adminRateValid = computed(() => {
 })
 const editingRatePreview = computed(() => {
   if (!editingRateResource.value) return ''
-  const detected = resourceDetectedRate(editingRateResource.value)
-  const usesProbe = editingRateResource.value.rate_source === 'probe' || (
-    editingRateResource.value.upstream_billing_probe_enabled === true && detected !== null
-  )
-  const applied = usesProbe ? Number(detected) : Number(adminRateForm.rate_multiplier)
+  const applied = Number(adminRateForm.rate_multiplier)
   const adjustment = editingRateResource.value.group_id
     ? Number(adminRateForm.admin_rate_adjustment)
     : resourceAdjustment(editingRateResource.value)
-  return `${usesProbe ? '探测倍率' : '设置倍率'} ${formatRate(applied)} + 管理员增加 ${formatRate(adjustment)} = 有效倍率 ${formatRate(applied + adjustment)}`
+  return `设置倍率 ${formatRate(applied)} + 管理员增加 ${formatRate(adjustment)} = 有效倍率 ${formatRate(applied + adjustment)}`
 })
 
 function resourceModels(resource: SupplierResourceRequest) {
@@ -201,21 +223,10 @@ function formatRate(value: unknown) {
   return Number.isFinite(rate) ? rate.toFixed(4) : '--'
 }
 
-function resourceDetectedRate(resource: SupplierResourceRequest): number | null {
-  const snapshotRate = resource.upstream_billing_probe?.snapshot?.data?.effective_rate_multiplier
-    ?? resource.upstream_billing_probe?.snapshot?.data?.resolved_rate_multiplier
-    ?? resource.upstream_rate
-  const rate = Number(snapshotRate)
-  return snapshotRate !== null && snapshotRate !== undefined && Number.isFinite(rate) ? rate : null
-}
-
 function resourceAppliedRate(resource: SupplierResourceRequest) {
   const serverRate = Number(resource.applied_rate_multiplier)
   if (Number.isFinite(serverRate)) return serverRate
-  const detected = resourceDetectedRate(resource)
-  return resource.upstream_billing_probe_enabled === true && detected !== null
-    ? detected
-    : Number(resource.rate_multiplier || 0)
+  return Number(resource.rate_multiplier || 0)
 }
 
 function resourceAdjustment(resource: SupplierResourceRequest) {
@@ -229,8 +240,7 @@ function resourceEffectiveRate(resource: SupplierResourceRequest) {
 }
 
 function resourceRateFormula(resource: SupplierResourceRequest) {
-  const source = resource.rate_source === 'probe' ? '探测倍率' : '设置倍率'
-  return `${source} ${formatRate(resourceAppliedRate(resource))} + 管理员增加 ${formatRate(resourceAdjustment(resource))}`
+  return `设置倍率 ${formatRate(resourceAppliedRate(resource))} + 管理员增加 ${formatRate(resourceAdjustment(resource))}`
 }
 
 function statusClass(status: string) { return ['approved', 'available', 'paid', 'active'].includes(status) ? 'bg-emerald-50 text-emerald-700' : ['rejected', 'frozen'].includes(status) ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700' }
@@ -253,7 +263,18 @@ async function selectTab(tab: Tab) { activeTab.value = tab; await loadTab(tab) }
 function reloadActive() { return loadTab(activeTab.value, true) }
 function resetPages() { pages.suppliers = 1; pages.resources = 1; pages.withdrawals = 1 }
 function changePage(delta: number) { pages[activeTab.value] = Math.min(activePages.value, Math.max(1, pages[activeTab.value] + delta)) }
-async function saveSettings() { try { Object.assign(settings, await adminSupplierAPI.updateSettings(settings)); error.value = '' } catch (e) { error.value = e instanceof Error ? e.message : '设置保存失败' } }
+async function saveSettings() {
+  if (!settingsValid.value || settingsSaving.value) return
+  settingsSaving.value = true
+  try {
+    Object.assign(settings, await adminSupplierAPI.updateSettings(settings))
+    error.value = ''
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '设置保存失败'
+  } finally {
+    settingsSaving.value = false
+  }
+}
 async function review(item: Supplier, status: 'approved' | 'rejected') { const note = status === 'rejected' ? (prompt('驳回原因') || '') : ''; await adminSupplierAPI.review(item.id, status, note); await loadTab('suppliers', true) }
 async function freeze(item: Supplier) { const reason = prompt('冻结原因'); if (reason === null) return; await adminSupplierAPI.freeze(item.id, reason); await loadTab('suppliers', true) }
 async function unfreeze(item: Supplier) { if (!confirm(`确认解除 ${item.name} 的冻结状态？`)) return; await adminSupplierAPI.unfreeze(item.id); await loadTab('suppliers', true) }

@@ -26,14 +26,20 @@ import (
 )
 
 type SupplierService struct {
-	db        *dbent.Client
-	encryptor SecretEncryptor
-	stop      chan struct{}
-	stopOnce  sync.Once
+	db                   *dbent.Client
+	encryptor            SecretEncryptor
+	authCacheInvalidator APIKeyAuthCacheInvalidator
+	stop                 chan struct{}
+	stopOnce             sync.Once
 }
 
-func NewSupplierService(db *dbent.Client, encryptor SecretEncryptor) *SupplierService {
-	s := &SupplierService{db: db, encryptor: encryptor, stop: make(chan struct{})}
+func NewSupplierService(db *dbent.Client, encryptor SecretEncryptor, authCacheInvalidator APIKeyAuthCacheInvalidator) *SupplierService {
+	s := &SupplierService{
+		db:                   db,
+		encryptor:            encryptor,
+		authCacheInvalidator: authCacheInvalidator,
+		stop:                 make(chan struct{}),
+	}
 	go s.runSettlementWorker()
 	return s
 }
@@ -336,16 +342,21 @@ func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int6
 			view.UpstreamProbeStatus = "no_data"
 		}
 		view.AdminRateAdjustment = globalAdjustment
+		configuredRate := request.RateMultiplier
 		if request.GroupID != nil {
-			if item := groupsByID[*request.GroupID]; item != nil && item.SupplierID != nil && *item.SupplierID == request.SupplierID && item.SupplierAdminAdjustment != nil {
-				view.AdminRateAdjustment = *item.SupplierAdminAdjustment
+			if item := groupsByID[*request.GroupID]; item != nil && item.SupplierID != nil && *item.SupplierID == request.SupplierID {
+				configuredRate = item.RateMultiplier
+				if item.SupplierAdminAdjustment != nil {
+					view.AdminRateAdjustment = *item.SupplierAdminAdjustment
+				}
 			}
 		}
-		if view.UpstreamBillingProbeEnabled && view.UpstreamRate != nil {
-			view.RateSource = "probe"
-			view.AppliedRateMultiplier = *view.UpstreamRate
-		}
-		view.EffectiveRateMultiplier = view.AppliedRateMultiplier + view.AdminRateAdjustment
+		view.RateSource, view.AppliedRateMultiplier, view.EffectiveRateMultiplier = supplierResourceRateDetails(
+			configuredRate,
+			view.UpstreamBillingProbeEnabled,
+			view.UpstreamRate,
+			view.AdminRateAdjustment,
+		)
 		out = append(out, view)
 	}
 	return out, nil
@@ -470,9 +481,8 @@ func validSupplierRate(value float64) bool {
 	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
-// UpdateResourceRequestRate updates the supplier-controlled fallback rate. For
-// approved resources the linked group keeps the same fallback, while a live
-// probe result remains the displayed source until probing is disabled.
+// UpdateResourceRequestRate updates the supplier-controlled rate. Approved
+// resources update their linked billing group in the same transaction.
 func (s *SupplierService) UpdateResourceRequestRate(ctx context.Context, supplierID, requestID int64, rate float64) (*SupplierResourceRequestView, error) {
 	return s.updateResourceRequestRate(ctx, &supplierID, requestID, &rate, nil)
 }
@@ -536,6 +546,9 @@ func (s *SupplierService) updateResourceRequestRate(ctx context.Context, supplie
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
+	}
+	if req.GroupID != nil && s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, *req.GroupID)
 	}
 	return s.resourceRequestView(ctx, req.SupplierID, req.ID)
 }
@@ -623,6 +636,12 @@ func supplierProbeNumber(value any) (float64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// Probe results are informational. Billing always uses the supplier-controlled
+// configured rate plus the administrator adjustment.
+func supplierResourceRateDetails(configuredRate float64, _ bool, _ *float64, adminAdjustment float64) (string, float64, float64) {
+	return "configured", configuredRate, configuredRate + adminAdjustment
 }
 
 func normalizeSupplierResourceModels(models []string, probeModel string) ([]string, string, error) {
@@ -910,10 +929,8 @@ type SupplierGroupMetrics struct {
 }
 
 type SupplierSettings struct {
-	GlobalRateAdjustment  float64 `json:"global_rate_adjustment"`
-	MinimumWithdrawalUSD  float64 `json:"minimum_withdrawal_usd"`
-	PlatformSupplyEnabled bool    `json:"platform_supply_enabled"`
-	PlatformSupplierName  string  `json:"platform_supplier_name"`
+	GlobalRateAdjustment float64 `json:"global_rate_adjustment"`
+	SettlementDelayDays  int     `json:"settlement_delay_days"`
 }
 
 type SupplierBillItem struct {
@@ -967,43 +984,34 @@ func (s *SupplierService) Bills(ctx context.Context, supplierID int64, bucket st
 }
 
 func (s *SupplierService) GetSettings(ctx context.Context) (SupplierSettings, error) {
-	out := SupplierSettings{MinimumWithdrawalUSD: 100, PlatformSupplyEnabled: true, PlatformSupplierName: "平台自营"}
-	rows, err := s.db.Setting.Query().Where(setting.KeyIn("supplier_global_rate_adjustment", "supplier_min_withdrawal_usd", "platform_supply_enabled", "platform_supplier_name")).All(ctx)
+	out := SupplierSettings{SettlementDelayDays: 7}
+	rows, err := s.db.Setting.Query().Where(setting.KeyIn(SettingKeySupplierGlobalRateAdjustment, SettingKeySupplierSettlementDelayDays)).All(ctx)
 	if err != nil {
 		return out, err
 	}
 	for _, row := range rows {
-		if row.Key == "platform_supply_enabled" {
-			out.PlatformSupplyEnabled = strings.EqualFold(strings.TrimSpace(row.Value), "true")
-			continue
-		}
-		if row.Key == "platform_supplier_name" {
-			if strings.TrimSpace(row.Value) != "" {
-				out.PlatformSupplierName = strings.TrimSpace(row.Value)
+		if row.Key == SettingKeySupplierGlobalRateAdjustment {
+			v, parseErr := strconv.ParseFloat(strings.TrimSpace(row.Value), 64)
+			if parseErr == nil && !math.IsNaN(v) && !math.IsInf(v, 0) {
+				out.GlobalRateAdjustment = v
 			}
-			continue
-		}
-		v, parseErr := strconv.ParseFloat(strings.TrimSpace(row.Value), 64)
-		if parseErr != nil {
-			continue
-		}
-		if row.Key == "supplier_global_rate_adjustment" {
-			out.GlobalRateAdjustment = v
-		} else if row.Key == "supplier_min_withdrawal_usd" {
-			out.MinimumWithdrawalUSD = v
+		} else if row.Key == SettingKeySupplierSettlementDelayDays {
+			if v, parseErr := strconv.Atoi(strings.TrimSpace(row.Value)); parseErr == nil && v >= 0 && v <= 365 {
+				out.SettlementDelayDays = v
+			}
 		}
 	}
 	return out, nil
 }
 
 func (s *SupplierService) UpdateSettings(ctx context.Context, in SupplierSettings) (SupplierSettings, error) {
-	if math.IsNaN(in.GlobalRateAdjustment) || math.IsInf(in.GlobalRateAdjustment, 0) || in.MinimumWithdrawalUSD <= 0 || math.IsNaN(in.MinimumWithdrawalUSD) || math.IsInf(in.MinimumWithdrawalUSD, 0) {
+	if math.IsNaN(in.GlobalRateAdjustment) || math.IsInf(in.GlobalRateAdjustment, 0) || in.SettlementDelayDays < 0 || in.SettlementDelayDays > 365 {
 		return SupplierSettings{}, fmt.Errorf("invalid supplier settings")
 	}
-	if strings.TrimSpace(in.PlatformSupplierName) == "" {
-		return SupplierSettings{}, fmt.Errorf("platform supplier name is required")
+	values := map[string]string{
+		SettingKeySupplierGlobalRateAdjustment: strconv.FormatFloat(in.GlobalRateAdjustment, 'f', -1, 64),
+		SettingKeySupplierSettlementDelayDays:  strconv.Itoa(in.SettlementDelayDays),
 	}
-	values := map[string]string{"supplier_global_rate_adjustment": strconv.FormatFloat(in.GlobalRateAdjustment, 'f', -1, 64), "supplier_min_withdrawal_usd": strconv.FormatFloat(in.MinimumWithdrawalUSD, 'f', -1, 64), "platform_supply_enabled": strconv.FormatBool(in.PlatformSupplyEnabled), "platform_supplier_name": strings.TrimSpace(in.PlatformSupplierName)}
 	for key, formatted := range values {
 		row, err := s.db.Setting.Query().Where(setting.KeyEQ(key)).Only(ctx)
 		if dbent.IsNotFound(err) {
@@ -1234,7 +1242,11 @@ func (s *SupplierService) SetGroupModeration(ctx context.Context, groupID int64,
 	if forcedOffline != nil {
 		u.SetSupplierForcedOffline(*forcedOffline)
 	}
-	return u.Save(ctx)
+	updated, err := u.Save(ctx)
+	if err == nil && s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
+	}
+	return updated, err
 }
 
 func (s *SupplierService) Groups(ctx context.Context, supplierID int64) ([]*dbent.Group, error) {
@@ -1291,7 +1303,11 @@ func (s *SupplierService) UpdateGroup(ctx context.Context, supplierID, groupID i
 	if len(in.SupportedModelScopes) > 0 {
 		u.SetSupportedModelScopes(in.SupportedModelScopes)
 	}
-	return u.Save(ctx)
+	updated, err := u.Save(ctx)
+	if err == nil && s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
+	}
+	return updated, err
 }
 func (s *SupplierService) Accounts(ctx context.Context, supplierID int64) ([]*dbent.Account, error) {
 	return s.db.Account.Query().Where(account.SupplierID(supplierID)).WithGroups().Order(dbent.Asc(account.FieldID)).All(ctx)
@@ -1356,11 +1372,8 @@ func (s *SupplierService) UpdateAccount(ctx context.Context, supplierID, account
 	return u.Save(ctx)
 }
 func (s *SupplierService) PublicGroups(ctx context.Context) ([]*dbent.Group, error) {
-	settings, _ := s.GetSettings(ctx)
 	owner := group.HasSupplierWith(supplier.StatusEQ(supplier.StatusApproved))
-	if settings.PlatformSupplyEnabled {
-		owner = group.Or(group.SupplierIDIsNil(), owner)
-	}
+	owner = group.Or(group.SupplierIDIsNil(), owner)
 	return s.db.Group.Query().Where(group.StatusEQ("active"), group.SupplierForcedOffline(false), owner).WithSupplier().Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).All(ctx)
 }
 
@@ -1386,6 +1399,19 @@ func (s *SupplierService) supplierGlobalRateAdjustment(ctx context.Context) floa
 	return adjust
 }
 
+func (s *SupplierService) supplierSettlementDelayDays(ctx context.Context) int {
+	const defaultDelayDays = 7
+	row, err := s.db.Setting.Query().Where(setting.KeyEQ(SettingKeySupplierSettlementDelayDays)).Only(ctx)
+	if err != nil {
+		return defaultDelayDays
+	}
+	days, err := strconv.Atoi(strings.TrimSpace(row.Value))
+	if err != nil || days < 0 || days > 365 {
+		return defaultDelayDays
+	}
+	return days
+}
+
 // RecordEarning is idempotent and snapshots all mutable billing inputs.
 func (s *SupplierService) RecordEarning(ctx context.Context, eventKey string, usageID, supplierID, groupID int64, modelCostUSD, baseRate, adminAdjustment, rechargeRatio float64) error {
 	if _, err := s.db.SupplierLedger.Query().Where(supplierledger.EventKey(eventKey)).Only(ctx); err == nil {
@@ -1400,7 +1426,8 @@ func (s *SupplierService) RecordEarning(ctx context.Context, eventKey string, us
 		return err
 	}
 	defer tx.Rollback()
-	if err = tx.SupplierLedger.Create().SetSupplierID(supplierID).SetGroupID(groupID).SetUsageLogID(usageID).SetEventKey(eventKey).SetEntryType(supplierledger.EntryTypeEarning).SetBucket(supplierledger.BucketPending).SetBaseRate(baseRate).SetAdminAdjustment(adminAdjustment).SetEffectiveRate(baseRate + adminAdjustment).SetModelCostUsd(modelCostUSD).SetRechargeRatio(rechargeRatio).SetEarningUsd(modelCostUSD * baseRate).SetAmountCny(amount).SetAvailableAt(time.Now().Add(7 * 24 * time.Hour)).Exec(ctx); err != nil {
+	delayDays := s.supplierSettlementDelayDays(ctx)
+	if err = tx.SupplierLedger.Create().SetSupplierID(supplierID).SetGroupID(groupID).SetUsageLogID(usageID).SetEventKey(eventKey).SetEntryType(supplierledger.EntryTypeEarning).SetBucket(supplierledger.BucketPending).SetBaseRate(baseRate).SetAdminAdjustment(adminAdjustment).SetEffectiveRate(baseRate + adminAdjustment).SetModelCostUsd(modelCostUSD).SetRechargeRatio(rechargeRatio).SetEarningUsd(modelCostUSD * baseRate).SetAmountCny(amount).SetAvailableAt(time.Now().AddDate(0, 0, delayDays)).Exec(ctx); err != nil {
 		return err
 	}
 	if err = tx.Supplier.UpdateOneID(supplierID).AddPendingBalanceCny(amount).Exec(ctx); err != nil {
@@ -1481,21 +1508,8 @@ func (s *SupplierService) ReleaseDue(ctx context.Context, now time.Time) (int, e
 }
 
 func (s *SupplierService) Withdraw(ctx context.Context, supplierID int64, amount float64, method string, profile map[string]any) (*dbent.SupplierWithdrawal, error) {
-	if amount <= 0 {
+	if amount <= 0 || math.IsNaN(amount) || math.IsInf(amount, 0) {
 		return nil, fmt.Errorf("amount must be positive")
-	}
-	minUSD, ratio := 100.0, 1.0
-	if row, e := s.db.Setting.Query().Where(setting.KeyEQ("supplier_min_withdrawal_usd")).Only(ctx); e == nil {
-		_, _ = fmt.Sscanf(row.Value, "%f", &minUSD)
-	}
-	if row, e := s.db.Setting.Query().Where(setting.KeyEQ(SettingBalanceRechargeMult)).Only(ctx); e == nil {
-		_, _ = fmt.Sscanf(row.Value, "%f", &ratio)
-	}
-	if ratio <= 0 {
-		ratio = 1
-	}
-	if amount < minUSD*ratio {
-		return nil, fmt.Errorf("amount is below the minimum withdrawal threshold")
 	}
 	tx, err := s.db.Tx(ctx)
 	if err != nil {

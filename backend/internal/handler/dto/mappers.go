@@ -146,6 +146,9 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 	}
 	out := &AdminGroup{
 		Group:                       groupFromServiceBase(g),
+		SupplierID:                  g.SupplierID,
+		SupplierAdminAdjustment:     g.SupplierAdminAdjustment,
+		EffectiveRateMultiplier:     g.EffectiveRateMultiplier,
 		ProfitControlEnabled:        g.ProfitControlEnabled,
 		ProfitMinMargin:             g.ProfitMinMargin,
 		ProfitSafetyBuffer:          g.ProfitSafetyBuffer,

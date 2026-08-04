@@ -26,26 +26,54 @@ func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, p
 	if err != nil {
 		return nil, 0, err
 	}
-	return groups, result.Total, nil
+	return s.decorateSupplierGroupRates(ctx, groups), result.Total, nil
 }
 
 func (s *adminServiceImpl) GetAllGroups(ctx context.Context) ([]Group, error) {
-	return s.groupRepo.ListActive(ctx)
+	groups, err := s.groupRepo.ListActive(ctx)
+	return s.decorateSupplierGroupRates(ctx, groups), err
 }
 
 func (s *adminServiceImpl) GetAllGroupsByPlatform(ctx context.Context, platform string) ([]Group, error) {
-	return s.groupRepo.ListActiveByPlatform(ctx, platform)
+	groups, err := s.groupRepo.ListActiveByPlatform(ctx, platform)
+	return s.decorateSupplierGroupRates(ctx, groups), err
 }
 
 func (s *adminServiceImpl) GetAllGroupsIncludingInactive(ctx context.Context) ([]Group, error) {
 	// ListWithFilters with empty status = no status filter, so active + disabled groups are returned.
 	// PageSize 10000 is intentionally large; group count is O(dozens) in practice.
 	groups, _, err := s.groupRepo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10000}, "", "", "", nil)
-	return groups, err
+	return s.decorateSupplierGroupRates(ctx, groups), err
 }
 
 func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, error) {
-	return s.groupRepo.GetByID(ctx, id)
+	group, err := s.groupRepo.GetByID(ctx, id)
+	if group != nil {
+		groups := s.decorateSupplierGroupRates(ctx, []Group{*group})
+		if len(groups) == 1 {
+			*group = groups[0]
+		}
+	}
+	return group, err
+}
+
+func (s *adminServiceImpl) decorateSupplierGroupRates(ctx context.Context, groups []Group) []Group {
+	global := 0.0
+	if s.settingService != nil {
+		global = s.settingService.GetSupplierGlobalRateAdjustment(ctx)
+	}
+	for i := range groups {
+		groups[i].EffectiveRateMultiplier = groups[i].RateMultiplier
+		if groups[i].SupplierID == nil {
+			continue
+		}
+		adjustment := global
+		if groups[i].SupplierAdminAdjustment != nil {
+			adjustment = *groups[i].SupplierAdminAdjustment
+		}
+		groups[i].EffectiveRateMultiplier = groups[i].RateMultiplier + adjustment
+	}
+	return groups
 }
 
 func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id int64, platform string) ([]string, error) {

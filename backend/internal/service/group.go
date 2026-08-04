@@ -16,11 +16,14 @@ type GroupModelsListConfig = domain.GroupModelsListConfig
 type ReasoningEffortMapping = domain.ReasoningEffortMapping
 
 type Group struct {
-	ID                      int64
-	Name                    string
-	Description             string
-	Platform                string
-	RateMultiplier          float64
+	ID             int64
+	Name           string
+	Description    string
+	Platform       string
+	RateMultiplier float64
+	// EffectiveRateMultiplier is the display/计费 rate after supplier
+	// administrator adjustment. RateMultiplier remains the persisted base rate.
+	EffectiveRateMultiplier float64
 	SupplierID              *int64
 	SupplierAdminAdjustment *float64
 	SupplierForcedOffline   bool

@@ -16,6 +16,7 @@ import (
 )
 
 const SettingKeySupplierGlobalRateAdjustment = "supplier_global_rate_adjustment"
+const SettingKeySupplierSettlementDelayDays = "supplier_settlement_delay_days"
 
 func (s *SettingService) GetSupplierGlobalRateAdjustment(ctx context.Context) float64 {
 	if s == nil || s.settingRepo == nil {

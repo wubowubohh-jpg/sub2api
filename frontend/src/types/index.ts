@@ -566,6 +566,11 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  // Supplier group rates keep the persisted base rate separate from the
+  // administrator-adjusted effective rate.
+  supplier_id?: number | null
+  supplier_admin_adjustment?: number | null
+  effective_rate_multiplier?: number
   // 分组利润控制（openai/anthropic/gemini/grok/antigravity 分组可启用；margin/buffer 为小数存储）。
   // 仅管理员可见：与 rate_multiplier 相乘即可反推上游成本上限，不得下放到 Group。
   profit_control_enabled: boolean

@@ -425,7 +425,6 @@ func (h *SupplierHandler) Hall(c *gin.Context) {
 		Metrics         service.SupplierGroupMetrics `json:"metrics"`
 	}
 	out := make([]item, 0, len(groups))
-	settings, _ := h.svc.GetSettings(c)
 	for _, g := range groups {
 		rate, adj, _ := h.svc.EffectiveRate(c, g)
 		window := 6 * time.Hour
@@ -442,7 +441,7 @@ func (h *SupplierHandler) Hall(c *gin.Context) {
 		if g.Edges.Supplier != nil {
 			name = g.Edges.Supplier.Name
 		} else {
-			name = settings.PlatformSupplierName
+			name = "平台分组"
 		}
 		out = append(out, item{g.ID, g.Name, ptrString(g.Description), g.Platform, g.RateMultiplier, adj, rate, g.SupplierID, name, g.Status, g.IsExclusive, metrics})
 	}

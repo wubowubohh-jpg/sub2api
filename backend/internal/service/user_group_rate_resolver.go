@@ -18,6 +18,24 @@ type userGroupRateResolver struct {
 	logComponent string
 }
 
+type userGroupRateCacheValue struct {
+	multiplier *float64
+}
+
+func resolveCachedUserGroupRate(cached any, groupDefaultMultiplier float64) (float64, bool) {
+	switch value := cached.(type) {
+	case float64:
+		return value, true
+	case userGroupRateCacheValue:
+		if value.multiplier == nil {
+			return groupDefaultMultiplier, true
+		}
+		return *value.multiplier, true
+	default:
+		return 0, false
+	}
+}
+
 func newUserGroupRateResolver(repo UserGroupRateRepository, cache *gocache.Cache, cacheTTL time.Duration, sf *singleflight.Group, logComponent string) *userGroupRateResolver {
 	if cacheTTL <= 0 {
 		cacheTTL = defaultUserGroupRateCacheTTL
@@ -49,7 +67,7 @@ func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID int
 	key := fmt.Sprintf("%d:%d", userID, groupID)
 	if r.cache != nil {
 		if cached, ok := r.cache.Get(key); ok {
-			if multiplier, castOK := cached.(float64); castOK {
+			if multiplier, castOK := resolveCachedUserGroupRate(cached, groupDefaultMultiplier); castOK {
 				userGroupRateCacheHitTotal.Add(1)
 				return multiplier
 			}
@@ -63,7 +81,7 @@ func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID int
 	value, err, shared := r.sf.Do(key, func() (any, error) {
 		if r.cache != nil {
 			if cached, ok := r.cache.Get(key); ok {
-				if multiplier, castOK := cached.(float64); castOK {
+				if multiplier, castOK := resolveCachedUserGroupRate(cached, groupDefaultMultiplier); castOK {
 					userGroupRateCacheHitTotal.Add(1)
 					return multiplier, nil
 				}
@@ -76,12 +94,14 @@ func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID int
 			return nil, repoErr
 		}
 
+		var cached any = userGroupRateCacheValue{}
 		multiplier := groupDefaultMultiplier
 		if userRate != nil {
+			cached = *userRate
 			multiplier = *userRate
 		}
 		if r.cache != nil {
-			r.cache.Set(key, multiplier, r.cacheTTL)
+			r.cache.Set(key, cached, r.cacheTTL)
 		}
 		return multiplier, nil
 	})

@@ -63,7 +63,7 @@ func newSupplierTestService(t *testing.T) (*SupplierService, context.Context) {
 	require.NoError(t, err)
 	drv := entsql.OpenDB(dialect.SQLite, db)
 	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
-	svc := NewSupplierService(client, nil)
+	svc := NewSupplierService(client, nil, nil)
 	t.Cleanup(func() { svc.Stop(); _ = client.Close(); _ = db.Close() })
 	return svc, context.Background()
 }
@@ -91,6 +91,25 @@ func TestSupplierEffectiveRateLocalOverridesGlobal(t *testing.T) {
 	require.NoError(t, err)
 	require.InDelta(t, 0.05, rate, 0.000001)
 	require.InDelta(t, 0.01, adjustment, 0.000001)
+}
+
+func TestSupplierSettlementSettingsRemoveMinimumAndConfigureDelay(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	settings, err := svc.GetSettings(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 7, settings.SettlementDelayDays)
+
+	settings, err = svc.UpdateSettings(ctx, SupplierSettings{GlobalRateAdjustment: 0.02, SettlementDelayDays: 3})
+	require.NoError(t, err)
+	require.InDelta(t, 0.02, settings.GlobalRateAdjustment, 0.000001)
+	require.Equal(t, 3, settings.SettlementDelayDays)
+	require.Equal(t, 3, svc.supplierSettlementDelayDays(ctx))
+
+	user := svc.db.User.Create().SetEmail("small-withdrawal@example.com").SetPasswordHash("x").SaveX(ctx)
+	supplier := svc.db.Supplier.Create().SetUserID(user.ID).SetName("Small Withdrawal").SetRelayURL("https://example.com").SetStatus("approved").SetAvailableBalanceCny(1).SaveX(ctx)
+	withdrawal, err := svc.Withdraw(ctx, supplier.ID, 0.5, "alipay", map[string]any{"account": "test"})
+	require.NoError(t, err)
+	require.Equal(t, 0.5, withdrawal.AmountCny)
 }
 
 func TestSupplierAccountRejectsForeignGroup(t *testing.T) {
@@ -275,9 +294,11 @@ func TestSupplierResourceProbeAndCredentialUpdatesAreOwnerScoped(t *testing.T) {
 	require.Equal(t, "enc:v1:encrypted:sk-owner-rotated", storedRequest.APIKeyEncrypted)
 }
 
-func TestSupplierResourceRateUsesProbeOrConfiguredRateWithAdminIncrement(t *testing.T) {
+func TestSupplierResourceRateUpdatesConfiguredRateImmediately(t *testing.T) {
 	svc, ctx := newSupplierTestService(t)
 	svc.encryptor = supplierTestEncryptor{}
+	invalidator := &authCacheInvalidatorStub{}
+	svc.authCacheInvalidator = invalidator
 	ownerUser := svc.db.User.Create().SetEmail("rate-owner@example.com").SetPasswordHash("x").SaveX(ctx)
 	otherUser := svc.db.User.Create().SetEmail("rate-other@example.com").SetPasswordHash("x").SaveX(ctx)
 	owner := svc.db.Supplier.Create().SetUserID(ownerUser.ID).SetName("Rate Owner").SetRelayURL("https://owner.example.com").SetStatus("approved").SaveX(ctx)
@@ -299,7 +320,10 @@ func TestSupplierResourceRateUsesProbeOrConfiguredRateWithAdminIncrement(t *test
 	view, err := svc.UpdateResourceRequestRate(ctx, owner.ID, approved.ID, 0.05)
 	require.NoError(t, err)
 	require.InDelta(t, 0.05, view.RateMultiplier, 0.000001)
+	require.Equal(t, "configured", view.RateSource)
+	require.InDelta(t, 0.05, view.AppliedRateMultiplier, 0.000001)
 	require.InDelta(t, 0.05, svc.db.Group.GetX(ctx, *approved.GroupID).RateMultiplier, 0.000001)
+	require.Equal(t, []int64{*approved.GroupID}, invalidator.groupIDs)
 
 	configuredRate, adminIncrement := 0.06, 0.02
 	view, err = svc.AdminUpdateResourceRequestRate(
@@ -308,6 +332,7 @@ func TestSupplierResourceRateUsesProbeOrConfiguredRateWithAdminIncrement(t *test
 	require.NoError(t, err)
 	require.InDelta(t, 0.06, view.RateMultiplier, 0.000001)
 	require.InDelta(t, 0.02, view.AdminRateAdjustment, 0.000001)
+	require.Equal(t, []int64{*approved.GroupID, *approved.GroupID}, invalidator.groupIDs)
 
 	account := svc.db.Account.GetX(ctx, *approved.AccountID)
 	extra := shallowCopyMap(account.Extra)
@@ -319,13 +344,49 @@ func TestSupplierResourceRateUsesProbeOrConfiguredRateWithAdminIncrement(t *test
 	svc.db.Account.UpdateOne(account).SetExtra(extra).ExecX(ctx)
 	view, err = svc.resourceRequestView(ctx, owner.ID, approved.ID)
 	require.NoError(t, err)
-	require.Equal(t, "probe", view.RateSource)
-	require.InDelta(t, 0.07, view.AppliedRateMultiplier, 0.000001)
-	require.InDelta(t, 0.09, view.EffectiveRateMultiplier, 0.000001)
+	require.Equal(t, "configured", view.RateSource)
+	require.InDelta(t, 0.07, *view.UpstreamRate, 0.000001)
+	require.InDelta(t, 0.06, view.AppliedRateMultiplier, 0.000001)
+	require.InDelta(t, 0.08, view.EffectiveRateMultiplier, 0.000001)
 
 	view, err = svc.UpdateResourceRequestProbe(ctx, owner.ID, approved.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, "configured", view.RateSource)
 	require.InDelta(t, 0.06, view.AppliedRateMultiplier, 0.000001)
 	require.InDelta(t, 0.08, view.EffectiveRateMultiplier, 0.000001)
+}
+
+func TestSupplierPendingResourceRateUpdateDoesNotTriggerReview(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	invalidator := &authCacheInvalidatorStub{}
+	svc.authCacheInvalidator = invalidator
+	user := svc.db.User.Create().SetEmail("pending-rate@example.com").SetPasswordHash("x").SaveX(ctx)
+	owner := svc.db.Supplier.Create().
+		SetUserID(user.ID).
+		SetName("Pending Rate Owner").
+		SetRelayURL("https://owner.example.com").
+		SetStatus("approved").
+		SaveX(ctx)
+	request := svc.db.SupplierResourceRequest.Create().
+		SetSupplierID(owner.ID).
+		SetGroupName("Pending Resource").
+		SetRelayName("Pending Relay").
+		SetRelayURL("https://relay.example.com/v1").
+		SetAPIKeyEncrypted("encrypted:sk-pending-secret").
+		SetModel("gpt-5.5").
+		SetRateMultiplier(0.04).
+		SaveX(ctx)
+
+	view, err := svc.UpdateResourceRequestRate(ctx, owner.ID, request.ID, 0)
+	require.NoError(t, err)
+	require.Equal(t, supplierresourcerequest.StatusPending, view.Status)
+	require.Nil(t, view.ReviewedAt)
+	require.Nil(t, view.ReviewedBy)
+	require.Nil(t, view.GroupID)
+	require.Zero(t, view.RateMultiplier)
+	require.Empty(t, invalidator.groupIDs)
+
+	_, err = svc.UpdateResourceRequestRate(ctx, owner.ID, request.ID, -0.01)
+	require.Error(t, err)
+	require.Zero(t, svc.db.SupplierResourceRequest.GetX(ctx, request.ID).RateMultiplier)
 }

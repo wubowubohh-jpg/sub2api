@@ -249,10 +249,11 @@
             </div>
           </template>
 
-          <template #cell-rate_multiplier="{ value }">
-            <span class="text-sm text-gray-700 dark:text-gray-300"
-              >{{ value }}x</span
-            >
+          <template #cell-rate_multiplier="{ value, row }">
+            <div class="flex flex-col text-sm text-gray-700 dark:text-gray-300">
+              <span class="font-medium">{{ formatGroupRate(rowEffectiveRate(value, row)) }}x</span>
+              <span v-if="row.supplier_id" class="mt-0.5 text-xs text-gray-400">基础 {{ formatGroupRate(value) }}x</span>
+            </div>
           </template>
 
           <template #cell-is_exclusive="{ value }">
@@ -4228,6 +4229,18 @@ const ALWAYS_VISIBLE_COLUMNS = new Set(["name", "actions"]);
 const DEFAULT_HIDDEN_COLUMNS = ["id"];
 const HIDDEN_COLUMNS_KEY = "group-hidden-columns";
 // Bump when adding new default-hidden columns so existing admins pick them up once.
+function rowEffectiveRate(value: unknown, row: AdminGroup) {
+  if (!row.supplier_id) return Number(value)
+  const effective = Number(row.effective_rate_multiplier)
+  return Number.isFinite(effective) ? effective : Number(value)
+}
+
+function formatGroupRate(value: unknown) {
+  const rate = Number(value)
+  if (!Number.isFinite(rate)) return "-"
+  return String(Number(rate.toFixed(4)))
+}
+
 const COLUMN_SETTINGS_VERSION_KEY = "group-column-settings-version";
 const COLUMN_SETTINGS_VERSION = 2;
 const VERSION_NEW_HIDDEN_COLUMNS: Record<number, string[]> = {
