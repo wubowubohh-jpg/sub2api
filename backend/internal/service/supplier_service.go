@@ -12,6 +12,8 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/account"
+	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
+	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/supplier"
@@ -185,8 +187,10 @@ type SupplierGroupMetrics struct {
 }
 
 type SupplierSettings struct {
-	GlobalRateAdjustment float64 `json:"global_rate_adjustment"`
-	MinimumWithdrawalUSD float64 `json:"minimum_withdrawal_usd"`
+	GlobalRateAdjustment  float64 `json:"global_rate_adjustment"`
+	MinimumWithdrawalUSD  float64 `json:"minimum_withdrawal_usd"`
+	PlatformSupplyEnabled bool    `json:"platform_supply_enabled"`
+	PlatformSupplierName  string  `json:"platform_supplier_name"`
 }
 
 type SupplierBillItem struct {
@@ -240,12 +244,22 @@ func (s *SupplierService) Bills(ctx context.Context, supplierID int64, bucket st
 }
 
 func (s *SupplierService) GetSettings(ctx context.Context) (SupplierSettings, error) {
-	out := SupplierSettings{MinimumWithdrawalUSD: 100}
-	rows, err := s.db.Setting.Query().Where(setting.KeyIn("supplier_global_rate_adjustment", "supplier_min_withdrawal_usd")).All(ctx)
+	out := SupplierSettings{MinimumWithdrawalUSD: 100, PlatformSupplyEnabled: true, PlatformSupplierName: "平台自营"}
+	rows, err := s.db.Setting.Query().Where(setting.KeyIn("supplier_global_rate_adjustment", "supplier_min_withdrawal_usd", "platform_supply_enabled", "platform_supplier_name")).All(ctx)
 	if err != nil {
 		return out, err
 	}
 	for _, row := range rows {
+		if row.Key == "platform_supply_enabled" {
+			out.PlatformSupplyEnabled = strings.EqualFold(strings.TrimSpace(row.Value), "true")
+			continue
+		}
+		if row.Key == "platform_supplier_name" {
+			if strings.TrimSpace(row.Value) != "" {
+				out.PlatformSupplierName = strings.TrimSpace(row.Value)
+			}
+			continue
+		}
 		v, parseErr := strconv.ParseFloat(strings.TrimSpace(row.Value), 64)
 		if parseErr != nil {
 			continue
@@ -263,9 +277,11 @@ func (s *SupplierService) UpdateSettings(ctx context.Context, in SupplierSetting
 	if math.IsNaN(in.GlobalRateAdjustment) || math.IsInf(in.GlobalRateAdjustment, 0) || in.MinimumWithdrawalUSD <= 0 || math.IsNaN(in.MinimumWithdrawalUSD) || math.IsInf(in.MinimumWithdrawalUSD, 0) {
 		return SupplierSettings{}, fmt.Errorf("invalid supplier settings")
 	}
-	values := map[string]float64{"supplier_global_rate_adjustment": in.GlobalRateAdjustment, "supplier_min_withdrawal_usd": in.MinimumWithdrawalUSD}
-	for key, value := range values {
-		formatted := strconv.FormatFloat(value, 'f', -1, 64)
+	if strings.TrimSpace(in.PlatformSupplierName) == "" {
+		return SupplierSettings{}, fmt.Errorf("platform supplier name is required")
+	}
+	values := map[string]string{"supplier_global_rate_adjustment": strconv.FormatFloat(in.GlobalRateAdjustment, 'f', -1, 64), "supplier_min_withdrawal_usd": strconv.FormatFloat(in.MinimumWithdrawalUSD, 'f', -1, 64), "platform_supply_enabled": strconv.FormatBool(in.PlatformSupplyEnabled), "platform_supplier_name": strings.TrimSpace(in.PlatformSupplierName)}
+	for key, formatted := range values {
 		row, err := s.db.Setting.Query().Where(setting.KeyEQ(key)).Only(ctx)
 		if dbent.IsNotFound(err) {
 			if _, err = s.db.Setting.Create().SetKey(key).SetValue(formatted).Save(ctx); err != nil {
@@ -337,6 +353,41 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 	if duration > 0 {
 		v := float64(tokens) * 1000 / float64(duration)
 		out.TPS = &v
+	}
+	// Merge active probe data. New monitors use group_id; legacy admin monitors
+	// are matched by the exact group name.
+	if g, groupErr := s.db.Group.Get(ctx, groupID); groupErr == nil {
+		monitors, _ := s.db.ChannelMonitor.Query().Where(channelmonitor.Enabled(true), channelmonitor.Or(channelmonitor.GroupID(groupID), channelmonitor.GroupNameEQ(g.Name))).All(ctx)
+		var checks, healthy, latencySum, latencyCount, probeFirstSum, probeFirstCount int64
+		for _, monitor := range monitors {
+			history, _ := s.db.ChannelMonitorHistory.Query().Where(channelmonitorhistory.MonitorID(monitor.ID), channelmonitorhistory.CheckedAtGTE(since)).All(ctx)
+			for _, point := range history {
+				checks++
+				if point.Status == channelmonitorhistory.StatusOperational || point.Status == channelmonitorhistory.StatusDegraded {
+					healthy++
+				}
+				if point.LatencyMs != nil {
+					latencySum += int64(*point.LatencyMs)
+					latencyCount++
+				}
+				if point.FirstTokenMs != nil {
+					probeFirstSum += int64(*point.FirstTokenMs)
+					probeFirstCount++
+				}
+			}
+		}
+		if checks > 0 {
+			v := float64(healthy) / float64(checks) * 100
+			out.Availability = &v
+		}
+		if latencyCount > 0 && out.AvgLatencyMs == nil {
+			v := float64(latencySum) / float64(latencyCount)
+			out.AvgLatencyMs = &v
+		}
+		if probeFirstCount > 0 && out.AvgFirstTokenMs == nil {
+			v := float64(probeFirstSum) / float64(probeFirstCount)
+			out.AvgFirstTokenMs = &v
+		}
 	}
 	return out, nil
 }
@@ -567,7 +618,12 @@ func (s *SupplierService) UpdateAccount(ctx context.Context, supplierID, account
 	return u.Save(ctx)
 }
 func (s *SupplierService) PublicGroups(ctx context.Context) ([]*dbent.Group, error) {
-	return s.db.Group.Query().Where(group.StatusEQ("active"), group.SupplierForcedOffline(false), group.Or(group.SupplierIDIsNil(), group.HasSupplierWith(supplier.StatusEQ(supplier.StatusApproved)))).WithSupplier().Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).All(ctx)
+	settings, _ := s.GetSettings(ctx)
+	owner := group.HasSupplierWith(supplier.StatusEQ(supplier.StatusApproved))
+	if settings.PlatformSupplyEnabled {
+		owner = group.Or(group.SupplierIDIsNil(), owner)
+	}
+	return s.db.Group.Query().Where(group.StatusEQ("active"), group.SupplierForcedOffline(false), owner).WithSupplier().Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).All(ctx)
 }
 
 func (s *SupplierService) EffectiveRate(ctx context.Context, g *dbent.Group) (float64, float64, error) {
