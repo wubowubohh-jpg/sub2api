@@ -49,6 +49,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
 	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -136,6 +137,8 @@ type Client struct {
 	SupplierLedger *SupplierLedgerClient
 	// SupplierMetricBucket is the client for interacting with the SupplierMetricBucket builders.
 	SupplierMetricBucket *SupplierMetricBucketClient
+	// SupplierResourceRequest is the client for interacting with the SupplierResourceRequest builders.
+	SupplierResourceRequest *SupplierResourceRequestClient
 	// SupplierWithdrawal is the client for interacting with the SupplierWithdrawal builders.
 	SupplierWithdrawal *SupplierWithdrawalClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
@@ -201,6 +204,7 @@ func (c *Client) init() {
 	c.SupplierDocument = NewSupplierDocumentClient(c.config)
 	c.SupplierLedger = NewSupplierLedgerClient(c.config)
 	c.SupplierMetricBucket = NewSupplierMetricBucketClient(c.config)
+	c.SupplierResourceRequest = NewSupplierResourceRequestClient(c.config)
 	c.SupplierWithdrawal = NewSupplierWithdrawalClient(c.config)
 	c.TLSFingerprintProfile = NewTLSFingerprintProfileClient(c.config)
 	c.UsageCleanupTask = NewUsageCleanupTaskClient(c.config)
@@ -337,6 +341,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SupplierDocument:              NewSupplierDocumentClient(cfg),
 		SupplierLedger:                NewSupplierLedgerClient(cfg),
 		SupplierMetricBucket:          NewSupplierMetricBucketClient(cfg),
+		SupplierResourceRequest:       NewSupplierResourceRequestClient(cfg),
 		SupplierWithdrawal:            NewSupplierWithdrawalClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
@@ -400,6 +405,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SupplierDocument:              NewSupplierDocumentClient(cfg),
 		SupplierLedger:                NewSupplierLedgerClient(cfg),
 		SupplierMetricBucket:          NewSupplierMetricBucketClient(cfg),
+		SupplierResourceRequest:       NewSupplierResourceRequestClient(cfg),
 		SupplierWithdrawal:            NewSupplierWithdrawalClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
@@ -448,9 +454,10 @@ func (c *Client) Use(hooks ...Hook) {
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.Supplier, c.SupplierDocument, c.SupplierLedger, c.SupplierMetricBucket,
-		c.SupplierWithdrawal, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
-		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.SupplierResourceRequest, c.SupplierWithdrawal, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -469,9 +476,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.Supplier, c.SupplierDocument, c.SupplierLedger, c.SupplierMetricBucket,
-		c.SupplierWithdrawal, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
-		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.SupplierResourceRequest, c.SupplierWithdrawal, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -548,6 +556,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SupplierLedger.mutate(ctx, m)
 	case *SupplierMetricBucketMutation:
 		return c.SupplierMetricBucket.mutate(ctx, m)
+	case *SupplierResourceRequestMutation:
+		return c.SupplierResourceRequest.mutate(ctx, m)
 	case *SupplierWithdrawalMutation:
 		return c.SupplierWithdrawal.mutate(ctx, m)
 	case *TLSFingerprintProfileMutation:
@@ -5480,6 +5490,22 @@ func (c *SupplierClient) QueryWithdrawals(_m *Supplier) *SupplierWithdrawalQuery
 	return query
 }
 
+// QueryResourceRequests queries the resource_requests edge of a Supplier.
+func (c *SupplierClient) QueryResourceRequests(_m *Supplier) *SupplierResourceRequestQuery {
+	query := (&SupplierResourceRequestClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, id),
+			sqlgraph.To(supplierresourcerequest.Table, supplierresourcerequest.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, supplier.ResourceRequestsTable, supplier.ResourceRequestsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *SupplierClient) Hooks() []Hook {
 	return c.hooks.Supplier
@@ -5933,6 +5959,155 @@ func (c *SupplierMetricBucketClient) mutate(ctx context.Context, m *SupplierMetr
 		return (&SupplierMetricBucketDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown SupplierMetricBucket mutation op: %q", m.Op())
+	}
+}
+
+// SupplierResourceRequestClient is a client for the SupplierResourceRequest schema.
+type SupplierResourceRequestClient struct {
+	config
+}
+
+// NewSupplierResourceRequestClient returns a client for the SupplierResourceRequest from the given config.
+func NewSupplierResourceRequestClient(c config) *SupplierResourceRequestClient {
+	return &SupplierResourceRequestClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `supplierresourcerequest.Hooks(f(g(h())))`.
+func (c *SupplierResourceRequestClient) Use(hooks ...Hook) {
+	c.hooks.SupplierResourceRequest = append(c.hooks.SupplierResourceRequest, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `supplierresourcerequest.Intercept(f(g(h())))`.
+func (c *SupplierResourceRequestClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SupplierResourceRequest = append(c.inters.SupplierResourceRequest, interceptors...)
+}
+
+// Create returns a builder for creating a SupplierResourceRequest entity.
+func (c *SupplierResourceRequestClient) Create() *SupplierResourceRequestCreate {
+	mutation := newSupplierResourceRequestMutation(c.config, OpCreate)
+	return &SupplierResourceRequestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SupplierResourceRequest entities.
+func (c *SupplierResourceRequestClient) CreateBulk(builders ...*SupplierResourceRequestCreate) *SupplierResourceRequestCreateBulk {
+	return &SupplierResourceRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SupplierResourceRequestClient) MapCreateBulk(slice any, setFunc func(*SupplierResourceRequestCreate, int)) *SupplierResourceRequestCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SupplierResourceRequestCreateBulk{err: fmt.Errorf("calling to SupplierResourceRequestClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SupplierResourceRequestCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SupplierResourceRequestCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SupplierResourceRequest.
+func (c *SupplierResourceRequestClient) Update() *SupplierResourceRequestUpdate {
+	mutation := newSupplierResourceRequestMutation(c.config, OpUpdate)
+	return &SupplierResourceRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SupplierResourceRequestClient) UpdateOne(_m *SupplierResourceRequest) *SupplierResourceRequestUpdateOne {
+	mutation := newSupplierResourceRequestMutation(c.config, OpUpdateOne, withSupplierResourceRequest(_m))
+	return &SupplierResourceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SupplierResourceRequestClient) UpdateOneID(id int64) *SupplierResourceRequestUpdateOne {
+	mutation := newSupplierResourceRequestMutation(c.config, OpUpdateOne, withSupplierResourceRequestID(id))
+	return &SupplierResourceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SupplierResourceRequest.
+func (c *SupplierResourceRequestClient) Delete() *SupplierResourceRequestDelete {
+	mutation := newSupplierResourceRequestMutation(c.config, OpDelete)
+	return &SupplierResourceRequestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SupplierResourceRequestClient) DeleteOne(_m *SupplierResourceRequest) *SupplierResourceRequestDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SupplierResourceRequestClient) DeleteOneID(id int64) *SupplierResourceRequestDeleteOne {
+	builder := c.Delete().Where(supplierresourcerequest.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SupplierResourceRequestDeleteOne{builder}
+}
+
+// Query returns a query builder for SupplierResourceRequest.
+func (c *SupplierResourceRequestClient) Query() *SupplierResourceRequestQuery {
+	return &SupplierResourceRequestQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSupplierResourceRequest},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SupplierResourceRequest entity by its id.
+func (c *SupplierResourceRequestClient) Get(ctx context.Context, id int64) (*SupplierResourceRequest, error) {
+	return c.Query().Where(supplierresourcerequest.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SupplierResourceRequestClient) GetX(ctx context.Context, id int64) *SupplierResourceRequest {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySupplier queries the supplier edge of a SupplierResourceRequest.
+func (c *SupplierResourceRequestClient) QuerySupplier(_m *SupplierResourceRequest) *SupplierQuery {
+	query := (&SupplierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplierresourcerequest.Table, supplierresourcerequest.FieldID, id),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, supplierresourcerequest.SupplierTable, supplierresourcerequest.SupplierColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SupplierResourceRequestClient) Hooks() []Hook {
+	return c.hooks.SupplierResourceRequest
+}
+
+// Interceptors returns the client interceptors.
+func (c *SupplierResourceRequestClient) Interceptors() []Interceptor {
+	return c.inters.SupplierResourceRequest
+}
+
+func (c *SupplierResourceRequestClient) mutate(ctx context.Context, m *SupplierResourceRequestMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SupplierResourceRequestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SupplierResourceRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SupplierResourceRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SupplierResourceRequestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SupplierResourceRequest mutation op: %q", m.Op())
 	}
 }
 
@@ -7732,9 +7907,9 @@ type (
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		Supplier, SupplierDocument, SupplierLedger, SupplierMetricBucket,
-		SupplierWithdrawal, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
-		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserPlatformQuota, UserSubscription []ent.Hook
+		SupplierResourceRequest, SupplierWithdrawal, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -7745,9 +7920,9 @@ type (
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
 		Supplier, SupplierDocument, SupplierLedger, SupplierMetricBucket,
-		SupplierWithdrawal, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
-		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
-		UserPlatformQuota, UserSubscription []ent.Interceptor
+		SupplierResourceRequest, SupplierWithdrawal, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )
 

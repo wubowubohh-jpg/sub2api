@@ -923,6 +923,29 @@ func HasWithdrawalsWith(preds ...predicate.SupplierWithdrawal) predicate.Supplie
 	})
 }
 
+// HasResourceRequests applies the HasEdge predicate on the "resource_requests" edge.
+func HasResourceRequests() predicate.Supplier {
+	return predicate.Supplier(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ResourceRequestsTable, ResourceRequestsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasResourceRequestsWith applies the HasEdge predicate on the "resource_requests" edge with a given conditions (other predicates).
+func HasResourceRequestsWith(preds ...predicate.SupplierResourceRequest) predicate.Supplier {
+	return predicate.Supplier(func(s *sql.Selector) {
+		step := newResourceRequestsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Supplier) predicate.Supplier {
 	return predicate.Supplier(sql.AndPredicates(predicates...))

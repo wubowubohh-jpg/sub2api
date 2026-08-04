@@ -108,6 +108,9 @@ type SupplierLedger func(*sql.Selector)
 // SupplierMetricBucket is the predicate function for suppliermetricbucket builders.
 type SupplierMetricBucket func(*sql.Selector)
 
+// SupplierResourceRequest is the predicate function for supplierresourcerequest builders.
+type SupplierResourceRequest func(*sql.Selector)
+
 // SupplierWithdrawal is the predicate function for supplierwithdrawal builders.
 type SupplierWithdrawal func(*sql.Selector)
 

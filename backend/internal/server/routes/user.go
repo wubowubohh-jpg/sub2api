@@ -149,6 +149,8 @@ func RegisterUserRoutes(
 			suppliers.POST("/documents", h.Supplier.UploadDocument)
 			suppliers.GET("/me", h.Supplier.Me)
 			suppliers.GET("/groups", h.Supplier.MyGroups)
+			suppliers.GET("/resource-requests", h.Supplier.MyResourceRequests)
+			suppliers.POST("/resource-requests", h.Supplier.CreateResourceRequest)
 			suppliers.POST("/groups", h.Supplier.CreateGroup)
 			suppliers.PUT("/groups/:id", h.Supplier.UpdateGroup)
 			suppliers.GET("/accounts", h.Supplier.MyAccounts)

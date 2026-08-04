@@ -17,20 +17,100 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
 	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 )
 
 type SupplierService struct {
-	db       *dbent.Client
-	stop     chan struct{}
-	stopOnce sync.Once
+	db        *dbent.Client
+	encryptor SecretEncryptor
+	stop      chan struct{}
+	stopOnce  sync.Once
 }
 
-func NewSupplierService(db *dbent.Client) *SupplierService {
-	s := &SupplierService{db: db, stop: make(chan struct{})}
+func NewSupplierService(db *dbent.Client, encryptor SecretEncryptor) *SupplierService {
+	s := &SupplierService{db: db, encryptor: encryptor, stop: make(chan struct{})}
 	go s.runSettlementWorker()
 	return s
+}
+
+type SupplierResourceApplication struct {
+	GroupName string `json:"group_name"`
+	RelayName string `json:"relay_name"`
+	RelayURL  string `json:"relay_url"`
+	APIKey    string `json:"api_key"`
+	Model     string `json:"model"`
+}
+
+func (s *SupplierService) CreateResourceRequest(ctx context.Context, supplierID int64, in SupplierResourceApplication) (*dbent.SupplierResourceRequest, error) {
+	in.GroupName, in.RelayName, in.RelayURL, in.APIKey = strings.TrimSpace(in.GroupName), strings.TrimSpace(in.RelayName), strings.TrimSpace(in.RelayURL), strings.TrimSpace(in.APIKey)
+	parsed, err := url.Parse(in.RelayURL)
+	if in.GroupName == "" || in.RelayName == "" || in.APIKey == "" || err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
+		return nil, fmt.Errorf("invalid resource application")
+	}
+	if in.Model == "" {
+		in.Model = "gpt-5.5"
+	}
+	sp, err := s.db.Supplier.Get(ctx, supplierID)
+	if err != nil || sp.Status != supplier.StatusApproved {
+		return nil, fmt.Errorf("supplier is not approved")
+	}
+	encrypted, err := s.encryptor.Encrypt(in.APIKey)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt api key: %w", err)
+	}
+	return s.db.SupplierResourceRequest.Create().SetSupplierID(supplierID).SetGroupName(in.GroupName).SetRelayName(in.RelayName).SetRelayURL(in.RelayURL).SetAPIKeyEncrypted(encrypted).SetModel(in.Model).Save(ctx)
+}
+
+func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int64, status string) ([]*dbent.SupplierResourceRequest, error) {
+	q := s.db.SupplierResourceRequest.Query().Order(dbent.Desc(supplierresourcerequest.FieldCreatedAt))
+	if supplierID != nil {
+		q.Where(supplierresourcerequest.SupplierID(*supplierID))
+	}
+	if status != "" {
+		q.Where(supplierresourcerequest.StatusEQ(supplierresourcerequest.Status(status)))
+	}
+	return q.All(ctx)
+}
+
+func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, reviewerID int64, approved bool, note string) (*dbent.SupplierResourceRequest, error) {
+	req, err := s.db.SupplierResourceRequest.Get(ctx, requestID)
+	if err != nil || req.Status != supplierresourcerequest.StatusPending {
+		return nil, fmt.Errorf("pending resource application not found")
+	}
+	if !approved {
+		return req.Update().SetStatus(supplierresourcerequest.StatusRejected).SetReviewedBy(reviewerID).SetReviewedAt(time.Now()).SetReviewNote(note).Save(ctx)
+	}
+	key, err := s.encryptor.Decrypt(req.APIKeyEncrypted)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt api key: %w", err)
+	}
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	g, err := tx.Group.Create().SetSupplierID(req.SupplierID).SetName(req.GroupName).SetDescription(req.RelayName).SetPlatform("openai").SetSubscriptionType("standard").SetRateMultiplier(1).SetStatus("active").SetIsExclusive(false).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	a, err := tx.Account.Create().SetSupplierID(req.SupplierID).SetName(req.RelayName).SetPlatform("openai").SetType("api_key").SetCredentials(map[string]any{"api_key": key}).SetExtra(map[string]any{"base_url": req.RelayURL}).SetStatus("active").SetSchedulable(true).AddGroupIDs(g.ID).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	m, err := tx.ChannelMonitor.Create().SetName(req.RelayName).SetProvider("openai").SetAPIMode("chat_completions").SetEndpoint(req.RelayURL).SetAPIKeyEncrypted(req.APIKeyEncrypted).SetPrimaryModel(req.Model).SetExtraModels([]string{}).SetGroupName(req.GroupName).SetGroupID(g.ID).SetEnabled(true).SetIntervalSeconds(60).SetJitterSeconds(5).SetCreatedBy(reviewerID).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := tx.SupplierResourceRequest.UpdateOneID(req.ID).SetStatus(supplierresourcerequest.StatusApproved).SetReviewedBy(reviewerID).SetReviewedAt(time.Now()).SetReviewNote(note).SetGroupID(g.ID).SetAccountID(a.ID).SetMonitorID(m.ID).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return updated, nil
 }
 func (s *SupplierService) runSettlementWorker() {
 	ticker := time.NewTicker(time.Minute)

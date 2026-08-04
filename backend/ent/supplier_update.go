@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
@@ -334,6 +335,21 @@ func (_u *SupplierUpdate) AddWithdrawals(v ...*SupplierWithdrawal) *SupplierUpda
 	return _u.AddWithdrawalIDs(ids...)
 }
 
+// AddResourceRequestIDs adds the "resource_requests" edge to the SupplierResourceRequest entity by IDs.
+func (_u *SupplierUpdate) AddResourceRequestIDs(ids ...int64) *SupplierUpdate {
+	_u.mutation.AddResourceRequestIDs(ids...)
+	return _u
+}
+
+// AddResourceRequests adds the "resource_requests" edges to the SupplierResourceRequest entity.
+func (_u *SupplierUpdate) AddResourceRequests(v ...*SupplierResourceRequest) *SupplierUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResourceRequestIDs(ids...)
+}
+
 // Mutation returns the SupplierMutation object of the builder.
 func (_u *SupplierUpdate) Mutation() *SupplierMutation {
 	return _u.mutation
@@ -448,6 +464,27 @@ func (_u *SupplierUpdate) RemoveWithdrawals(v ...*SupplierWithdrawal) *SupplierU
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWithdrawalIDs(ids...)
+}
+
+// ClearResourceRequests clears all "resource_requests" edges to the SupplierResourceRequest entity.
+func (_u *SupplierUpdate) ClearResourceRequests() *SupplierUpdate {
+	_u.mutation.ClearResourceRequests()
+	return _u
+}
+
+// RemoveResourceRequestIDs removes the "resource_requests" edge to SupplierResourceRequest entities by IDs.
+func (_u *SupplierUpdate) RemoveResourceRequestIDs(ids ...int64) *SupplierUpdate {
+	_u.mutation.RemoveResourceRequestIDs(ids...)
+	return _u
+}
+
+// RemoveResourceRequests removes "resource_requests" edges to SupplierResourceRequest entities.
+func (_u *SupplierUpdate) RemoveResourceRequests(v ...*SupplierResourceRequest) *SupplierUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResourceRequestIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -832,6 +869,51 @@ func (_u *SupplierUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ResourceRequestsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   supplier.ResourceRequestsTable,
+			Columns: []string{supplier.ResourceRequestsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplierresourcerequest.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResourceRequestsIDs(); len(nodes) > 0 && !_u.mutation.ResourceRequestsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   supplier.ResourceRequestsTable,
+			Columns: []string{supplier.ResourceRequestsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplierresourcerequest.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResourceRequestsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   supplier.ResourceRequestsTable,
+			Columns: []string{supplier.ResourceRequestsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplierresourcerequest.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{supplier.Label}
@@ -1152,6 +1234,21 @@ func (_u *SupplierUpdateOne) AddWithdrawals(v ...*SupplierWithdrawal) *SupplierU
 	return _u.AddWithdrawalIDs(ids...)
 }
 
+// AddResourceRequestIDs adds the "resource_requests" edge to the SupplierResourceRequest entity by IDs.
+func (_u *SupplierUpdateOne) AddResourceRequestIDs(ids ...int64) *SupplierUpdateOne {
+	_u.mutation.AddResourceRequestIDs(ids...)
+	return _u
+}
+
+// AddResourceRequests adds the "resource_requests" edges to the SupplierResourceRequest entity.
+func (_u *SupplierUpdateOne) AddResourceRequests(v ...*SupplierResourceRequest) *SupplierUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddResourceRequestIDs(ids...)
+}
+
 // Mutation returns the SupplierMutation object of the builder.
 func (_u *SupplierUpdateOne) Mutation() *SupplierMutation {
 	return _u.mutation
@@ -1266,6 +1363,27 @@ func (_u *SupplierUpdateOne) RemoveWithdrawals(v ...*SupplierWithdrawal) *Suppli
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveWithdrawalIDs(ids...)
+}
+
+// ClearResourceRequests clears all "resource_requests" edges to the SupplierResourceRequest entity.
+func (_u *SupplierUpdateOne) ClearResourceRequests() *SupplierUpdateOne {
+	_u.mutation.ClearResourceRequests()
+	return _u
+}
+
+// RemoveResourceRequestIDs removes the "resource_requests" edge to SupplierResourceRequest entities by IDs.
+func (_u *SupplierUpdateOne) RemoveResourceRequestIDs(ids ...int64) *SupplierUpdateOne {
+	_u.mutation.RemoveResourceRequestIDs(ids...)
+	return _u
+}
+
+// RemoveResourceRequests removes "resource_requests" edges to SupplierResourceRequest entities.
+func (_u *SupplierUpdateOne) RemoveResourceRequests(v ...*SupplierResourceRequest) *SupplierUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveResourceRequestIDs(ids...)
 }
 
 // Where appends a list predicates to the SupplierUpdate builder.
@@ -1673,6 +1791,51 @@ func (_u *SupplierUpdateOne) sqlSave(ctx context.Context) (_node *Supplier, err 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(supplierwithdrawal.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ResourceRequestsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   supplier.ResourceRequestsTable,
+			Columns: []string{supplier.ResourceRequestsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplierresourcerequest.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedResourceRequestsIDs(); len(nodes) > 0 && !_u.mutation.ResourceRequestsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   supplier.ResourceRequestsTable,
+			Columns: []string{supplier.ResourceRequestsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplierresourcerequest.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ResourceRequestsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   supplier.ResourceRequestsTable,
+			Columns: []string{supplier.ResourceRequestsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplierresourcerequest.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

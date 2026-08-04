@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
@@ -284,6 +285,21 @@ func (_c *SupplierCreate) AddWithdrawals(v ...*SupplierWithdrawal) *SupplierCrea
 		ids[i] = v[i].ID
 	}
 	return _c.AddWithdrawalIDs(ids...)
+}
+
+// AddResourceRequestIDs adds the "resource_requests" edge to the SupplierResourceRequest entity by IDs.
+func (_c *SupplierCreate) AddResourceRequestIDs(ids ...int64) *SupplierCreate {
+	_c.mutation.AddResourceRequestIDs(ids...)
+	return _c
+}
+
+// AddResourceRequests adds the "resource_requests" edges to the SupplierResourceRequest entity.
+func (_c *SupplierCreate) AddResourceRequests(v ...*SupplierResourceRequest) *SupplierCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddResourceRequestIDs(ids...)
 }
 
 // Mutation returns the SupplierMutation object of the builder.
@@ -595,6 +611,22 @@ func (_c *SupplierCreate) createSpec() (*Supplier, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(supplierwithdrawal.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ResourceRequestsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   supplier.ResourceRequestsTable,
+			Columns: []string{supplier.ResourceRequestsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplierresourcerequest.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

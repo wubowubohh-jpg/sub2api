@@ -69,9 +69,11 @@ type SupplierEdges struct {
 	LedgerEntries []*SupplierLedger `json:"ledger_entries,omitempty"`
 	// Withdrawals holds the value of the withdrawals edge.
 	Withdrawals []*SupplierWithdrawal `json:"withdrawals,omitempty"`
+	// ResourceRequests holds the value of the resource_requests edge.
+	ResourceRequests []*SupplierResourceRequest `json:"resource_requests,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [7]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -128,6 +130,15 @@ func (e SupplierEdges) WithdrawalsOrErr() ([]*SupplierWithdrawal, error) {
 		return e.Withdrawals, nil
 	}
 	return nil, &NotLoadedError{edge: "withdrawals"}
+}
+
+// ResourceRequestsOrErr returns the ResourceRequests value or an error if the edge
+// was not loaded in eager-loading.
+func (e SupplierEdges) ResourceRequestsOrErr() ([]*SupplierResourceRequest, error) {
+	if e.loadedTypes[6] {
+		return e.ResourceRequests, nil
+	}
+	return nil, &NotLoadedError{edge: "resource_requests"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -301,6 +312,11 @@ func (_m *Supplier) QueryLedgerEntries() *SupplierLedgerQuery {
 // QueryWithdrawals queries the "withdrawals" edge of the Supplier entity.
 func (_m *Supplier) QueryWithdrawals() *SupplierWithdrawalQuery {
 	return NewSupplierClient(_m.config).QueryWithdrawals(_m)
+}
+
+// QueryResourceRequests queries the "resource_requests" edge of the Supplier entity.
+func (_m *Supplier) QueryResourceRequests() *SupplierResourceRequestQuery {
+	return NewSupplierClient(_m.config).QueryResourceRequests(_m)
 }
 
 // Update returns a builder for updating this Supplier.

@@ -130,6 +130,8 @@ func RegisterAdminRoutes(
 			suppliers.GET("/settings", h.Supplier.AdminSettings)
 			suppliers.PUT("/settings", h.Supplier.AdminUpdateSettings)
 			suppliers.POST("/settlement/reconcile", h.Supplier.AdminReconcile)
+			suppliers.GET("/resource-requests", h.Supplier.AdminResourceRequests)
+			suppliers.PUT("/resource-requests/:request_id", h.Supplier.AdminReviewResourceRequest)
 		}
 		admin.GET("/supplier-withdrawals", h.Supplier.AdminWithdrawals)
 		admin.PUT("/supplier-withdrawals/:withdrawal_id", h.Supplier.AdminReviewWithdrawal)

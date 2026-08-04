@@ -57,6 +57,8 @@ const (
 	EdgeLedgerEntries = "ledger_entries"
 	// EdgeWithdrawals holds the string denoting the withdrawals edge name in mutations.
 	EdgeWithdrawals = "withdrawals"
+	// EdgeResourceRequests holds the string denoting the resource_requests edge name in mutations.
+	EdgeResourceRequests = "resource_requests"
 	// Table holds the table name of the supplier in the database.
 	Table = "suppliers"
 	// UserTable is the table that holds the user relation/edge.
@@ -101,6 +103,13 @@ const (
 	WithdrawalsInverseTable = "supplier_withdrawals"
 	// WithdrawalsColumn is the table column denoting the withdrawals relation/edge.
 	WithdrawalsColumn = "supplier_id"
+	// ResourceRequestsTable is the table that holds the resource_requests relation/edge.
+	ResourceRequestsTable = "supplier_resource_requests"
+	// ResourceRequestsInverseTable is the table name for the SupplierResourceRequest entity.
+	// It exists in this package in order to avoid circular dependency with the "supplierresourcerequest" package.
+	ResourceRequestsInverseTable = "supplier_resource_requests"
+	// ResourceRequestsColumn is the table column denoting the resource_requests relation/edge.
+	ResourceRequestsColumn = "supplier_id"
 )
 
 // Columns holds all SQL columns for supplier fields.
@@ -342,6 +351,20 @@ func ByWithdrawals(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newWithdrawalsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByResourceRequestsCount orders the results by resource_requests count.
+func ByResourceRequestsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newResourceRequestsStep(), opts...)
+	}
+}
+
+// ByResourceRequests orders the results by resource_requests terms.
+func ByResourceRequests(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newResourceRequestsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -382,5 +405,12 @@ func newWithdrawalsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(WithdrawalsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, WithdrawalsTable, WithdrawalsColumn),
+	)
+}
+func newResourceRequestsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ResourceRequestsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ResourceRequestsTable, ResourceRequestsColumn),
 	)
 }

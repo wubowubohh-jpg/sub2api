@@ -47,6 +47,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
 	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -103,6 +104,7 @@ const (
 	TypeSupplierDocument              = "SupplierDocument"
 	TypeSupplierLedger                = "SupplierLedger"
 	TypeSupplierMetricBucket          = "SupplierMetricBucket"
+	TypeSupplierResourceRequest       = "SupplierResourceRequest"
 	TypeSupplierWithdrawal            = "SupplierWithdrawal"
 	TypeTLSFingerprintProfile         = "TLSFingerprintProfile"
 	TypeUsageCleanupTask              = "UsageCleanupTask"
@@ -41728,6 +41730,9 @@ type SupplierMutation struct {
 	withdrawals              map[int64]struct{}
 	removedwithdrawals       map[int64]struct{}
 	clearedwithdrawals       bool
+	resource_requests        map[int64]struct{}
+	removedresource_requests map[int64]struct{}
+	clearedresource_requests bool
 	done                     bool
 	oldValue                 func(context.Context) (*Supplier, error)
 	predicates               []predicate.Supplier
@@ -42775,6 +42780,60 @@ func (m *SupplierMutation) ResetWithdrawals() {
 	m.removedwithdrawals = nil
 }
 
+// AddResourceRequestIDs adds the "resource_requests" edge to the SupplierResourceRequest entity by ids.
+func (m *SupplierMutation) AddResourceRequestIDs(ids ...int64) {
+	if m.resource_requests == nil {
+		m.resource_requests = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.resource_requests[ids[i]] = struct{}{}
+	}
+}
+
+// ClearResourceRequests clears the "resource_requests" edge to the SupplierResourceRequest entity.
+func (m *SupplierMutation) ClearResourceRequests() {
+	m.clearedresource_requests = true
+}
+
+// ResourceRequestsCleared reports if the "resource_requests" edge to the SupplierResourceRequest entity was cleared.
+func (m *SupplierMutation) ResourceRequestsCleared() bool {
+	return m.clearedresource_requests
+}
+
+// RemoveResourceRequestIDs removes the "resource_requests" edge to the SupplierResourceRequest entity by IDs.
+func (m *SupplierMutation) RemoveResourceRequestIDs(ids ...int64) {
+	if m.removedresource_requests == nil {
+		m.removedresource_requests = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.resource_requests, ids[i])
+		m.removedresource_requests[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedResourceRequests returns the removed IDs of the "resource_requests" edge to the SupplierResourceRequest entity.
+func (m *SupplierMutation) RemovedResourceRequestsIDs() (ids []int64) {
+	for id := range m.removedresource_requests {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResourceRequestsIDs returns the "resource_requests" edge IDs in the mutation.
+func (m *SupplierMutation) ResourceRequestsIDs() (ids []int64) {
+	for id := range m.resource_requests {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetResourceRequests resets all changes to the "resource_requests" edge.
+func (m *SupplierMutation) ResetResourceRequests() {
+	m.resource_requests = nil
+	m.clearedresource_requests = false
+	m.removedresource_requests = nil
+}
+
 // Where appends a list predicates to the SupplierMutation builder.
 func (m *SupplierMutation) Where(ps ...predicate.Supplier) {
 	m.predicates = append(m.predicates, ps...)
@@ -43212,7 +43271,7 @@ func (m *SupplierMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *SupplierMutation) AddedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.user != nil {
 		edges = append(edges, supplier.EdgeUser)
 	}
@@ -43230,6 +43289,9 @@ func (m *SupplierMutation) AddedEdges() []string {
 	}
 	if m.withdrawals != nil {
 		edges = append(edges, supplier.EdgeWithdrawals)
+	}
+	if m.resource_requests != nil {
+		edges = append(edges, supplier.EdgeResourceRequests)
 	}
 	return edges
 }
@@ -43272,13 +43334,19 @@ func (m *SupplierMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case supplier.EdgeResourceRequests:
+		ids := make([]ent.Value, 0, len(m.resource_requests))
+		for id := range m.resource_requests {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *SupplierMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.removeddocuments != nil {
 		edges = append(edges, supplier.EdgeDocuments)
 	}
@@ -43293,6 +43361,9 @@ func (m *SupplierMutation) RemovedEdges() []string {
 	}
 	if m.removedwithdrawals != nil {
 		edges = append(edges, supplier.EdgeWithdrawals)
+	}
+	if m.removedresource_requests != nil {
+		edges = append(edges, supplier.EdgeResourceRequests)
 	}
 	return edges
 }
@@ -43331,13 +43402,19 @@ func (m *SupplierMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case supplier.EdgeResourceRequests:
+		ids := make([]ent.Value, 0, len(m.removedresource_requests))
+		for id := range m.removedresource_requests {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *SupplierMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.cleareduser {
 		edges = append(edges, supplier.EdgeUser)
 	}
@@ -43355,6 +43432,9 @@ func (m *SupplierMutation) ClearedEdges() []string {
 	}
 	if m.clearedwithdrawals {
 		edges = append(edges, supplier.EdgeWithdrawals)
+	}
+	if m.clearedresource_requests {
+		edges = append(edges, supplier.EdgeResourceRequests)
 	}
 	return edges
 }
@@ -43375,6 +43455,8 @@ func (m *SupplierMutation) EdgeCleared(name string) bool {
 		return m.clearedledger_entries
 	case supplier.EdgeWithdrawals:
 		return m.clearedwithdrawals
+	case supplier.EdgeResourceRequests:
+		return m.clearedresource_requests
 	}
 	return false
 }
@@ -43411,6 +43493,9 @@ func (m *SupplierMutation) ResetEdge(name string) error {
 		return nil
 	case supplier.EdgeWithdrawals:
 		m.ResetWithdrawals()
+		return nil
+	case supplier.EdgeResourceRequests:
+		m.ResetResourceRequests()
 		return nil
 	}
 	return fmt.Errorf("unknown Supplier edge %s", name)
@@ -46959,6 +47044,1325 @@ func (m *SupplierMetricBucketMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *SupplierMetricBucketMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown SupplierMetricBucket edge %s", name)
+}
+
+// SupplierResourceRequestMutation represents an operation that mutates the SupplierResourceRequest nodes in the graph.
+type SupplierResourceRequestMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int64
+	group_name        *string
+	relay_name        *string
+	relay_url         *string
+	api_key_encrypted *string
+	model             *string
+	status            *supplierresourcerequest.Status
+	reviewed_by       *int64
+	addreviewed_by    *int64
+	review_note       *string
+	group_id          *int64
+	addgroup_id       *int64
+	account_id        *int64
+	addaccount_id     *int64
+	monitor_id        *int64
+	addmonitor_id     *int64
+	reviewed_at       *time.Time
+	created_at        *time.Time
+	clearedFields     map[string]struct{}
+	supplier          *int64
+	clearedsupplier   bool
+	done              bool
+	oldValue          func(context.Context) (*SupplierResourceRequest, error)
+	predicates        []predicate.SupplierResourceRequest
+}
+
+var _ ent.Mutation = (*SupplierResourceRequestMutation)(nil)
+
+// supplierresourcerequestOption allows management of the mutation configuration using functional options.
+type supplierresourcerequestOption func(*SupplierResourceRequestMutation)
+
+// newSupplierResourceRequestMutation creates new mutation for the SupplierResourceRequest entity.
+func newSupplierResourceRequestMutation(c config, op Op, opts ...supplierresourcerequestOption) *SupplierResourceRequestMutation {
+	m := &SupplierResourceRequestMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSupplierResourceRequest,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSupplierResourceRequestID sets the ID field of the mutation.
+func withSupplierResourceRequestID(id int64) supplierresourcerequestOption {
+	return func(m *SupplierResourceRequestMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SupplierResourceRequest
+		)
+		m.oldValue = func(ctx context.Context) (*SupplierResourceRequest, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SupplierResourceRequest.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSupplierResourceRequest sets the old SupplierResourceRequest of the mutation.
+func withSupplierResourceRequest(node *SupplierResourceRequest) supplierresourcerequestOption {
+	return func(m *SupplierResourceRequestMutation) {
+		m.oldValue = func(context.Context) (*SupplierResourceRequest, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SupplierResourceRequestMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SupplierResourceRequestMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SupplierResourceRequestMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SupplierResourceRequestMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SupplierResourceRequest.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (m *SupplierResourceRequestMutation) SetSupplierID(i int64) {
+	m.supplier = &i
+}
+
+// SupplierID returns the value of the "supplier_id" field in the mutation.
+func (m *SupplierResourceRequestMutation) SupplierID() (r int64, exists bool) {
+	v := m.supplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSupplierID returns the old "supplier_id" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldSupplierID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSupplierID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSupplierID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSupplierID: %w", err)
+	}
+	return oldValue.SupplierID, nil
+}
+
+// ResetSupplierID resets all changes to the "supplier_id" field.
+func (m *SupplierResourceRequestMutation) ResetSupplierID() {
+	m.supplier = nil
+}
+
+// SetGroupName sets the "group_name" field.
+func (m *SupplierResourceRequestMutation) SetGroupName(s string) {
+	m.group_name = &s
+}
+
+// GroupName returns the value of the "group_name" field in the mutation.
+func (m *SupplierResourceRequestMutation) GroupName() (r string, exists bool) {
+	v := m.group_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupName returns the old "group_name" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldGroupName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupName: %w", err)
+	}
+	return oldValue.GroupName, nil
+}
+
+// ResetGroupName resets all changes to the "group_name" field.
+func (m *SupplierResourceRequestMutation) ResetGroupName() {
+	m.group_name = nil
+}
+
+// SetRelayName sets the "relay_name" field.
+func (m *SupplierResourceRequestMutation) SetRelayName(s string) {
+	m.relay_name = &s
+}
+
+// RelayName returns the value of the "relay_name" field in the mutation.
+func (m *SupplierResourceRequestMutation) RelayName() (r string, exists bool) {
+	v := m.relay_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRelayName returns the old "relay_name" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldRelayName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRelayName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRelayName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRelayName: %w", err)
+	}
+	return oldValue.RelayName, nil
+}
+
+// ResetRelayName resets all changes to the "relay_name" field.
+func (m *SupplierResourceRequestMutation) ResetRelayName() {
+	m.relay_name = nil
+}
+
+// SetRelayURL sets the "relay_url" field.
+func (m *SupplierResourceRequestMutation) SetRelayURL(s string) {
+	m.relay_url = &s
+}
+
+// RelayURL returns the value of the "relay_url" field in the mutation.
+func (m *SupplierResourceRequestMutation) RelayURL() (r string, exists bool) {
+	v := m.relay_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRelayURL returns the old "relay_url" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldRelayURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRelayURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRelayURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRelayURL: %w", err)
+	}
+	return oldValue.RelayURL, nil
+}
+
+// ResetRelayURL resets all changes to the "relay_url" field.
+func (m *SupplierResourceRequestMutation) ResetRelayURL() {
+	m.relay_url = nil
+}
+
+// SetAPIKeyEncrypted sets the "api_key_encrypted" field.
+func (m *SupplierResourceRequestMutation) SetAPIKeyEncrypted(s string) {
+	m.api_key_encrypted = &s
+}
+
+// APIKeyEncrypted returns the value of the "api_key_encrypted" field in the mutation.
+func (m *SupplierResourceRequestMutation) APIKeyEncrypted() (r string, exists bool) {
+	v := m.api_key_encrypted
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIKeyEncrypted returns the old "api_key_encrypted" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldAPIKeyEncrypted(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIKeyEncrypted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIKeyEncrypted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIKeyEncrypted: %w", err)
+	}
+	return oldValue.APIKeyEncrypted, nil
+}
+
+// ResetAPIKeyEncrypted resets all changes to the "api_key_encrypted" field.
+func (m *SupplierResourceRequestMutation) ResetAPIKeyEncrypted() {
+	m.api_key_encrypted = nil
+}
+
+// SetModel sets the "model" field.
+func (m *SupplierResourceRequestMutation) SetModel(s string) {
+	m.model = &s
+}
+
+// Model returns the value of the "model" field in the mutation.
+func (m *SupplierResourceRequestMutation) Model() (r string, exists bool) {
+	v := m.model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModel returns the old "model" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModel: %w", err)
+	}
+	return oldValue.Model, nil
+}
+
+// ResetModel resets all changes to the "model" field.
+func (m *SupplierResourceRequestMutation) ResetModel() {
+	m.model = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SupplierResourceRequestMutation) SetStatus(s supplierresourcerequest.Status) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SupplierResourceRequestMutation) Status() (r supplierresourcerequest.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldStatus(ctx context.Context) (v supplierresourcerequest.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SupplierResourceRequestMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (m *SupplierResourceRequestMutation) SetReviewedBy(i int64) {
+	m.reviewed_by = &i
+	m.addreviewed_by = nil
+}
+
+// ReviewedBy returns the value of the "reviewed_by" field in the mutation.
+func (m *SupplierResourceRequestMutation) ReviewedBy() (r int64, exists bool) {
+	v := m.reviewed_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewedBy returns the old "reviewed_by" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldReviewedBy(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewedBy: %w", err)
+	}
+	return oldValue.ReviewedBy, nil
+}
+
+// AddReviewedBy adds i to the "reviewed_by" field.
+func (m *SupplierResourceRequestMutation) AddReviewedBy(i int64) {
+	if m.addreviewed_by != nil {
+		*m.addreviewed_by += i
+	} else {
+		m.addreviewed_by = &i
+	}
+}
+
+// AddedReviewedBy returns the value that was added to the "reviewed_by" field in this mutation.
+func (m *SupplierResourceRequestMutation) AddedReviewedBy() (r int64, exists bool) {
+	v := m.addreviewed_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (m *SupplierResourceRequestMutation) ClearReviewedBy() {
+	m.reviewed_by = nil
+	m.addreviewed_by = nil
+	m.clearedFields[supplierresourcerequest.FieldReviewedBy] = struct{}{}
+}
+
+// ReviewedByCleared returns if the "reviewed_by" field was cleared in this mutation.
+func (m *SupplierResourceRequestMutation) ReviewedByCleared() bool {
+	_, ok := m.clearedFields[supplierresourcerequest.FieldReviewedBy]
+	return ok
+}
+
+// ResetReviewedBy resets all changes to the "reviewed_by" field.
+func (m *SupplierResourceRequestMutation) ResetReviewedBy() {
+	m.reviewed_by = nil
+	m.addreviewed_by = nil
+	delete(m.clearedFields, supplierresourcerequest.FieldReviewedBy)
+}
+
+// SetReviewNote sets the "review_note" field.
+func (m *SupplierResourceRequestMutation) SetReviewNote(s string) {
+	m.review_note = &s
+}
+
+// ReviewNote returns the value of the "review_note" field in the mutation.
+func (m *SupplierResourceRequestMutation) ReviewNote() (r string, exists bool) {
+	v := m.review_note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewNote returns the old "review_note" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldReviewNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewNote: %w", err)
+	}
+	return oldValue.ReviewNote, nil
+}
+
+// ResetReviewNote resets all changes to the "review_note" field.
+func (m *SupplierResourceRequestMutation) ResetReviewNote() {
+	m.review_note = nil
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *SupplierResourceRequestMutation) SetGroupID(i int64) {
+	m.group_id = &i
+	m.addgroup_id = nil
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *SupplierResourceRequestMutation) GroupID() (r int64, exists bool) {
+	v := m.group_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldGroupID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// AddGroupID adds i to the "group_id" field.
+func (m *SupplierResourceRequestMutation) AddGroupID(i int64) {
+	if m.addgroup_id != nil {
+		*m.addgroup_id += i
+	} else {
+		m.addgroup_id = &i
+	}
+}
+
+// AddedGroupID returns the value that was added to the "group_id" field in this mutation.
+func (m *SupplierResourceRequestMutation) AddedGroupID() (r int64, exists bool) {
+	v := m.addgroup_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (m *SupplierResourceRequestMutation) ClearGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+	m.clearedFields[supplierresourcerequest.FieldGroupID] = struct{}{}
+}
+
+// GroupIDCleared returns if the "group_id" field was cleared in this mutation.
+func (m *SupplierResourceRequestMutation) GroupIDCleared() bool {
+	_, ok := m.clearedFields[supplierresourcerequest.FieldGroupID]
+	return ok
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *SupplierResourceRequestMutation) ResetGroupID() {
+	m.group_id = nil
+	m.addgroup_id = nil
+	delete(m.clearedFields, supplierresourcerequest.FieldGroupID)
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *SupplierResourceRequestMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *SupplierResourceRequestMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldAccountID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *SupplierResourceRequestMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *SupplierResourceRequestMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (m *SupplierResourceRequestMutation) ClearAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+	m.clearedFields[supplierresourcerequest.FieldAccountID] = struct{}{}
+}
+
+// AccountIDCleared returns if the "account_id" field was cleared in this mutation.
+func (m *SupplierResourceRequestMutation) AccountIDCleared() bool {
+	_, ok := m.clearedFields[supplierresourcerequest.FieldAccountID]
+	return ok
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *SupplierResourceRequestMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+	delete(m.clearedFields, supplierresourcerequest.FieldAccountID)
+}
+
+// SetMonitorID sets the "monitor_id" field.
+func (m *SupplierResourceRequestMutation) SetMonitorID(i int64) {
+	m.monitor_id = &i
+	m.addmonitor_id = nil
+}
+
+// MonitorID returns the value of the "monitor_id" field in the mutation.
+func (m *SupplierResourceRequestMutation) MonitorID() (r int64, exists bool) {
+	v := m.monitor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMonitorID returns the old "monitor_id" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldMonitorID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMonitorID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMonitorID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMonitorID: %w", err)
+	}
+	return oldValue.MonitorID, nil
+}
+
+// AddMonitorID adds i to the "monitor_id" field.
+func (m *SupplierResourceRequestMutation) AddMonitorID(i int64) {
+	if m.addmonitor_id != nil {
+		*m.addmonitor_id += i
+	} else {
+		m.addmonitor_id = &i
+	}
+}
+
+// AddedMonitorID returns the value that was added to the "monitor_id" field in this mutation.
+func (m *SupplierResourceRequestMutation) AddedMonitorID() (r int64, exists bool) {
+	v := m.addmonitor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMonitorID clears the value of the "monitor_id" field.
+func (m *SupplierResourceRequestMutation) ClearMonitorID() {
+	m.monitor_id = nil
+	m.addmonitor_id = nil
+	m.clearedFields[supplierresourcerequest.FieldMonitorID] = struct{}{}
+}
+
+// MonitorIDCleared returns if the "monitor_id" field was cleared in this mutation.
+func (m *SupplierResourceRequestMutation) MonitorIDCleared() bool {
+	_, ok := m.clearedFields[supplierresourcerequest.FieldMonitorID]
+	return ok
+}
+
+// ResetMonitorID resets all changes to the "monitor_id" field.
+func (m *SupplierResourceRequestMutation) ResetMonitorID() {
+	m.monitor_id = nil
+	m.addmonitor_id = nil
+	delete(m.clearedFields, supplierresourcerequest.FieldMonitorID)
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (m *SupplierResourceRequestMutation) SetReviewedAt(t time.Time) {
+	m.reviewed_at = &t
+}
+
+// ReviewedAt returns the value of the "reviewed_at" field in the mutation.
+func (m *SupplierResourceRequestMutation) ReviewedAt() (r time.Time, exists bool) {
+	v := m.reviewed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewedAt returns the old "reviewed_at" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldReviewedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewedAt: %w", err)
+	}
+	return oldValue.ReviewedAt, nil
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (m *SupplierResourceRequestMutation) ClearReviewedAt() {
+	m.reviewed_at = nil
+	m.clearedFields[supplierresourcerequest.FieldReviewedAt] = struct{}{}
+}
+
+// ReviewedAtCleared returns if the "reviewed_at" field was cleared in this mutation.
+func (m *SupplierResourceRequestMutation) ReviewedAtCleared() bool {
+	_, ok := m.clearedFields[supplierresourcerequest.FieldReviewedAt]
+	return ok
+}
+
+// ResetReviewedAt resets all changes to the "reviewed_at" field.
+func (m *SupplierResourceRequestMutation) ResetReviewedAt() {
+	m.reviewed_at = nil
+	delete(m.clearedFields, supplierresourcerequest.FieldReviewedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SupplierResourceRequestMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SupplierResourceRequestMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SupplierResourceRequestMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (m *SupplierResourceRequestMutation) ClearSupplier() {
+	m.clearedsupplier = true
+	m.clearedFields[supplierresourcerequest.FieldSupplierID] = struct{}{}
+}
+
+// SupplierCleared reports if the "supplier" edge to the Supplier entity was cleared.
+func (m *SupplierResourceRequestMutation) SupplierCleared() bool {
+	return m.clearedsupplier
+}
+
+// SupplierIDs returns the "supplier" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SupplierID instead. It exists only for internal usage by the builders.
+func (m *SupplierResourceRequestMutation) SupplierIDs() (ids []int64) {
+	if id := m.supplier; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSupplier resets all changes to the "supplier" edge.
+func (m *SupplierResourceRequestMutation) ResetSupplier() {
+	m.supplier = nil
+	m.clearedsupplier = false
+}
+
+// Where appends a list predicates to the SupplierResourceRequestMutation builder.
+func (m *SupplierResourceRequestMutation) Where(ps ...predicate.SupplierResourceRequest) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SupplierResourceRequestMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SupplierResourceRequestMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SupplierResourceRequest, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SupplierResourceRequestMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SupplierResourceRequestMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SupplierResourceRequest).
+func (m *SupplierResourceRequestMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SupplierResourceRequestMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.supplier != nil {
+		fields = append(fields, supplierresourcerequest.FieldSupplierID)
+	}
+	if m.group_name != nil {
+		fields = append(fields, supplierresourcerequest.FieldGroupName)
+	}
+	if m.relay_name != nil {
+		fields = append(fields, supplierresourcerequest.FieldRelayName)
+	}
+	if m.relay_url != nil {
+		fields = append(fields, supplierresourcerequest.FieldRelayURL)
+	}
+	if m.api_key_encrypted != nil {
+		fields = append(fields, supplierresourcerequest.FieldAPIKeyEncrypted)
+	}
+	if m.model != nil {
+		fields = append(fields, supplierresourcerequest.FieldModel)
+	}
+	if m.status != nil {
+		fields = append(fields, supplierresourcerequest.FieldStatus)
+	}
+	if m.reviewed_by != nil {
+		fields = append(fields, supplierresourcerequest.FieldReviewedBy)
+	}
+	if m.review_note != nil {
+		fields = append(fields, supplierresourcerequest.FieldReviewNote)
+	}
+	if m.group_id != nil {
+		fields = append(fields, supplierresourcerequest.FieldGroupID)
+	}
+	if m.account_id != nil {
+		fields = append(fields, supplierresourcerequest.FieldAccountID)
+	}
+	if m.monitor_id != nil {
+		fields = append(fields, supplierresourcerequest.FieldMonitorID)
+	}
+	if m.reviewed_at != nil {
+		fields = append(fields, supplierresourcerequest.FieldReviewedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, supplierresourcerequest.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SupplierResourceRequestMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case supplierresourcerequest.FieldSupplierID:
+		return m.SupplierID()
+	case supplierresourcerequest.FieldGroupName:
+		return m.GroupName()
+	case supplierresourcerequest.FieldRelayName:
+		return m.RelayName()
+	case supplierresourcerequest.FieldRelayURL:
+		return m.RelayURL()
+	case supplierresourcerequest.FieldAPIKeyEncrypted:
+		return m.APIKeyEncrypted()
+	case supplierresourcerequest.FieldModel:
+		return m.Model()
+	case supplierresourcerequest.FieldStatus:
+		return m.Status()
+	case supplierresourcerequest.FieldReviewedBy:
+		return m.ReviewedBy()
+	case supplierresourcerequest.FieldReviewNote:
+		return m.ReviewNote()
+	case supplierresourcerequest.FieldGroupID:
+		return m.GroupID()
+	case supplierresourcerequest.FieldAccountID:
+		return m.AccountID()
+	case supplierresourcerequest.FieldMonitorID:
+		return m.MonitorID()
+	case supplierresourcerequest.FieldReviewedAt:
+		return m.ReviewedAt()
+	case supplierresourcerequest.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SupplierResourceRequestMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case supplierresourcerequest.FieldSupplierID:
+		return m.OldSupplierID(ctx)
+	case supplierresourcerequest.FieldGroupName:
+		return m.OldGroupName(ctx)
+	case supplierresourcerequest.FieldRelayName:
+		return m.OldRelayName(ctx)
+	case supplierresourcerequest.FieldRelayURL:
+		return m.OldRelayURL(ctx)
+	case supplierresourcerequest.FieldAPIKeyEncrypted:
+		return m.OldAPIKeyEncrypted(ctx)
+	case supplierresourcerequest.FieldModel:
+		return m.OldModel(ctx)
+	case supplierresourcerequest.FieldStatus:
+		return m.OldStatus(ctx)
+	case supplierresourcerequest.FieldReviewedBy:
+		return m.OldReviewedBy(ctx)
+	case supplierresourcerequest.FieldReviewNote:
+		return m.OldReviewNote(ctx)
+	case supplierresourcerequest.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case supplierresourcerequest.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case supplierresourcerequest.FieldMonitorID:
+		return m.OldMonitorID(ctx)
+	case supplierresourcerequest.FieldReviewedAt:
+		return m.OldReviewedAt(ctx)
+	case supplierresourcerequest.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SupplierResourceRequest field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SupplierResourceRequestMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case supplierresourcerequest.FieldSupplierID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSupplierID(v)
+		return nil
+	case supplierresourcerequest.FieldGroupName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupName(v)
+		return nil
+	case supplierresourcerequest.FieldRelayName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRelayName(v)
+		return nil
+	case supplierresourcerequest.FieldRelayURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRelayURL(v)
+		return nil
+	case supplierresourcerequest.FieldAPIKeyEncrypted:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyEncrypted(v)
+		return nil
+	case supplierresourcerequest.FieldModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModel(v)
+		return nil
+	case supplierresourcerequest.FieldStatus:
+		v, ok := value.(supplierresourcerequest.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case supplierresourcerequest.FieldReviewedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewedBy(v)
+		return nil
+	case supplierresourcerequest.FieldReviewNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewNote(v)
+		return nil
+	case supplierresourcerequest.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case supplierresourcerequest.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case supplierresourcerequest.FieldMonitorID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMonitorID(v)
+		return nil
+	case supplierresourcerequest.FieldReviewedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewedAt(v)
+		return nil
+	case supplierresourcerequest.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SupplierResourceRequest field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SupplierResourceRequestMutation) AddedFields() []string {
+	var fields []string
+	if m.addreviewed_by != nil {
+		fields = append(fields, supplierresourcerequest.FieldReviewedBy)
+	}
+	if m.addgroup_id != nil {
+		fields = append(fields, supplierresourcerequest.FieldGroupID)
+	}
+	if m.addaccount_id != nil {
+		fields = append(fields, supplierresourcerequest.FieldAccountID)
+	}
+	if m.addmonitor_id != nil {
+		fields = append(fields, supplierresourcerequest.FieldMonitorID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SupplierResourceRequestMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case supplierresourcerequest.FieldReviewedBy:
+		return m.AddedReviewedBy()
+	case supplierresourcerequest.FieldGroupID:
+		return m.AddedGroupID()
+	case supplierresourcerequest.FieldAccountID:
+		return m.AddedAccountID()
+	case supplierresourcerequest.FieldMonitorID:
+		return m.AddedMonitorID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SupplierResourceRequestMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case supplierresourcerequest.FieldReviewedBy:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReviewedBy(v)
+		return nil
+	case supplierresourcerequest.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGroupID(v)
+		return nil
+	case supplierresourcerequest.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case supplierresourcerequest.FieldMonitorID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMonitorID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SupplierResourceRequest numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SupplierResourceRequestMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(supplierresourcerequest.FieldReviewedBy) {
+		fields = append(fields, supplierresourcerequest.FieldReviewedBy)
+	}
+	if m.FieldCleared(supplierresourcerequest.FieldGroupID) {
+		fields = append(fields, supplierresourcerequest.FieldGroupID)
+	}
+	if m.FieldCleared(supplierresourcerequest.FieldAccountID) {
+		fields = append(fields, supplierresourcerequest.FieldAccountID)
+	}
+	if m.FieldCleared(supplierresourcerequest.FieldMonitorID) {
+		fields = append(fields, supplierresourcerequest.FieldMonitorID)
+	}
+	if m.FieldCleared(supplierresourcerequest.FieldReviewedAt) {
+		fields = append(fields, supplierresourcerequest.FieldReviewedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SupplierResourceRequestMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SupplierResourceRequestMutation) ClearField(name string) error {
+	switch name {
+	case supplierresourcerequest.FieldReviewedBy:
+		m.ClearReviewedBy()
+		return nil
+	case supplierresourcerequest.FieldGroupID:
+		m.ClearGroupID()
+		return nil
+	case supplierresourcerequest.FieldAccountID:
+		m.ClearAccountID()
+		return nil
+	case supplierresourcerequest.FieldMonitorID:
+		m.ClearMonitorID()
+		return nil
+	case supplierresourcerequest.FieldReviewedAt:
+		m.ClearReviewedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SupplierResourceRequest nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SupplierResourceRequestMutation) ResetField(name string) error {
+	switch name {
+	case supplierresourcerequest.FieldSupplierID:
+		m.ResetSupplierID()
+		return nil
+	case supplierresourcerequest.FieldGroupName:
+		m.ResetGroupName()
+		return nil
+	case supplierresourcerequest.FieldRelayName:
+		m.ResetRelayName()
+		return nil
+	case supplierresourcerequest.FieldRelayURL:
+		m.ResetRelayURL()
+		return nil
+	case supplierresourcerequest.FieldAPIKeyEncrypted:
+		m.ResetAPIKeyEncrypted()
+		return nil
+	case supplierresourcerequest.FieldModel:
+		m.ResetModel()
+		return nil
+	case supplierresourcerequest.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case supplierresourcerequest.FieldReviewedBy:
+		m.ResetReviewedBy()
+		return nil
+	case supplierresourcerequest.FieldReviewNote:
+		m.ResetReviewNote()
+		return nil
+	case supplierresourcerequest.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case supplierresourcerequest.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case supplierresourcerequest.FieldMonitorID:
+		m.ResetMonitorID()
+		return nil
+	case supplierresourcerequest.FieldReviewedAt:
+		m.ResetReviewedAt()
+		return nil
+	case supplierresourcerequest.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SupplierResourceRequest field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SupplierResourceRequestMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.supplier != nil {
+		edges = append(edges, supplierresourcerequest.EdgeSupplier)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SupplierResourceRequestMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case supplierresourcerequest.EdgeSupplier:
+		if id := m.supplier; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SupplierResourceRequestMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SupplierResourceRequestMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SupplierResourceRequestMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedsupplier {
+		edges = append(edges, supplierresourcerequest.EdgeSupplier)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SupplierResourceRequestMutation) EdgeCleared(name string) bool {
+	switch name {
+	case supplierresourcerequest.EdgeSupplier:
+		return m.clearedsupplier
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SupplierResourceRequestMutation) ClearEdge(name string) error {
+	switch name {
+	case supplierresourcerequest.EdgeSupplier:
+		m.ClearSupplier()
+		return nil
+	}
+	return fmt.Errorf("unknown SupplierResourceRequest unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SupplierResourceRequestMutation) ResetEdge(name string) error {
+	switch name {
+	case supplierresourcerequest.EdgeSupplier:
+		m.ResetSupplier()
+		return nil
+	}
+	return fmt.Errorf("unknown SupplierResourceRequest edge %s", name)
 }
 
 // SupplierWithdrawalMutation represents an operation that mutates the SupplierWithdrawal nodes in the graph.

@@ -47,6 +47,7 @@ func (Supplier) Edges() []ent.Edge {
 		edge.To("accounts", Account.Type),
 		edge.To("ledger_entries", SupplierLedger.Type),
 		edge.To("withdrawals", SupplierWithdrawal.Type),
+		edge.To("resource_requests", SupplierResourceRequest.Type),
 	}
 }
 

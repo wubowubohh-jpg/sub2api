@@ -40,6 +40,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
 	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -2083,6 +2084,80 @@ func init() {
 	suppliermetricbucket.DefaultUpdatedAt = suppliermetricbucketDescUpdatedAt.Default.(func() time.Time)
 	// suppliermetricbucket.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	suppliermetricbucket.UpdateDefaultUpdatedAt = suppliermetricbucketDescUpdatedAt.UpdateDefault.(func() time.Time)
+	supplierresourcerequestFields := schema.SupplierResourceRequest{}.Fields()
+	_ = supplierresourcerequestFields
+	// supplierresourcerequestDescGroupName is the schema descriptor for group_name field.
+	supplierresourcerequestDescGroupName := supplierresourcerequestFields[1].Descriptor()
+	// supplierresourcerequest.GroupNameValidator is a validator for the "group_name" field. It is called by the builders before save.
+	supplierresourcerequest.GroupNameValidator = func() func(string) error {
+		validators := supplierresourcerequestDescGroupName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(group_name string) error {
+			for _, fn := range fns {
+				if err := fn(group_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// supplierresourcerequestDescRelayName is the schema descriptor for relay_name field.
+	supplierresourcerequestDescRelayName := supplierresourcerequestFields[2].Descriptor()
+	// supplierresourcerequest.RelayNameValidator is a validator for the "relay_name" field. It is called by the builders before save.
+	supplierresourcerequest.RelayNameValidator = func() func(string) error {
+		validators := supplierresourcerequestDescRelayName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(relay_name string) error {
+			for _, fn := range fns {
+				if err := fn(relay_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// supplierresourcerequestDescRelayURL is the schema descriptor for relay_url field.
+	supplierresourcerequestDescRelayURL := supplierresourcerequestFields[3].Descriptor()
+	// supplierresourcerequest.RelayURLValidator is a validator for the "relay_url" field. It is called by the builders before save.
+	supplierresourcerequest.RelayURLValidator = func() func(string) error {
+		validators := supplierresourcerequestDescRelayURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(relay_url string) error {
+			for _, fn := range fns {
+				if err := fn(relay_url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// supplierresourcerequestDescAPIKeyEncrypted is the schema descriptor for api_key_encrypted field.
+	supplierresourcerequestDescAPIKeyEncrypted := supplierresourcerequestFields[4].Descriptor()
+	// supplierresourcerequest.APIKeyEncryptedValidator is a validator for the "api_key_encrypted" field. It is called by the builders before save.
+	supplierresourcerequest.APIKeyEncryptedValidator = supplierresourcerequestDescAPIKeyEncrypted.Validators[0].(func(string) error)
+	// supplierresourcerequestDescModel is the schema descriptor for model field.
+	supplierresourcerequestDescModel := supplierresourcerequestFields[5].Descriptor()
+	// supplierresourcerequest.DefaultModel holds the default value on creation for the model field.
+	supplierresourcerequest.DefaultModel = supplierresourcerequestDescModel.Default.(string)
+	// supplierresourcerequest.ModelValidator is a validator for the "model" field. It is called by the builders before save.
+	supplierresourcerequest.ModelValidator = supplierresourcerequestDescModel.Validators[0].(func(string) error)
+	// supplierresourcerequestDescReviewNote is the schema descriptor for review_note field.
+	supplierresourcerequestDescReviewNote := supplierresourcerequestFields[8].Descriptor()
+	// supplierresourcerequest.DefaultReviewNote holds the default value on creation for the review_note field.
+	supplierresourcerequest.DefaultReviewNote = supplierresourcerequestDescReviewNote.Default.(string)
+	// supplierresourcerequestDescCreatedAt is the schema descriptor for created_at field.
+	supplierresourcerequestDescCreatedAt := supplierresourcerequestFields[13].Descriptor()
+	// supplierresourcerequest.DefaultCreatedAt holds the default value on creation for the created_at field.
+	supplierresourcerequest.DefaultCreatedAt = supplierresourcerequestDescCreatedAt.Default.(func() time.Time)
 	supplierwithdrawalFields := schema.SupplierWithdrawal{}.Fields()
 	_ = supplierwithdrawalFields
 	// supplierwithdrawalDescRequestNo is the schema descriptor for request_no field.

@@ -1756,6 +1756,45 @@ var (
 			},
 		},
 	}
+	// SupplierResourceRequestsColumns holds the columns for the "supplier_resource_requests" table.
+	SupplierResourceRequestsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "group_name", Type: field.TypeString, Size: 100},
+		{Name: "relay_name", Type: field.TypeString, Size: 100},
+		{Name: "relay_url", Type: field.TypeString, Size: 500},
+		{Name: "api_key_encrypted", Type: field.TypeString},
+		{Name: "model", Type: field.TypeString, Size: 200, Default: "gpt-5.5"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected"}, Default: "pending"},
+		{Name: "reviewed_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "review_note", Type: field.TypeString, Default: ""},
+		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "account_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "monitor_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "supplier_id", Type: field.TypeInt64},
+	}
+	// SupplierResourceRequestsTable holds the schema information for the "supplier_resource_requests" table.
+	SupplierResourceRequestsTable = &schema.Table{
+		Name:       "supplier_resource_requests",
+		Columns:    SupplierResourceRequestsColumns,
+		PrimaryKey: []*schema.Column{SupplierResourceRequestsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "supplier_resource_requests_suppliers_resource_requests",
+				Columns:    []*schema.Column{SupplierResourceRequestsColumns[14]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supplierresourcerequest_supplier_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupplierResourceRequestsColumns[14], SupplierResourceRequestsColumns[6], SupplierResourceRequestsColumns[13]},
+			},
+		},
+	}
 	// SupplierWithdrawalsColumns holds the columns for the "supplier_withdrawals" table.
 	SupplierWithdrawalsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2358,6 +2397,7 @@ var (
 		SupplierDocumentsTable,
 		SupplierLedgersTable,
 		SupplierMetricBucketsTable,
+		SupplierResourceRequestsTable,
 		SupplierWithdrawalsTable,
 		TLSFingerprintProfilesTable,
 		UsageCleanupTasksTable,
@@ -2501,6 +2541,10 @@ func init() {
 	}
 	SupplierMetricBucketsTable.Annotation = &entsql.Annotation{
 		Table: "supplier_metric_buckets",
+	}
+	SupplierResourceRequestsTable.ForeignKeys[0].RefTable = SuppliersTable
+	SupplierResourceRequestsTable.Annotation = &entsql.Annotation{
+		Table: "supplier_resource_requests",
 	}
 	SupplierWithdrawalsTable.ForeignKeys[0].RefTable = SuppliersTable
 	SupplierWithdrawalsTable.Annotation = &entsql.Annotation{

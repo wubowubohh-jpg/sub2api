@@ -46,6 +46,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
 	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -150,6 +151,7 @@ func checkColumn(t, c string) error {
 			supplierdocument.Table:              supplierdocument.ValidColumn,
 			supplierledger.Table:                supplierledger.ValidColumn,
 			suppliermetricbucket.Table:          suppliermetricbucket.ValidColumn,
+			supplierresourcerequest.Table:       supplierresourcerequest.ValidColumn,
 			supplierwithdrawal.Table:            supplierwithdrawal.ValidColumn,
 			tlsfingerprintprofile.Table:         tlsfingerprintprofile.ValidColumn,
 			usagecleanuptask.Table:              usagecleanuptask.ValidColumn,

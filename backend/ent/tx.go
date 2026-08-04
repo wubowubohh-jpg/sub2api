@@ -82,6 +82,8 @@ type Tx struct {
 	SupplierLedger *SupplierLedgerClient
 	// SupplierMetricBucket is the client for interacting with the SupplierMetricBucket builders.
 	SupplierMetricBucket *SupplierMetricBucketClient
+	// SupplierResourceRequest is the client for interacting with the SupplierResourceRequest builders.
+	SupplierResourceRequest *SupplierResourceRequestClient
 	// SupplierWithdrawal is the client for interacting with the SupplierWithdrawal builders.
 	SupplierWithdrawal *SupplierWithdrawalClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
@@ -267,6 +269,7 @@ func (tx *Tx) init() {
 	tx.SupplierDocument = NewSupplierDocumentClient(tx.config)
 	tx.SupplierLedger = NewSupplierLedgerClient(tx.config)
 	tx.SupplierMetricBucket = NewSupplierMetricBucketClient(tx.config)
+	tx.SupplierResourceRequest = NewSupplierResourceRequestClient(tx.config)
 	tx.SupplierWithdrawal = NewSupplierWithdrawalClient(tx.config)
 	tx.TLSFingerprintProfile = NewTLSFingerprintProfileClient(tx.config)
 	tx.UsageCleanupTask = NewUsageCleanupTaskClient(tx.config)

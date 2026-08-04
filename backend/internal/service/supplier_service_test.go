@@ -21,7 +21,7 @@ func newSupplierTestService(t *testing.T) (*SupplierService, context.Context) {
 	drv := entsql.OpenDB(dialect.SQLite, db)
 	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
 	t.Cleanup(func() { _ = client.Close(); _ = db.Close() })
-	return NewSupplierService(client), context.Background()
+	return NewSupplierService(client, nil), context.Background()
 }
 
 func TestSupplierEffectiveRateLocalOverridesGlobal(t *testing.T) {

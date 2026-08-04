@@ -75,6 +75,49 @@ func (h *SupplierHandler) MyGroups(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, groups)
 }
+
+func (h *SupplierHandler) CreateResourceRequest(c *gin.Context) {
+	uid, ok := subject(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	sp, err := h.svc.UserIsSupplier(c, uid)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
+		return
+	}
+	var in service.SupplierResourceApplication
+	if c.ShouldBindJSON(&in) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application"})
+		return
+	}
+	item, err := h.svc.CreateResourceRequest(c, sp.ID, in)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, item)
+}
+
+func (h *SupplierHandler) MyResourceRequests(c *gin.Context) {
+	uid, ok := subject(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	sp, err := h.svc.UserIsSupplier(c, uid)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
+		return
+	}
+	items, err := h.svc.ResourceRequests(c, &sp.ID, "")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
 func (h *SupplierHandler) UploadDocument(c *gin.Context) {
 	uid, ok := subject(c)
 	if !ok {
@@ -380,6 +423,34 @@ func (h *SupplierHandler) AdminReconcile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"reconciled": count})
+}
+
+func (h *SupplierHandler) AdminResourceRequests(c *gin.Context) {
+	items, err := h.svc.ResourceRequests(c, nil, c.Query("status"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func (h *SupplierHandler) AdminReviewResourceRequest(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("request_id"), 10, 64)
+	uid, _ := subject(c)
+	var in struct {
+		Approved bool   `json:"approved"`
+		Note     string `json:"note"`
+	}
+	if c.ShouldBindJSON(&in) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review"})
+		return
+	}
+	item, err := h.svc.ReviewResourceRequest(c, id, uid, in.Approved, in.Note)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
 }
 
 func (h *SupplierHandler) MyWithdrawals(c *gin.Context) {

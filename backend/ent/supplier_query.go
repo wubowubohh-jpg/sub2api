@@ -19,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
@@ -26,17 +27,18 @@ import (
 // SupplierQuery is the builder for querying Supplier entities.
 type SupplierQuery struct {
 	config
-	ctx               *QueryContext
-	order             []supplier.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.Supplier
-	withUser          *UserQuery
-	withDocuments     *SupplierDocumentQuery
-	withGroups        *GroupQuery
-	withAccounts      *AccountQuery
-	withLedgerEntries *SupplierLedgerQuery
-	withWithdrawals   *SupplierWithdrawalQuery
-	modifiers         []func(*sql.Selector)
+	ctx                  *QueryContext
+	order                []supplier.OrderOption
+	inters               []Interceptor
+	predicates           []predicate.Supplier
+	withUser             *UserQuery
+	withDocuments        *SupplierDocumentQuery
+	withGroups           *GroupQuery
+	withAccounts         *AccountQuery
+	withLedgerEntries    *SupplierLedgerQuery
+	withWithdrawals      *SupplierWithdrawalQuery
+	withResourceRequests *SupplierResourceRequestQuery
+	modifiers            []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -198,6 +200,28 @@ func (_q *SupplierQuery) QueryWithdrawals() *SupplierWithdrawalQuery {
 			sqlgraph.From(supplier.Table, supplier.FieldID, selector),
 			sqlgraph.To(supplierwithdrawal.Table, supplierwithdrawal.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, supplier.WithdrawalsTable, supplier.WithdrawalsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryResourceRequests chains the current query on the "resource_requests" edge.
+func (_q *SupplierQuery) QueryResourceRequests() *SupplierResourceRequestQuery {
+	query := (&SupplierResourceRequestClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, selector),
+			sqlgraph.To(supplierresourcerequest.Table, supplierresourcerequest.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, supplier.ResourceRequestsTable, supplier.ResourceRequestsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -392,17 +416,18 @@ func (_q *SupplierQuery) Clone() *SupplierQuery {
 		return nil
 	}
 	return &SupplierQuery{
-		config:            _q.config,
-		ctx:               _q.ctx.Clone(),
-		order:             append([]supplier.OrderOption{}, _q.order...),
-		inters:            append([]Interceptor{}, _q.inters...),
-		predicates:        append([]predicate.Supplier{}, _q.predicates...),
-		withUser:          _q.withUser.Clone(),
-		withDocuments:     _q.withDocuments.Clone(),
-		withGroups:        _q.withGroups.Clone(),
-		withAccounts:      _q.withAccounts.Clone(),
-		withLedgerEntries: _q.withLedgerEntries.Clone(),
-		withWithdrawals:   _q.withWithdrawals.Clone(),
+		config:               _q.config,
+		ctx:                  _q.ctx.Clone(),
+		order:                append([]supplier.OrderOption{}, _q.order...),
+		inters:               append([]Interceptor{}, _q.inters...),
+		predicates:           append([]predicate.Supplier{}, _q.predicates...),
+		withUser:             _q.withUser.Clone(),
+		withDocuments:        _q.withDocuments.Clone(),
+		withGroups:           _q.withGroups.Clone(),
+		withAccounts:         _q.withAccounts.Clone(),
+		withLedgerEntries:    _q.withLedgerEntries.Clone(),
+		withWithdrawals:      _q.withWithdrawals.Clone(),
+		withResourceRequests: _q.withResourceRequests.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -472,6 +497,17 @@ func (_q *SupplierQuery) WithWithdrawals(opts ...func(*SupplierWithdrawalQuery))
 		opt(query)
 	}
 	_q.withWithdrawals = query
+	return _q
+}
+
+// WithResourceRequests tells the query-builder to eager-load the nodes that are connected to
+// the "resource_requests" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *SupplierQuery) WithResourceRequests(opts ...func(*SupplierResourceRequestQuery)) *SupplierQuery {
+	query := (&SupplierResourceRequestClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withResourceRequests = query
 	return _q
 }
 
@@ -553,13 +589,14 @@ func (_q *SupplierQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Sup
 	var (
 		nodes       = []*Supplier{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [7]bool{
 			_q.withUser != nil,
 			_q.withDocuments != nil,
 			_q.withGroups != nil,
 			_q.withAccounts != nil,
 			_q.withLedgerEntries != nil,
 			_q.withWithdrawals != nil,
+			_q.withResourceRequests != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -621,6 +658,15 @@ func (_q *SupplierQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Sup
 		if err := _q.loadWithdrawals(ctx, query, nodes,
 			func(n *Supplier) { n.Edges.Withdrawals = []*SupplierWithdrawal{} },
 			func(n *Supplier, e *SupplierWithdrawal) { n.Edges.Withdrawals = append(n.Edges.Withdrawals, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withResourceRequests; query != nil {
+		if err := _q.loadResourceRequests(ctx, query, nodes,
+			func(n *Supplier) { n.Edges.ResourceRequests = []*SupplierResourceRequest{} },
+			func(n *Supplier, e *SupplierResourceRequest) {
+				n.Edges.ResourceRequests = append(n.Edges.ResourceRequests, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -797,6 +843,36 @@ func (_q *SupplierQuery) loadWithdrawals(ctx context.Context, query *SupplierWit
 	}
 	query.Where(predicate.SupplierWithdrawal(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(supplier.WithdrawalsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SupplierID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "supplier_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *SupplierQuery) loadResourceRequests(ctx context.Context, query *SupplierResourceRequestQuery, nodes []*Supplier, init func(*Supplier), assign func(*Supplier, *SupplierResourceRequest)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*Supplier)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(supplierresourcerequest.FieldSupplierID)
+	}
+	query.Where(predicate.SupplierResourceRequest(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(supplier.ResourceRequestsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

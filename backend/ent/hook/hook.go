@@ -417,6 +417,18 @@ func (f SupplierMetricBucketFunc) Mutate(ctx context.Context, m ent.Mutation) (e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupplierMetricBucketMutation", m)
 }
 
+// The SupplierResourceRequestFunc type is an adapter to allow the use of ordinary
+// function as SupplierResourceRequest mutator.
+type SupplierResourceRequestFunc func(context.Context, *ent.SupplierResourceRequestMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupplierResourceRequestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupplierResourceRequestMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupplierResourceRequestMutation", m)
+}
+
 // The SupplierWithdrawalFunc type is an adapter to allow the use of ordinary
 // function as SupplierWithdrawal mutator.
 type SupplierWithdrawalFunc func(context.Context, *ent.SupplierWithdrawalMutation) (ent.Value, error)

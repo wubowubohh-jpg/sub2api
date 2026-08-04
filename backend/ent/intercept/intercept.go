@@ -43,6 +43,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
 	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
 	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -1029,6 +1030,33 @@ func (f TraverseSupplierMetricBucket) Traverse(ctx context.Context, q ent.Query)
 	return fmt.Errorf("unexpected query type %T. expect *ent.SupplierMetricBucketQuery", q)
 }
 
+// The SupplierResourceRequestFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SupplierResourceRequestFunc func(context.Context, *ent.SupplierResourceRequestQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SupplierResourceRequestFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SupplierResourceRequestQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SupplierResourceRequestQuery", q)
+}
+
+// The TraverseSupplierResourceRequest type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSupplierResourceRequest func(context.Context, *ent.SupplierResourceRequestQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSupplierResourceRequest) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSupplierResourceRequest) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SupplierResourceRequestQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SupplierResourceRequestQuery", q)
+}
+
 // The SupplierWithdrawalFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SupplierWithdrawalFunc func(context.Context, *ent.SupplierWithdrawalQuery) (ent.Value, error)
 
@@ -1370,6 +1398,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SupplierLedgerQuery, predicate.SupplierLedger, supplierledger.OrderOption]{typ: ent.TypeSupplierLedger, tq: q}, nil
 	case *ent.SupplierMetricBucketQuery:
 		return &query[*ent.SupplierMetricBucketQuery, predicate.SupplierMetricBucket, suppliermetricbucket.OrderOption]{typ: ent.TypeSupplierMetricBucket, tq: q}, nil
+	case *ent.SupplierResourceRequestQuery:
+		return &query[*ent.SupplierResourceRequestQuery, predicate.SupplierResourceRequest, supplierresourcerequest.OrderOption]{typ: ent.TypeSupplierResourceRequest, tq: q}, nil
 	case *ent.SupplierWithdrawalQuery:
 		return &query[*ent.SupplierWithdrawalQuery, predicate.SupplierWithdrawal, supplierwithdrawal.OrderOption]{typ: ent.TypeSupplierWithdrawal, tq: q}, nil
 	case *ent.TLSFingerprintProfileQuery:
