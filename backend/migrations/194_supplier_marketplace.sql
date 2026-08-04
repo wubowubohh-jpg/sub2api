@@ -117,6 +117,6 @@ CREATE INDEX IF NOT EXISTS idx_supplier_metric_bucket_window ON supplier_metric_
 
 INSERT INTO settings (key, value, updated_at)
 VALUES
-    ('supplier_global_rate_adjustment', '0', NOW(), NOW()),
-    ('supplier_min_withdrawal_usd', '100', NOW(), NOW())
+    ('supplier_global_rate_adjustment', '0', NOW()),
+    ('supplier_min_withdrawal_usd', '100', NOW())
 ON CONFLICT (key) DO NOTHING;
