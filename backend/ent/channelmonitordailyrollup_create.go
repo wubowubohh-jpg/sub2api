@@ -181,6 +181,34 @@ func (_c *ChannelMonitorDailyRollupCreate) SetNillableCountPingLatency(v *int) *
 	return _c
 }
 
+// SetSumFirstTokenMs sets the "sum_first_token_ms" field.
+func (_c *ChannelMonitorDailyRollupCreate) SetSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupCreate {
+	_c.mutation.SetSumFirstTokenMs(v)
+	return _c
+}
+
+// SetNillableSumFirstTokenMs sets the "sum_first_token_ms" field if the given value is not nil.
+func (_c *ChannelMonitorDailyRollupCreate) SetNillableSumFirstTokenMs(v *int64) *ChannelMonitorDailyRollupCreate {
+	if v != nil {
+		_c.SetSumFirstTokenMs(*v)
+	}
+	return _c
+}
+
+// SetCountFirstToken sets the "count_first_token" field.
+func (_c *ChannelMonitorDailyRollupCreate) SetCountFirstToken(v int) *ChannelMonitorDailyRollupCreate {
+	_c.mutation.SetCountFirstToken(v)
+	return _c
+}
+
+// SetNillableCountFirstToken sets the "count_first_token" field if the given value is not nil.
+func (_c *ChannelMonitorDailyRollupCreate) SetNillableCountFirstToken(v *int) *ChannelMonitorDailyRollupCreate {
+	if v != nil {
+		_c.SetCountFirstToken(*v)
+	}
+	return _c
+}
+
 // SetComputedAt sets the "computed_at" field.
 func (_c *ChannelMonitorDailyRollupCreate) SetComputedAt(v time.Time) *ChannelMonitorDailyRollupCreate {
 	_c.mutation.SetComputedAt(v)
@@ -275,6 +303,14 @@ func (_c *ChannelMonitorDailyRollupCreate) defaults() {
 		v := channelmonitordailyrollup.DefaultCountPingLatency
 		_c.mutation.SetCountPingLatency(v)
 	}
+	if _, ok := _c.mutation.SumFirstTokenMs(); !ok {
+		v := channelmonitordailyrollup.DefaultSumFirstTokenMs
+		_c.mutation.SetSumFirstTokenMs(v)
+	}
+	if _, ok := _c.mutation.CountFirstToken(); !ok {
+		v := channelmonitordailyrollup.DefaultCountFirstToken
+		_c.mutation.SetCountFirstToken(v)
+	}
 	if _, ok := _c.mutation.ComputedAt(); !ok {
 		v := channelmonitordailyrollup.DefaultComputedAt()
 		_c.mutation.SetComputedAt(v)
@@ -326,6 +362,12 @@ func (_c *ChannelMonitorDailyRollupCreate) check() error {
 	}
 	if _, ok := _c.mutation.CountPingLatency(); !ok {
 		return &ValidationError{Name: "count_ping_latency", err: errors.New(`ent: missing required field "ChannelMonitorDailyRollup.count_ping_latency"`)}
+	}
+	if _, ok := _c.mutation.SumFirstTokenMs(); !ok {
+		return &ValidationError{Name: "sum_first_token_ms", err: errors.New(`ent: missing required field "ChannelMonitorDailyRollup.sum_first_token_ms"`)}
+	}
+	if _, ok := _c.mutation.CountFirstToken(); !ok {
+		return &ValidationError{Name: "count_first_token", err: errors.New(`ent: missing required field "ChannelMonitorDailyRollup.count_first_token"`)}
 	}
 	if _, ok := _c.mutation.ComputedAt(); !ok {
 		return &ValidationError{Name: "computed_at", err: errors.New(`ent: missing required field "ChannelMonitorDailyRollup.computed_at"`)}
@@ -407,6 +449,14 @@ func (_c *ChannelMonitorDailyRollupCreate) createSpec() (*ChannelMonitorDailyRol
 	if value, ok := _c.mutation.CountPingLatency(); ok {
 		_spec.SetField(channelmonitordailyrollup.FieldCountPingLatency, field.TypeInt, value)
 		_node.CountPingLatency = value
+	}
+	if value, ok := _c.mutation.SumFirstTokenMs(); ok {
+		_spec.SetField(channelmonitordailyrollup.FieldSumFirstTokenMs, field.TypeInt64, value)
+		_node.SumFirstTokenMs = value
+	}
+	if value, ok := _c.mutation.CountFirstToken(); ok {
+		_spec.SetField(channelmonitordailyrollup.FieldCountFirstToken, field.TypeInt, value)
+		_node.CountFirstToken = value
 	}
 	if value, ok := _c.mutation.ComputedAt(); ok {
 		_spec.SetField(channelmonitordailyrollup.FieldComputedAt, field.TypeTime, value)
@@ -694,6 +744,42 @@ func (u *ChannelMonitorDailyRollupUpsert) UpdateCountPingLatency() *ChannelMonit
 // AddCountPingLatency adds v to the "count_ping_latency" field.
 func (u *ChannelMonitorDailyRollupUpsert) AddCountPingLatency(v int) *ChannelMonitorDailyRollupUpsert {
 	u.Add(channelmonitordailyrollup.FieldCountPingLatency, v)
+	return u
+}
+
+// SetSumFirstTokenMs sets the "sum_first_token_ms" field.
+func (u *ChannelMonitorDailyRollupUpsert) SetSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpsert {
+	u.Set(channelmonitordailyrollup.FieldSumFirstTokenMs, v)
+	return u
+}
+
+// UpdateSumFirstTokenMs sets the "sum_first_token_ms" field to the value that was provided on create.
+func (u *ChannelMonitorDailyRollupUpsert) UpdateSumFirstTokenMs() *ChannelMonitorDailyRollupUpsert {
+	u.SetExcluded(channelmonitordailyrollup.FieldSumFirstTokenMs)
+	return u
+}
+
+// AddSumFirstTokenMs adds v to the "sum_first_token_ms" field.
+func (u *ChannelMonitorDailyRollupUpsert) AddSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpsert {
+	u.Add(channelmonitordailyrollup.FieldSumFirstTokenMs, v)
+	return u
+}
+
+// SetCountFirstToken sets the "count_first_token" field.
+func (u *ChannelMonitorDailyRollupUpsert) SetCountFirstToken(v int) *ChannelMonitorDailyRollupUpsert {
+	u.Set(channelmonitordailyrollup.FieldCountFirstToken, v)
+	return u
+}
+
+// UpdateCountFirstToken sets the "count_first_token" field to the value that was provided on create.
+func (u *ChannelMonitorDailyRollupUpsert) UpdateCountFirstToken() *ChannelMonitorDailyRollupUpsert {
+	u.SetExcluded(channelmonitordailyrollup.FieldCountFirstToken)
+	return u
+}
+
+// AddCountFirstToken adds v to the "count_first_token" field.
+func (u *ChannelMonitorDailyRollupUpsert) AddCountFirstToken(v int) *ChannelMonitorDailyRollupUpsert {
+	u.Add(channelmonitordailyrollup.FieldCountFirstToken, v)
 	return u
 }
 
@@ -998,6 +1084,48 @@ func (u *ChannelMonitorDailyRollupUpsertOne) AddCountPingLatency(v int) *Channel
 func (u *ChannelMonitorDailyRollupUpsertOne) UpdateCountPingLatency() *ChannelMonitorDailyRollupUpsertOne {
 	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
 		s.UpdateCountPingLatency()
+	})
+}
+
+// SetSumFirstTokenMs sets the "sum_first_token_ms" field.
+func (u *ChannelMonitorDailyRollupUpsertOne) SetSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpsertOne {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.SetSumFirstTokenMs(v)
+	})
+}
+
+// AddSumFirstTokenMs adds v to the "sum_first_token_ms" field.
+func (u *ChannelMonitorDailyRollupUpsertOne) AddSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpsertOne {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.AddSumFirstTokenMs(v)
+	})
+}
+
+// UpdateSumFirstTokenMs sets the "sum_first_token_ms" field to the value that was provided on create.
+func (u *ChannelMonitorDailyRollupUpsertOne) UpdateSumFirstTokenMs() *ChannelMonitorDailyRollupUpsertOne {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.UpdateSumFirstTokenMs()
+	})
+}
+
+// SetCountFirstToken sets the "count_first_token" field.
+func (u *ChannelMonitorDailyRollupUpsertOne) SetCountFirstToken(v int) *ChannelMonitorDailyRollupUpsertOne {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.SetCountFirstToken(v)
+	})
+}
+
+// AddCountFirstToken adds v to the "count_first_token" field.
+func (u *ChannelMonitorDailyRollupUpsertOne) AddCountFirstToken(v int) *ChannelMonitorDailyRollupUpsertOne {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.AddCountFirstToken(v)
+	})
+}
+
+// UpdateCountFirstToken sets the "count_first_token" field to the value that was provided on create.
+func (u *ChannelMonitorDailyRollupUpsertOne) UpdateCountFirstToken() *ChannelMonitorDailyRollupUpsertOne {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.UpdateCountFirstToken()
 	})
 }
 
@@ -1468,6 +1596,48 @@ func (u *ChannelMonitorDailyRollupUpsertBulk) AddCountPingLatency(v int) *Channe
 func (u *ChannelMonitorDailyRollupUpsertBulk) UpdateCountPingLatency() *ChannelMonitorDailyRollupUpsertBulk {
 	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
 		s.UpdateCountPingLatency()
+	})
+}
+
+// SetSumFirstTokenMs sets the "sum_first_token_ms" field.
+func (u *ChannelMonitorDailyRollupUpsertBulk) SetSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpsertBulk {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.SetSumFirstTokenMs(v)
+	})
+}
+
+// AddSumFirstTokenMs adds v to the "sum_first_token_ms" field.
+func (u *ChannelMonitorDailyRollupUpsertBulk) AddSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpsertBulk {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.AddSumFirstTokenMs(v)
+	})
+}
+
+// UpdateSumFirstTokenMs sets the "sum_first_token_ms" field to the value that was provided on create.
+func (u *ChannelMonitorDailyRollupUpsertBulk) UpdateSumFirstTokenMs() *ChannelMonitorDailyRollupUpsertBulk {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.UpdateSumFirstTokenMs()
+	})
+}
+
+// SetCountFirstToken sets the "count_first_token" field.
+func (u *ChannelMonitorDailyRollupUpsertBulk) SetCountFirstToken(v int) *ChannelMonitorDailyRollupUpsertBulk {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.SetCountFirstToken(v)
+	})
+}
+
+// AddCountFirstToken adds v to the "count_first_token" field.
+func (u *ChannelMonitorDailyRollupUpsertBulk) AddCountFirstToken(v int) *ChannelMonitorDailyRollupUpsertBulk {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.AddCountFirstToken(v)
+	})
+}
+
+// UpdateCountFirstToken sets the "count_first_token" field to the value that was provided on create.
+func (u *ChannelMonitorDailyRollupUpsertBulk) UpdateCountFirstToken() *ChannelMonitorDailyRollupUpsertBulk {
+	return u.Update(func(s *ChannelMonitorDailyRollupUpsert) {
+		s.UpdateCountFirstToken()
 	})
 }
 

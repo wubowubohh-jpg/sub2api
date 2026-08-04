@@ -5,12 +5,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
 	"sync/atomic"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"golang.org/x/sync/singleflight"
 )
+
+const SettingKeySupplierGlobalRateAdjustment = "supplier_global_rate_adjustment"
+
+func (s *SettingService) GetSupplierGlobalRateAdjustment(ctx context.Context) float64 {
+	if s == nil || s.settingRepo == nil {
+		return 0
+	}
+	v, err := s.settingRepo.GetValue(ctx, SettingKeySupplierGlobalRateAdjustment)
+	if err != nil {
+		return 0
+	}
+	n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+	if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
+		return 0
+	}
+	return n
+}
 
 var (
 	ErrRegistrationDisabled   = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")

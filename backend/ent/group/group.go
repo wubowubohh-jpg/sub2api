@@ -28,6 +28,12 @@ const (
 	FieldDescription = "description"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
+	// FieldSupplierID holds the string denoting the supplier_id field in the database.
+	FieldSupplierID = "supplier_id"
+	// FieldSupplierAdminAdjustment holds the string denoting the supplier_admin_adjustment field in the database.
+	FieldSupplierAdminAdjustment = "supplier_admin_adjustment"
+	// FieldSupplierForcedOffline holds the string denoting the supplier_forced_offline field in the database.
+	FieldSupplierForcedOffline = "supplier_forced_offline"
 	// FieldPeakRateEnabled holds the string denoting the peak_rate_enabled field in the database.
 	FieldPeakRateEnabled = "peak_rate_enabled"
 	// FieldPeakStart holds the string denoting the peak_start field in the database.
@@ -138,6 +144,8 @@ const (
 	EdgeAccounts = "accounts"
 	// EdgeAllowedUsers holds the string denoting the allowed_users edge name in mutations.
 	EdgeAllowedUsers = "allowed_users"
+	// EdgeSupplier holds the string denoting the supplier edge name in mutations.
+	EdgeSupplier = "supplier"
 	// EdgeAccountGroups holds the string denoting the account_groups edge name in mutations.
 	EdgeAccountGroups = "account_groups"
 	// EdgeUserAllowedGroups holds the string denoting the user_allowed_groups edge name in mutations.
@@ -182,6 +190,13 @@ const (
 	// AllowedUsersInverseTable is the table name for the User entity.
 	// It exists in this package in order to avoid circular dependency with the "user" package.
 	AllowedUsersInverseTable = "users"
+	// SupplierTable is the table that holds the supplier relation/edge.
+	SupplierTable = "groups"
+	// SupplierInverseTable is the table name for the Supplier entity.
+	// It exists in this package in order to avoid circular dependency with the "supplier" package.
+	SupplierInverseTable = "suppliers"
+	// SupplierColumn is the table column denoting the supplier relation/edge.
+	SupplierColumn = "supplier_id"
 	// AccountGroupsTable is the table that holds the account_groups relation/edge.
 	AccountGroupsTable = "account_groups"
 	// AccountGroupsInverseTable is the table name for the AccountGroup entity.
@@ -207,6 +222,9 @@ var Columns = []string{
 	FieldName,
 	FieldDescription,
 	FieldRateMultiplier,
+	FieldSupplierID,
+	FieldSupplierAdminAdjustment,
+	FieldSupplierForcedOffline,
 	FieldPeakRateEnabled,
 	FieldPeakStart,
 	FieldPeakEnd,
@@ -295,6 +313,8 @@ var (
 	NameValidator func(string) error
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
+	// DefaultSupplierForcedOffline holds the default value on creation for the "supplier_forced_offline" field.
+	DefaultSupplierForcedOffline bool
 	// DefaultPeakRateEnabled holds the default value on creation for the "peak_rate_enabled" field.
 	DefaultPeakRateEnabled bool
 	// DefaultPeakStart holds the default value on creation for the "peak_start" field.
@@ -419,6 +439,21 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByRateMultiplier orders the results by the rate_multiplier field.
 func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRateMultiplier, opts...).ToFunc()
+}
+
+// BySupplierID orders the results by the supplier_id field.
+func BySupplierID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierID, opts...).ToFunc()
+}
+
+// BySupplierAdminAdjustment orders the results by the supplier_admin_adjustment field.
+func BySupplierAdminAdjustment(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierAdminAdjustment, opts...).ToFunc()
+}
+
+// BySupplierForcedOffline orders the results by the supplier_forced_offline field.
+func BySupplierForcedOffline(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierForcedOffline, opts...).ToFunc()
 }
 
 // ByPeakRateEnabled orders the results by the peak_rate_enabled field.
@@ -725,6 +760,13 @@ func ByAllowedUsers(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// BySupplierField orders the results by supplier field.
+func BySupplierField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSupplierStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByAccountGroupsCount orders the results by account_groups count.
 func ByAccountGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -792,6 +834,13 @@ func newAllowedUsersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AllowedUsersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2M, true, AllowedUsersTable, AllowedUsersPrimaryKey...),
+	)
+}
+func newSupplierStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SupplierInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, SupplierTable, SupplierColumn),
 	)
 }
 func newAccountGroupsStep() *sqlgraph.Step {

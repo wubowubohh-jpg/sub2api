@@ -24,6 +24,8 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldSupplierID holds the string denoting the supplier_id field in the database.
+	FieldSupplierID = "supplier_id"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
 	// FieldPlatform holds the string denoting the platform field in the database.
@@ -88,6 +90,8 @@ const (
 	EdgeChildren = "children"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
 	EdgeUsageLogs = "usage_logs"
+	// EdgeSupplier holds the string denoting the supplier edge name in mutations.
+	EdgeSupplier = "supplier"
 	// EdgeAccountGroups holds the string denoting the account_groups edge name in mutations.
 	EdgeAccountGroups = "account_groups"
 	// Table holds the table name of the account in the database.
@@ -119,6 +123,13 @@ const (
 	UsageLogsInverseTable = "usage_logs"
 	// UsageLogsColumn is the table column denoting the usage_logs relation/edge.
 	UsageLogsColumn = "account_id"
+	// SupplierTable is the table that holds the supplier relation/edge.
+	SupplierTable = "accounts"
+	// SupplierInverseTable is the table name for the Supplier entity.
+	// It exists in this package in order to avoid circular dependency with the "supplier" package.
+	SupplierInverseTable = "suppliers"
+	// SupplierColumn is the table column denoting the supplier relation/edge.
+	SupplierColumn = "supplier_id"
 	// AccountGroupsTable is the table that holds the account_groups relation/edge.
 	AccountGroupsTable = "account_groups"
 	// AccountGroupsInverseTable is the table name for the AccountGroup entity.
@@ -135,6 +146,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldDeletedAt,
 	FieldName,
+	FieldSupplierID,
 	FieldNotes,
 	FieldPlatform,
 	FieldType,
@@ -274,6 +286,11 @@ func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// BySupplierID orders the results by the supplier_id field.
+func BySupplierID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierID, opts...).ToFunc()
 }
 
 // ByNotes orders the results by the notes field.
@@ -457,6 +474,13 @@ func ByUsageLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// BySupplierField orders the results by supplier field.
+func BySupplierField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSupplierStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByAccountGroupsCount orders the results by account_groups count.
 func ByAccountGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -503,6 +527,13 @@ func newUsageLogsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageLogsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageLogsTable, UsageLogsColumn),
+	)
+}
+func newSupplierStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SupplierInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, SupplierTable, SupplierColumn),
 	)
 }
 func newAccountGroupsStep() *sqlgraph.Step {

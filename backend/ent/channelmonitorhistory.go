@@ -28,6 +28,8 @@ type ChannelMonitorHistory struct {
 	LatencyMs *int `json:"latency_ms,omitempty"`
 	// PingLatencyMs holds the value of the "ping_latency_ms" field.
 	PingLatencyMs *int `json:"ping_latency_ms,omitempty"`
+	// FirstTokenMs holds the value of the "first_token_ms" field.
+	FirstTokenMs *int `json:"first_token_ms,omitempty"`
 	// Message holds the value of the "message" field.
 	Message string `json:"message,omitempty"`
 	// CheckedAt holds the value of the "checked_at" field.
@@ -63,7 +65,7 @@ func (*ChannelMonitorHistory) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channelmonitorhistory.FieldID, channelmonitorhistory.FieldMonitorID, channelmonitorhistory.FieldLatencyMs, channelmonitorhistory.FieldPingLatencyMs:
+		case channelmonitorhistory.FieldID, channelmonitorhistory.FieldMonitorID, channelmonitorhistory.FieldLatencyMs, channelmonitorhistory.FieldPingLatencyMs, channelmonitorhistory.FieldFirstTokenMs:
 			values[i] = new(sql.NullInt64)
 		case channelmonitorhistory.FieldModel, channelmonitorhistory.FieldStatus, channelmonitorhistory.FieldMessage:
 			values[i] = new(sql.NullString)
@@ -121,6 +123,13 @@ func (_m *ChannelMonitorHistory) assignValues(columns []string, values []any) er
 			} else if value.Valid {
 				_m.PingLatencyMs = new(int)
 				*_m.PingLatencyMs = int(value.Int64)
+			}
+		case channelmonitorhistory.FieldFirstTokenMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field first_token_ms", values[i])
+			} else if value.Valid {
+				_m.FirstTokenMs = new(int)
+				*_m.FirstTokenMs = int(value.Int64)
 			}
 		case channelmonitorhistory.FieldMessage:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -191,6 +200,11 @@ func (_m *ChannelMonitorHistory) String() string {
 	builder.WriteString(", ")
 	if v := _m.PingLatencyMs; v != nil {
 		builder.WriteString("ping_latency_ms=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.FirstTokenMs; v != nil {
+		builder.WriteString("first_token_ms=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

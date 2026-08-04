@@ -39,6 +39,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
+	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
+	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
+	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -916,6 +921,141 @@ func (f TraverseSubscriptionPlan) Traverse(ctx context.Context, q ent.Query) err
 	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionPlanQuery", q)
 }
 
+// The SupplierFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SupplierFunc func(context.Context, *ent.SupplierQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SupplierFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SupplierQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SupplierQuery", q)
+}
+
+// The TraverseSupplier type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSupplier func(context.Context, *ent.SupplierQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSupplier) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSupplier) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SupplierQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SupplierQuery", q)
+}
+
+// The SupplierDocumentFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SupplierDocumentFunc func(context.Context, *ent.SupplierDocumentQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SupplierDocumentFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SupplierDocumentQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SupplierDocumentQuery", q)
+}
+
+// The TraverseSupplierDocument type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSupplierDocument func(context.Context, *ent.SupplierDocumentQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSupplierDocument) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSupplierDocument) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SupplierDocumentQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SupplierDocumentQuery", q)
+}
+
+// The SupplierLedgerFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SupplierLedgerFunc func(context.Context, *ent.SupplierLedgerQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SupplierLedgerFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SupplierLedgerQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SupplierLedgerQuery", q)
+}
+
+// The TraverseSupplierLedger type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSupplierLedger func(context.Context, *ent.SupplierLedgerQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSupplierLedger) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSupplierLedger) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SupplierLedgerQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SupplierLedgerQuery", q)
+}
+
+// The SupplierMetricBucketFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SupplierMetricBucketFunc func(context.Context, *ent.SupplierMetricBucketQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SupplierMetricBucketFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SupplierMetricBucketQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SupplierMetricBucketQuery", q)
+}
+
+// The TraverseSupplierMetricBucket type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSupplierMetricBucket func(context.Context, *ent.SupplierMetricBucketQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSupplierMetricBucket) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSupplierMetricBucket) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SupplierMetricBucketQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SupplierMetricBucketQuery", q)
+}
+
+// The SupplierWithdrawalFunc type is an adapter to allow the use of ordinary function as a Querier.
+type SupplierWithdrawalFunc func(context.Context, *ent.SupplierWithdrawalQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f SupplierWithdrawalFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.SupplierWithdrawalQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SupplierWithdrawalQuery", q)
+}
+
+// The TraverseSupplierWithdrawal type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseSupplierWithdrawal func(context.Context, *ent.SupplierWithdrawalQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseSupplierWithdrawal) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseSupplierWithdrawal) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.SupplierWithdrawalQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.SupplierWithdrawalQuery", q)
+}
+
 // The TLSFingerprintProfileFunc type is an adapter to allow the use of ordinary function as a Querier.
 type TLSFingerprintProfileFunc func(context.Context, *ent.TLSFingerprintProfileQuery) (ent.Value, error)
 
@@ -1222,6 +1362,16 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SettingQuery, predicate.Setting, setting.OrderOption]{typ: ent.TypeSetting, tq: q}, nil
 	case *ent.SubscriptionPlanQuery:
 		return &query[*ent.SubscriptionPlanQuery, predicate.SubscriptionPlan, subscriptionplan.OrderOption]{typ: ent.TypeSubscriptionPlan, tq: q}, nil
+	case *ent.SupplierQuery:
+		return &query[*ent.SupplierQuery, predicate.Supplier, supplier.OrderOption]{typ: ent.TypeSupplier, tq: q}, nil
+	case *ent.SupplierDocumentQuery:
+		return &query[*ent.SupplierDocumentQuery, predicate.SupplierDocument, supplierdocument.OrderOption]{typ: ent.TypeSupplierDocument, tq: q}, nil
+	case *ent.SupplierLedgerQuery:
+		return &query[*ent.SupplierLedgerQuery, predicate.SupplierLedger, supplierledger.OrderOption]{typ: ent.TypeSupplierLedger, tq: q}, nil
+	case *ent.SupplierMetricBucketQuery:
+		return &query[*ent.SupplierMetricBucketQuery, predicate.SupplierMetricBucket, suppliermetricbucket.OrderOption]{typ: ent.TypeSupplierMetricBucket, tq: q}, nil
+	case *ent.SupplierWithdrawalQuery:
+		return &query[*ent.SupplierWithdrawalQuery, predicate.SupplierWithdrawal, supplierwithdrawal.OrderOption]{typ: ent.TypeSupplierWithdrawal, tq: q}, nil
 	case *ent.TLSFingerprintProfileQuery:
 		return &query[*ent.TLSFingerprintProfileQuery, predicate.TLSFingerprintProfile, tlsfingerprintprofile.OrderOption]{typ: ent.TypeTLSFingerprintProfile, tq: q}, nil
 	case *ent.UsageCleanupTaskQuery:

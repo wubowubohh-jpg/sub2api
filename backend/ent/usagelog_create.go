@@ -169,6 +169,90 @@ func (_c *UsageLogCreate) SetNillableSubscriptionID(v *int64) *UsageLogCreate {
 	return _c
 }
 
+// SetSupplierID sets the "supplier_id" field.
+func (_c *UsageLogCreate) SetSupplierID(v int64) *UsageLogCreate {
+	_c.mutation.SetSupplierID(v)
+	return _c
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSupplierID(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetSupplierID(*v)
+	}
+	return _c
+}
+
+// SetSupplierBaseRate sets the "supplier_base_rate" field.
+func (_c *UsageLogCreate) SetSupplierBaseRate(v float64) *UsageLogCreate {
+	_c.mutation.SetSupplierBaseRate(v)
+	return _c
+}
+
+// SetNillableSupplierBaseRate sets the "supplier_base_rate" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSupplierBaseRate(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetSupplierBaseRate(*v)
+	}
+	return _c
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (_c *UsageLogCreate) SetSupplierAdminAdjustment(v float64) *UsageLogCreate {
+	_c.mutation.SetSupplierAdminAdjustment(v)
+	return _c
+}
+
+// SetNillableSupplierAdminAdjustment sets the "supplier_admin_adjustment" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSupplierAdminAdjustment(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetSupplierAdminAdjustment(*v)
+	}
+	return _c
+}
+
+// SetSupplierModelCostUsd sets the "supplier_model_cost_usd" field.
+func (_c *UsageLogCreate) SetSupplierModelCostUsd(v float64) *UsageLogCreate {
+	_c.mutation.SetSupplierModelCostUsd(v)
+	return _c
+}
+
+// SetNillableSupplierModelCostUsd sets the "supplier_model_cost_usd" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSupplierModelCostUsd(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetSupplierModelCostUsd(*v)
+	}
+	return _c
+}
+
+// SetSupplierRechargeRatio sets the "supplier_recharge_ratio" field.
+func (_c *UsageLogCreate) SetSupplierRechargeRatio(v float64) *UsageLogCreate {
+	_c.mutation.SetSupplierRechargeRatio(v)
+	return _c
+}
+
+// SetNillableSupplierRechargeRatio sets the "supplier_recharge_ratio" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSupplierRechargeRatio(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetSupplierRechargeRatio(*v)
+	}
+	return _c
+}
+
+// SetSupplierEarningCny sets the "supplier_earning_cny" field.
+func (_c *UsageLogCreate) SetSupplierEarningCny(v float64) *UsageLogCreate {
+	_c.mutation.SetSupplierEarningCny(v)
+	return _c
+}
+
+// SetNillableSupplierEarningCny sets the "supplier_earning_cny" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSupplierEarningCny(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetSupplierEarningCny(*v)
+	}
+	return _c
+}
+
 // SetInputTokens sets the "input_tokens" field.
 func (_c *UsageLogCreate) SetInputTokens(v int) *UsageLogCreate {
 	_c.mutation.SetInputTokens(v)
@@ -966,6 +1050,30 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
 		_node.BillingMode = &value
 	}
+	if value, ok := _c.mutation.SupplierID(); ok {
+		_spec.SetField(usagelog.FieldSupplierID, field.TypeInt64, value)
+		_node.SupplierID = &value
+	}
+	if value, ok := _c.mutation.SupplierBaseRate(); ok {
+		_spec.SetField(usagelog.FieldSupplierBaseRate, field.TypeFloat64, value)
+		_node.SupplierBaseRate = &value
+	}
+	if value, ok := _c.mutation.SupplierAdminAdjustment(); ok {
+		_spec.SetField(usagelog.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+		_node.SupplierAdminAdjustment = &value
+	}
+	if value, ok := _c.mutation.SupplierModelCostUsd(); ok {
+		_spec.SetField(usagelog.FieldSupplierModelCostUsd, field.TypeFloat64, value)
+		_node.SupplierModelCostUsd = &value
+	}
+	if value, ok := _c.mutation.SupplierRechargeRatio(); ok {
+		_spec.SetField(usagelog.FieldSupplierRechargeRatio, field.TypeFloat64, value)
+		_node.SupplierRechargeRatio = &value
+	}
+	if value, ok := _c.mutation.SupplierEarningCny(); ok {
+		_spec.SetField(usagelog.FieldSupplierEarningCny, field.TypeFloat64, value)
+		_node.SupplierEarningCny = &value
+	}
 	if value, ok := _c.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 		_node.InputTokens = value
@@ -1438,6 +1546,150 @@ func (u *UsageLogUpsert) UpdateSubscriptionID() *UsageLogUpsert {
 // ClearSubscriptionID clears the value of the "subscription_id" field.
 func (u *UsageLogUpsert) ClearSubscriptionID() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldSubscriptionID)
+	return u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *UsageLogUpsert) SetSupplierID(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldSupplierID, v)
+	return u
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSupplierID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSupplierID)
+	return u
+}
+
+// AddSupplierID adds v to the "supplier_id" field.
+func (u *UsageLogUpsert) AddSupplierID(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldSupplierID, v)
+	return u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *UsageLogUpsert) ClearSupplierID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSupplierID)
+	return u
+}
+
+// SetSupplierBaseRate sets the "supplier_base_rate" field.
+func (u *UsageLogUpsert) SetSupplierBaseRate(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldSupplierBaseRate, v)
+	return u
+}
+
+// UpdateSupplierBaseRate sets the "supplier_base_rate" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSupplierBaseRate() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSupplierBaseRate)
+	return u
+}
+
+// AddSupplierBaseRate adds v to the "supplier_base_rate" field.
+func (u *UsageLogUpsert) AddSupplierBaseRate(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldSupplierBaseRate, v)
+	return u
+}
+
+// ClearSupplierBaseRate clears the value of the "supplier_base_rate" field.
+func (u *UsageLogUpsert) ClearSupplierBaseRate() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSupplierBaseRate)
+	return u
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsert) SetSupplierAdminAdjustment(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldSupplierAdminAdjustment, v)
+	return u
+}
+
+// UpdateSupplierAdminAdjustment sets the "supplier_admin_adjustment" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSupplierAdminAdjustment() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSupplierAdminAdjustment)
+	return u
+}
+
+// AddSupplierAdminAdjustment adds v to the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsert) AddSupplierAdminAdjustment(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldSupplierAdminAdjustment, v)
+	return u
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsert) ClearSupplierAdminAdjustment() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSupplierAdminAdjustment)
+	return u
+}
+
+// SetSupplierModelCostUsd sets the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsert) SetSupplierModelCostUsd(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldSupplierModelCostUsd, v)
+	return u
+}
+
+// UpdateSupplierModelCostUsd sets the "supplier_model_cost_usd" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSupplierModelCostUsd() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSupplierModelCostUsd)
+	return u
+}
+
+// AddSupplierModelCostUsd adds v to the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsert) AddSupplierModelCostUsd(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldSupplierModelCostUsd, v)
+	return u
+}
+
+// ClearSupplierModelCostUsd clears the value of the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsert) ClearSupplierModelCostUsd() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSupplierModelCostUsd)
+	return u
+}
+
+// SetSupplierRechargeRatio sets the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsert) SetSupplierRechargeRatio(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldSupplierRechargeRatio, v)
+	return u
+}
+
+// UpdateSupplierRechargeRatio sets the "supplier_recharge_ratio" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSupplierRechargeRatio() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSupplierRechargeRatio)
+	return u
+}
+
+// AddSupplierRechargeRatio adds v to the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsert) AddSupplierRechargeRatio(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldSupplierRechargeRatio, v)
+	return u
+}
+
+// ClearSupplierRechargeRatio clears the value of the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsert) ClearSupplierRechargeRatio() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSupplierRechargeRatio)
+	return u
+}
+
+// SetSupplierEarningCny sets the "supplier_earning_cny" field.
+func (u *UsageLogUpsert) SetSupplierEarningCny(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldSupplierEarningCny, v)
+	return u
+}
+
+// UpdateSupplierEarningCny sets the "supplier_earning_cny" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSupplierEarningCny() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSupplierEarningCny)
+	return u
+}
+
+// AddSupplierEarningCny adds v to the "supplier_earning_cny" field.
+func (u *UsageLogUpsert) AddSupplierEarningCny(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldSupplierEarningCny, v)
+	return u
+}
+
+// ClearSupplierEarningCny clears the value of the "supplier_earning_cny" field.
+func (u *UsageLogUpsert) ClearSupplierEarningCny() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSupplierEarningCny)
 	return u
 }
 
@@ -2292,6 +2544,174 @@ func (u *UsageLogUpsertOne) UpdateSubscriptionID() *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) ClearSubscriptionID() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearSubscriptionID()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *UsageLogUpsertOne) SetSupplierID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// AddSupplierID adds v to the "supplier_id" field.
+func (u *UsageLogUpsertOne) AddSupplierID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSupplierID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *UsageLogUpsertOne) ClearSupplierID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierID()
+	})
+}
+
+// SetSupplierBaseRate sets the "supplier_base_rate" field.
+func (u *UsageLogUpsertOne) SetSupplierBaseRate(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierBaseRate(v)
+	})
+}
+
+// AddSupplierBaseRate adds v to the "supplier_base_rate" field.
+func (u *UsageLogUpsertOne) AddSupplierBaseRate(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierBaseRate(v)
+	})
+}
+
+// UpdateSupplierBaseRate sets the "supplier_base_rate" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSupplierBaseRate() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierBaseRate()
+	})
+}
+
+// ClearSupplierBaseRate clears the value of the "supplier_base_rate" field.
+func (u *UsageLogUpsertOne) ClearSupplierBaseRate() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierBaseRate()
+	})
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsertOne) SetSupplierAdminAdjustment(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierAdminAdjustment(v)
+	})
+}
+
+// AddSupplierAdminAdjustment adds v to the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsertOne) AddSupplierAdminAdjustment(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierAdminAdjustment(v)
+	})
+}
+
+// UpdateSupplierAdminAdjustment sets the "supplier_admin_adjustment" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSupplierAdminAdjustment() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierAdminAdjustment()
+	})
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsertOne) ClearSupplierAdminAdjustment() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierAdminAdjustment()
+	})
+}
+
+// SetSupplierModelCostUsd sets the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsertOne) SetSupplierModelCostUsd(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierModelCostUsd(v)
+	})
+}
+
+// AddSupplierModelCostUsd adds v to the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsertOne) AddSupplierModelCostUsd(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierModelCostUsd(v)
+	})
+}
+
+// UpdateSupplierModelCostUsd sets the "supplier_model_cost_usd" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSupplierModelCostUsd() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierModelCostUsd()
+	})
+}
+
+// ClearSupplierModelCostUsd clears the value of the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsertOne) ClearSupplierModelCostUsd() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierModelCostUsd()
+	})
+}
+
+// SetSupplierRechargeRatio sets the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsertOne) SetSupplierRechargeRatio(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierRechargeRatio(v)
+	})
+}
+
+// AddSupplierRechargeRatio adds v to the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsertOne) AddSupplierRechargeRatio(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierRechargeRatio(v)
+	})
+}
+
+// UpdateSupplierRechargeRatio sets the "supplier_recharge_ratio" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSupplierRechargeRatio() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierRechargeRatio()
+	})
+}
+
+// ClearSupplierRechargeRatio clears the value of the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsertOne) ClearSupplierRechargeRatio() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierRechargeRatio()
+	})
+}
+
+// SetSupplierEarningCny sets the "supplier_earning_cny" field.
+func (u *UsageLogUpsertOne) SetSupplierEarningCny(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierEarningCny(v)
+	})
+}
+
+// AddSupplierEarningCny adds v to the "supplier_earning_cny" field.
+func (u *UsageLogUpsertOne) AddSupplierEarningCny(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierEarningCny(v)
+	})
+}
+
+// UpdateSupplierEarningCny sets the "supplier_earning_cny" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSupplierEarningCny() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierEarningCny()
+	})
+}
+
+// ClearSupplierEarningCny clears the value of the "supplier_earning_cny" field.
+func (u *UsageLogUpsertOne) ClearSupplierEarningCny() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierEarningCny()
 	})
 }
 
@@ -3406,6 +3826,174 @@ func (u *UsageLogUpsertBulk) UpdateSubscriptionID() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearSubscriptionID() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearSubscriptionID()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *UsageLogUpsertBulk) SetSupplierID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// AddSupplierID adds v to the "supplier_id" field.
+func (u *UsageLogUpsertBulk) AddSupplierID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSupplierID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *UsageLogUpsertBulk) ClearSupplierID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierID()
+	})
+}
+
+// SetSupplierBaseRate sets the "supplier_base_rate" field.
+func (u *UsageLogUpsertBulk) SetSupplierBaseRate(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierBaseRate(v)
+	})
+}
+
+// AddSupplierBaseRate adds v to the "supplier_base_rate" field.
+func (u *UsageLogUpsertBulk) AddSupplierBaseRate(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierBaseRate(v)
+	})
+}
+
+// UpdateSupplierBaseRate sets the "supplier_base_rate" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSupplierBaseRate() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierBaseRate()
+	})
+}
+
+// ClearSupplierBaseRate clears the value of the "supplier_base_rate" field.
+func (u *UsageLogUpsertBulk) ClearSupplierBaseRate() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierBaseRate()
+	})
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsertBulk) SetSupplierAdminAdjustment(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierAdminAdjustment(v)
+	})
+}
+
+// AddSupplierAdminAdjustment adds v to the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsertBulk) AddSupplierAdminAdjustment(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierAdminAdjustment(v)
+	})
+}
+
+// UpdateSupplierAdminAdjustment sets the "supplier_admin_adjustment" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSupplierAdminAdjustment() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierAdminAdjustment()
+	})
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (u *UsageLogUpsertBulk) ClearSupplierAdminAdjustment() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierAdminAdjustment()
+	})
+}
+
+// SetSupplierModelCostUsd sets the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsertBulk) SetSupplierModelCostUsd(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierModelCostUsd(v)
+	})
+}
+
+// AddSupplierModelCostUsd adds v to the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsertBulk) AddSupplierModelCostUsd(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierModelCostUsd(v)
+	})
+}
+
+// UpdateSupplierModelCostUsd sets the "supplier_model_cost_usd" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSupplierModelCostUsd() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierModelCostUsd()
+	})
+}
+
+// ClearSupplierModelCostUsd clears the value of the "supplier_model_cost_usd" field.
+func (u *UsageLogUpsertBulk) ClearSupplierModelCostUsd() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierModelCostUsd()
+	})
+}
+
+// SetSupplierRechargeRatio sets the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsertBulk) SetSupplierRechargeRatio(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierRechargeRatio(v)
+	})
+}
+
+// AddSupplierRechargeRatio adds v to the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsertBulk) AddSupplierRechargeRatio(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierRechargeRatio(v)
+	})
+}
+
+// UpdateSupplierRechargeRatio sets the "supplier_recharge_ratio" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSupplierRechargeRatio() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierRechargeRatio()
+	})
+}
+
+// ClearSupplierRechargeRatio clears the value of the "supplier_recharge_ratio" field.
+func (u *UsageLogUpsertBulk) ClearSupplierRechargeRatio() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierRechargeRatio()
+	})
+}
+
+// SetSupplierEarningCny sets the "supplier_earning_cny" field.
+func (u *UsageLogUpsertBulk) SetSupplierEarningCny(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSupplierEarningCny(v)
+	})
+}
+
+// AddSupplierEarningCny adds v to the "supplier_earning_cny" field.
+func (u *UsageLogUpsertBulk) AddSupplierEarningCny(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSupplierEarningCny(v)
+	})
+}
+
+// UpdateSupplierEarningCny sets the "supplier_earning_cny" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSupplierEarningCny() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSupplierEarningCny()
+	})
+}
+
+// ClearSupplierEarningCny clears the value of the "supplier_earning_cny" field.
+func (u *UsageLogUpsertBulk) ClearSupplierEarningCny() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSupplierEarningCny()
 	})
 }
 

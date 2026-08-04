@@ -85,6 +85,21 @@ func RateMultiplier(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldRateMultiplier, v))
 }
 
+// SupplierID applies equality check predicate on the "supplier_id" field. It's identical to SupplierIDEQ.
+func SupplierID(v int64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSupplierID, v))
+}
+
+// SupplierAdminAdjustment applies equality check predicate on the "supplier_admin_adjustment" field. It's identical to SupplierAdminAdjustmentEQ.
+func SupplierAdminAdjustment(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSupplierAdminAdjustment, v))
+}
+
+// SupplierForcedOffline applies equality check predicate on the "supplier_forced_offline" field. It's identical to SupplierForcedOfflineEQ.
+func SupplierForcedOffline(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSupplierForcedOffline, v))
+}
+
 // PeakRateEnabled applies equality check predicate on the "peak_rate_enabled" field. It's identical to PeakRateEnabledEQ.
 func PeakRateEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldPeakRateEnabled, v))
@@ -613,6 +628,96 @@ func RateMultiplierLT(v float64) predicate.Group {
 // RateMultiplierLTE applies the LTE predicate on the "rate_multiplier" field.
 func RateMultiplierLTE(v float64) predicate.Group {
 	return predicate.Group(sql.FieldLTE(FieldRateMultiplier, v))
+}
+
+// SupplierIDEQ applies the EQ predicate on the "supplier_id" field.
+func SupplierIDEQ(v int64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSupplierID, v))
+}
+
+// SupplierIDNEQ applies the NEQ predicate on the "supplier_id" field.
+func SupplierIDNEQ(v int64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSupplierID, v))
+}
+
+// SupplierIDIn applies the In predicate on the "supplier_id" field.
+func SupplierIDIn(vs ...int64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDNotIn applies the NotIn predicate on the "supplier_id" field.
+func SupplierIDNotIn(vs ...int64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDIsNil applies the IsNil predicate on the "supplier_id" field.
+func SupplierIDIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldSupplierID))
+}
+
+// SupplierIDNotNil applies the NotNil predicate on the "supplier_id" field.
+func SupplierIDNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldSupplierID))
+}
+
+// SupplierAdminAdjustmentEQ applies the EQ predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSupplierAdminAdjustment, v))
+}
+
+// SupplierAdminAdjustmentNEQ applies the NEQ predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSupplierAdminAdjustment, v))
+}
+
+// SupplierAdminAdjustmentIn applies the In predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldSupplierAdminAdjustment, vs...))
+}
+
+// SupplierAdminAdjustmentNotIn applies the NotIn predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldSupplierAdminAdjustment, vs...))
+}
+
+// SupplierAdminAdjustmentGT applies the GT predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldSupplierAdminAdjustment, v))
+}
+
+// SupplierAdminAdjustmentGTE applies the GTE predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldSupplierAdminAdjustment, v))
+}
+
+// SupplierAdminAdjustmentLT applies the LT predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldSupplierAdminAdjustment, v))
+}
+
+// SupplierAdminAdjustmentLTE applies the LTE predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldSupplierAdminAdjustment, v))
+}
+
+// SupplierAdminAdjustmentIsNil applies the IsNil predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldSupplierAdminAdjustment))
+}
+
+// SupplierAdminAdjustmentNotNil applies the NotNil predicate on the "supplier_admin_adjustment" field.
+func SupplierAdminAdjustmentNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldSupplierAdminAdjustment))
+}
+
+// SupplierForcedOfflineEQ applies the EQ predicate on the "supplier_forced_offline" field.
+func SupplierForcedOfflineEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSupplierForcedOffline, v))
+}
+
+// SupplierForcedOfflineNEQ applies the NEQ predicate on the "supplier_forced_offline" field.
+func SupplierForcedOfflineNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSupplierForcedOffline, v))
 }
 
 // PeakRateEnabledEQ applies the EQ predicate on the "peak_rate_enabled" field.
@@ -2425,6 +2530,29 @@ func HasAllowedUsers() predicate.Group {
 func HasAllowedUsersWith(preds ...predicate.User) predicate.Group {
 	return predicate.Group(func(s *sql.Selector) {
 		step := newAllowedUsersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSupplier applies the HasEdge predicate on the "supplier" edge.
+func HasSupplier() predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, SupplierTable, SupplierColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSupplierWith applies the HasEdge predicate on the "supplier" edge with a given conditions (other predicates).
+func HasSupplierWith(preds ...predicate.Supplier) predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := newSupplierStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

@@ -63,6 +63,12 @@ func (UsageLog) Fields() []ent.Field {
 		field.Int64("subscription_id").
 			Optional().
 			Nillable(),
+		field.Int64("supplier_id").Optional().Nillable(),
+		field.Float("supplier_base_rate").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),
+		field.Float("supplier_admin_adjustment").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),
+		field.Float("supplier_model_cost_usd").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("supplier_recharge_ratio").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("supplier_earning_cny").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
 
 		// Token 计数字段
 		field.Int("input_tokens").

@@ -150,6 +150,9 @@ export default {
 
   // Navigation
   nav: {
+    supplierHall: 'Supplier Hall',
+    supplierWorkspace: 'Supplier Workspace',
+    suppliers: 'Suppliers',
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',

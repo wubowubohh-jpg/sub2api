@@ -45,6 +45,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
+	"github.com/Wei-Shaw/sub2api/ent/supplierdocument"
+	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
+	"github.com/Wei-Shaw/sub2api/ent/suppliermetricbucket"
+	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
@@ -123,6 +128,16 @@ type Client struct {
 	Setting *SettingClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
+	// Supplier is the client for interacting with the Supplier builders.
+	Supplier *SupplierClient
+	// SupplierDocument is the client for interacting with the SupplierDocument builders.
+	SupplierDocument *SupplierDocumentClient
+	// SupplierLedger is the client for interacting with the SupplierLedger builders.
+	SupplierLedger *SupplierLedgerClient
+	// SupplierMetricBucket is the client for interacting with the SupplierMetricBucket builders.
+	SupplierMetricBucket *SupplierMetricBucketClient
+	// SupplierWithdrawal is the client for interacting with the SupplierWithdrawal builders.
+	SupplierWithdrawal *SupplierWithdrawalClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
@@ -182,6 +197,11 @@ func (c *Client) init() {
 	c.SecuritySecret = NewSecuritySecretClient(c.config)
 	c.Setting = NewSettingClient(c.config)
 	c.SubscriptionPlan = NewSubscriptionPlanClient(c.config)
+	c.Supplier = NewSupplierClient(c.config)
+	c.SupplierDocument = NewSupplierDocumentClient(c.config)
+	c.SupplierLedger = NewSupplierLedgerClient(c.config)
+	c.SupplierMetricBucket = NewSupplierMetricBucketClient(c.config)
+	c.SupplierWithdrawal = NewSupplierWithdrawalClient(c.config)
 	c.TLSFingerprintProfile = NewTLSFingerprintProfileClient(c.config)
 	c.UsageCleanupTask = NewUsageCleanupTaskClient(c.config)
 	c.UsageLog = NewUsageLogClient(c.config)
@@ -313,6 +333,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
+		Supplier:                      NewSupplierClient(cfg),
+		SupplierDocument:              NewSupplierDocumentClient(cfg),
+		SupplierLedger:                NewSupplierLedgerClient(cfg),
+		SupplierMetricBucket:          NewSupplierMetricBucketClient(cfg),
+		SupplierWithdrawal:            NewSupplierWithdrawalClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
@@ -371,6 +396,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
+		Supplier:                      NewSupplierClient(cfg),
+		SupplierDocument:              NewSupplierDocumentClient(cfg),
+		SupplierLedger:                NewSupplierLedgerClient(cfg),
+		SupplierMetricBucket:          NewSupplierMetricBucketClient(cfg),
+		SupplierWithdrawal:            NewSupplierWithdrawalClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
@@ -417,8 +447,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.Supplier, c.SupplierDocument, c.SupplierLedger, c.SupplierMetricBucket,
+		c.SupplierWithdrawal, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
+		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
 		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
@@ -437,8 +468,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.Supplier, c.SupplierDocument, c.SupplierLedger, c.SupplierMetricBucket,
+		c.SupplierWithdrawal, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
+		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
 		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
@@ -508,6 +540,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Setting.mutate(ctx, m)
 	case *SubscriptionPlanMutation:
 		return c.SubscriptionPlan.mutate(ctx, m)
+	case *SupplierMutation:
+		return c.Supplier.mutate(ctx, m)
+	case *SupplierDocumentMutation:
+		return c.SupplierDocument.mutate(ctx, m)
+	case *SupplierLedgerMutation:
+		return c.SupplierLedger.mutate(ctx, m)
+	case *SupplierMetricBucketMutation:
+		return c.SupplierMetricBucket.mutate(ctx, m)
+	case *SupplierWithdrawalMutation:
+		return c.SupplierWithdrawal.mutate(ctx, m)
 	case *TLSFingerprintProfileMutation:
 		return c.TLSFingerprintProfile.mutate(ctx, m)
 	case *UsageCleanupTaskMutation:
@@ -895,6 +937,22 @@ func (c *AccountClient) QueryUsageLogs(_m *Account) *UsageLogQuery {
 			sqlgraph.From(account.Table, account.FieldID, id),
 			sqlgraph.To(usagelog.Table, usagelog.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, account.UsageLogsTable, account.UsageLogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySupplier queries the supplier edge of a Account.
+func (c *AccountClient) QuerySupplier(_m *Account) *SupplierQuery {
+	query := (&SupplierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(account.Table, account.FieldID, id),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, account.SupplierTable, account.SupplierColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3220,6 +3278,22 @@ func (c *GroupClient) QueryAllowedUsers(_m *Group) *UserQuery {
 	return query
 }
 
+// QuerySupplier queries the supplier edge of a Group.
+func (c *GroupClient) QuerySupplier(_m *Group) *SupplierQuery {
+	query := (&SupplierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(group.Table, group.FieldID, id),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, group.SupplierTable, group.SupplierColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryAccountGroups queries the account_groups edge of a Group.
 func (c *GroupClient) QueryAccountGroups(_m *Group) *AccountGroupQuery {
 	query := (&AccountGroupClient{config: c.config}).Query()
@@ -5202,6 +5276,815 @@ func (c *SubscriptionPlanClient) mutate(ctx context.Context, m *SubscriptionPlan
 	}
 }
 
+// SupplierClient is a client for the Supplier schema.
+type SupplierClient struct {
+	config
+}
+
+// NewSupplierClient returns a client for the Supplier from the given config.
+func NewSupplierClient(c config) *SupplierClient {
+	return &SupplierClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `supplier.Hooks(f(g(h())))`.
+func (c *SupplierClient) Use(hooks ...Hook) {
+	c.hooks.Supplier = append(c.hooks.Supplier, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `supplier.Intercept(f(g(h())))`.
+func (c *SupplierClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Supplier = append(c.inters.Supplier, interceptors...)
+}
+
+// Create returns a builder for creating a Supplier entity.
+func (c *SupplierClient) Create() *SupplierCreate {
+	mutation := newSupplierMutation(c.config, OpCreate)
+	return &SupplierCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Supplier entities.
+func (c *SupplierClient) CreateBulk(builders ...*SupplierCreate) *SupplierCreateBulk {
+	return &SupplierCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SupplierClient) MapCreateBulk(slice any, setFunc func(*SupplierCreate, int)) *SupplierCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SupplierCreateBulk{err: fmt.Errorf("calling to SupplierClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SupplierCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SupplierCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Supplier.
+func (c *SupplierClient) Update() *SupplierUpdate {
+	mutation := newSupplierMutation(c.config, OpUpdate)
+	return &SupplierUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SupplierClient) UpdateOne(_m *Supplier) *SupplierUpdateOne {
+	mutation := newSupplierMutation(c.config, OpUpdateOne, withSupplier(_m))
+	return &SupplierUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SupplierClient) UpdateOneID(id int64) *SupplierUpdateOne {
+	mutation := newSupplierMutation(c.config, OpUpdateOne, withSupplierID(id))
+	return &SupplierUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Supplier.
+func (c *SupplierClient) Delete() *SupplierDelete {
+	mutation := newSupplierMutation(c.config, OpDelete)
+	return &SupplierDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SupplierClient) DeleteOne(_m *Supplier) *SupplierDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SupplierClient) DeleteOneID(id int64) *SupplierDeleteOne {
+	builder := c.Delete().Where(supplier.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SupplierDeleteOne{builder}
+}
+
+// Query returns a query builder for Supplier.
+func (c *SupplierClient) Query() *SupplierQuery {
+	return &SupplierQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSupplier},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Supplier entity by its id.
+func (c *SupplierClient) Get(ctx context.Context, id int64) (*Supplier, error) {
+	return c.Query().Where(supplier.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SupplierClient) GetX(ctx context.Context, id int64) *Supplier {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a Supplier.
+func (c *SupplierClient) QueryUser(_m *Supplier) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, supplier.UserTable, supplier.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryDocuments queries the documents edge of a Supplier.
+func (c *SupplierClient) QueryDocuments(_m *Supplier) *SupplierDocumentQuery {
+	query := (&SupplierDocumentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, id),
+			sqlgraph.To(supplierdocument.Table, supplierdocument.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, supplier.DocumentsTable, supplier.DocumentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGroups queries the groups edge of a Supplier.
+func (c *SupplierClient) QueryGroups(_m *Supplier) *GroupQuery {
+	query := (&GroupClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, id),
+			sqlgraph.To(group.Table, group.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, supplier.GroupsTable, supplier.GroupsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAccounts queries the accounts edge of a Supplier.
+func (c *SupplierClient) QueryAccounts(_m *Supplier) *AccountQuery {
+	query := (&AccountClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, id),
+			sqlgraph.To(account.Table, account.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, supplier.AccountsTable, supplier.AccountsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLedgerEntries queries the ledger_entries edge of a Supplier.
+func (c *SupplierClient) QueryLedgerEntries(_m *Supplier) *SupplierLedgerQuery {
+	query := (&SupplierLedgerClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, id),
+			sqlgraph.To(supplierledger.Table, supplierledger.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, supplier.LedgerEntriesTable, supplier.LedgerEntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryWithdrawals queries the withdrawals edge of a Supplier.
+func (c *SupplierClient) QueryWithdrawals(_m *Supplier) *SupplierWithdrawalQuery {
+	query := (&SupplierWithdrawalClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplier.Table, supplier.FieldID, id),
+			sqlgraph.To(supplierwithdrawal.Table, supplierwithdrawal.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, supplier.WithdrawalsTable, supplier.WithdrawalsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SupplierClient) Hooks() []Hook {
+	return c.hooks.Supplier
+}
+
+// Interceptors returns the client interceptors.
+func (c *SupplierClient) Interceptors() []Interceptor {
+	return c.inters.Supplier
+}
+
+func (c *SupplierClient) mutate(ctx context.Context, m *SupplierMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SupplierCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SupplierUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SupplierUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SupplierDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Supplier mutation op: %q", m.Op())
+	}
+}
+
+// SupplierDocumentClient is a client for the SupplierDocument schema.
+type SupplierDocumentClient struct {
+	config
+}
+
+// NewSupplierDocumentClient returns a client for the SupplierDocument from the given config.
+func NewSupplierDocumentClient(c config) *SupplierDocumentClient {
+	return &SupplierDocumentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `supplierdocument.Hooks(f(g(h())))`.
+func (c *SupplierDocumentClient) Use(hooks ...Hook) {
+	c.hooks.SupplierDocument = append(c.hooks.SupplierDocument, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `supplierdocument.Intercept(f(g(h())))`.
+func (c *SupplierDocumentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SupplierDocument = append(c.inters.SupplierDocument, interceptors...)
+}
+
+// Create returns a builder for creating a SupplierDocument entity.
+func (c *SupplierDocumentClient) Create() *SupplierDocumentCreate {
+	mutation := newSupplierDocumentMutation(c.config, OpCreate)
+	return &SupplierDocumentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SupplierDocument entities.
+func (c *SupplierDocumentClient) CreateBulk(builders ...*SupplierDocumentCreate) *SupplierDocumentCreateBulk {
+	return &SupplierDocumentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SupplierDocumentClient) MapCreateBulk(slice any, setFunc func(*SupplierDocumentCreate, int)) *SupplierDocumentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SupplierDocumentCreateBulk{err: fmt.Errorf("calling to SupplierDocumentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SupplierDocumentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SupplierDocumentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SupplierDocument.
+func (c *SupplierDocumentClient) Update() *SupplierDocumentUpdate {
+	mutation := newSupplierDocumentMutation(c.config, OpUpdate)
+	return &SupplierDocumentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SupplierDocumentClient) UpdateOne(_m *SupplierDocument) *SupplierDocumentUpdateOne {
+	mutation := newSupplierDocumentMutation(c.config, OpUpdateOne, withSupplierDocument(_m))
+	return &SupplierDocumentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SupplierDocumentClient) UpdateOneID(id int64) *SupplierDocumentUpdateOne {
+	mutation := newSupplierDocumentMutation(c.config, OpUpdateOne, withSupplierDocumentID(id))
+	return &SupplierDocumentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SupplierDocument.
+func (c *SupplierDocumentClient) Delete() *SupplierDocumentDelete {
+	mutation := newSupplierDocumentMutation(c.config, OpDelete)
+	return &SupplierDocumentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SupplierDocumentClient) DeleteOne(_m *SupplierDocument) *SupplierDocumentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SupplierDocumentClient) DeleteOneID(id int64) *SupplierDocumentDeleteOne {
+	builder := c.Delete().Where(supplierdocument.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SupplierDocumentDeleteOne{builder}
+}
+
+// Query returns a query builder for SupplierDocument.
+func (c *SupplierDocumentClient) Query() *SupplierDocumentQuery {
+	return &SupplierDocumentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSupplierDocument},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SupplierDocument entity by its id.
+func (c *SupplierDocumentClient) Get(ctx context.Context, id int64) (*SupplierDocument, error) {
+	return c.Query().Where(supplierdocument.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SupplierDocumentClient) GetX(ctx context.Context, id int64) *SupplierDocument {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySupplier queries the supplier edge of a SupplierDocument.
+func (c *SupplierDocumentClient) QuerySupplier(_m *SupplierDocument) *SupplierQuery {
+	query := (&SupplierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplierdocument.Table, supplierdocument.FieldID, id),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, supplierdocument.SupplierTable, supplierdocument.SupplierColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SupplierDocumentClient) Hooks() []Hook {
+	return c.hooks.SupplierDocument
+}
+
+// Interceptors returns the client interceptors.
+func (c *SupplierDocumentClient) Interceptors() []Interceptor {
+	return c.inters.SupplierDocument
+}
+
+func (c *SupplierDocumentClient) mutate(ctx context.Context, m *SupplierDocumentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SupplierDocumentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SupplierDocumentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SupplierDocumentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SupplierDocumentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SupplierDocument mutation op: %q", m.Op())
+	}
+}
+
+// SupplierLedgerClient is a client for the SupplierLedger schema.
+type SupplierLedgerClient struct {
+	config
+}
+
+// NewSupplierLedgerClient returns a client for the SupplierLedger from the given config.
+func NewSupplierLedgerClient(c config) *SupplierLedgerClient {
+	return &SupplierLedgerClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `supplierledger.Hooks(f(g(h())))`.
+func (c *SupplierLedgerClient) Use(hooks ...Hook) {
+	c.hooks.SupplierLedger = append(c.hooks.SupplierLedger, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `supplierledger.Intercept(f(g(h())))`.
+func (c *SupplierLedgerClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SupplierLedger = append(c.inters.SupplierLedger, interceptors...)
+}
+
+// Create returns a builder for creating a SupplierLedger entity.
+func (c *SupplierLedgerClient) Create() *SupplierLedgerCreate {
+	mutation := newSupplierLedgerMutation(c.config, OpCreate)
+	return &SupplierLedgerCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SupplierLedger entities.
+func (c *SupplierLedgerClient) CreateBulk(builders ...*SupplierLedgerCreate) *SupplierLedgerCreateBulk {
+	return &SupplierLedgerCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SupplierLedgerClient) MapCreateBulk(slice any, setFunc func(*SupplierLedgerCreate, int)) *SupplierLedgerCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SupplierLedgerCreateBulk{err: fmt.Errorf("calling to SupplierLedgerClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SupplierLedgerCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SupplierLedgerCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SupplierLedger.
+func (c *SupplierLedgerClient) Update() *SupplierLedgerUpdate {
+	mutation := newSupplierLedgerMutation(c.config, OpUpdate)
+	return &SupplierLedgerUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SupplierLedgerClient) UpdateOne(_m *SupplierLedger) *SupplierLedgerUpdateOne {
+	mutation := newSupplierLedgerMutation(c.config, OpUpdateOne, withSupplierLedger(_m))
+	return &SupplierLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SupplierLedgerClient) UpdateOneID(id int64) *SupplierLedgerUpdateOne {
+	mutation := newSupplierLedgerMutation(c.config, OpUpdateOne, withSupplierLedgerID(id))
+	return &SupplierLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SupplierLedger.
+func (c *SupplierLedgerClient) Delete() *SupplierLedgerDelete {
+	mutation := newSupplierLedgerMutation(c.config, OpDelete)
+	return &SupplierLedgerDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SupplierLedgerClient) DeleteOne(_m *SupplierLedger) *SupplierLedgerDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SupplierLedgerClient) DeleteOneID(id int64) *SupplierLedgerDeleteOne {
+	builder := c.Delete().Where(supplierledger.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SupplierLedgerDeleteOne{builder}
+}
+
+// Query returns a query builder for SupplierLedger.
+func (c *SupplierLedgerClient) Query() *SupplierLedgerQuery {
+	return &SupplierLedgerQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSupplierLedger},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SupplierLedger entity by its id.
+func (c *SupplierLedgerClient) Get(ctx context.Context, id int64) (*SupplierLedger, error) {
+	return c.Query().Where(supplierledger.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SupplierLedgerClient) GetX(ctx context.Context, id int64) *SupplierLedger {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySupplier queries the supplier edge of a SupplierLedger.
+func (c *SupplierLedgerClient) QuerySupplier(_m *SupplierLedger) *SupplierQuery {
+	query := (&SupplierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplierledger.Table, supplierledger.FieldID, id),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, supplierledger.SupplierTable, supplierledger.SupplierColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SupplierLedgerClient) Hooks() []Hook {
+	return c.hooks.SupplierLedger
+}
+
+// Interceptors returns the client interceptors.
+func (c *SupplierLedgerClient) Interceptors() []Interceptor {
+	return c.inters.SupplierLedger
+}
+
+func (c *SupplierLedgerClient) mutate(ctx context.Context, m *SupplierLedgerMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SupplierLedgerCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SupplierLedgerUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SupplierLedgerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SupplierLedgerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SupplierLedger mutation op: %q", m.Op())
+	}
+}
+
+// SupplierMetricBucketClient is a client for the SupplierMetricBucket schema.
+type SupplierMetricBucketClient struct {
+	config
+}
+
+// NewSupplierMetricBucketClient returns a client for the SupplierMetricBucket from the given config.
+func NewSupplierMetricBucketClient(c config) *SupplierMetricBucketClient {
+	return &SupplierMetricBucketClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `suppliermetricbucket.Hooks(f(g(h())))`.
+func (c *SupplierMetricBucketClient) Use(hooks ...Hook) {
+	c.hooks.SupplierMetricBucket = append(c.hooks.SupplierMetricBucket, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `suppliermetricbucket.Intercept(f(g(h())))`.
+func (c *SupplierMetricBucketClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SupplierMetricBucket = append(c.inters.SupplierMetricBucket, interceptors...)
+}
+
+// Create returns a builder for creating a SupplierMetricBucket entity.
+func (c *SupplierMetricBucketClient) Create() *SupplierMetricBucketCreate {
+	mutation := newSupplierMetricBucketMutation(c.config, OpCreate)
+	return &SupplierMetricBucketCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SupplierMetricBucket entities.
+func (c *SupplierMetricBucketClient) CreateBulk(builders ...*SupplierMetricBucketCreate) *SupplierMetricBucketCreateBulk {
+	return &SupplierMetricBucketCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SupplierMetricBucketClient) MapCreateBulk(slice any, setFunc func(*SupplierMetricBucketCreate, int)) *SupplierMetricBucketCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SupplierMetricBucketCreateBulk{err: fmt.Errorf("calling to SupplierMetricBucketClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SupplierMetricBucketCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SupplierMetricBucketCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SupplierMetricBucket.
+func (c *SupplierMetricBucketClient) Update() *SupplierMetricBucketUpdate {
+	mutation := newSupplierMetricBucketMutation(c.config, OpUpdate)
+	return &SupplierMetricBucketUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SupplierMetricBucketClient) UpdateOne(_m *SupplierMetricBucket) *SupplierMetricBucketUpdateOne {
+	mutation := newSupplierMetricBucketMutation(c.config, OpUpdateOne, withSupplierMetricBucket(_m))
+	return &SupplierMetricBucketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SupplierMetricBucketClient) UpdateOneID(id int64) *SupplierMetricBucketUpdateOne {
+	mutation := newSupplierMetricBucketMutation(c.config, OpUpdateOne, withSupplierMetricBucketID(id))
+	return &SupplierMetricBucketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SupplierMetricBucket.
+func (c *SupplierMetricBucketClient) Delete() *SupplierMetricBucketDelete {
+	mutation := newSupplierMetricBucketMutation(c.config, OpDelete)
+	return &SupplierMetricBucketDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SupplierMetricBucketClient) DeleteOne(_m *SupplierMetricBucket) *SupplierMetricBucketDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SupplierMetricBucketClient) DeleteOneID(id int64) *SupplierMetricBucketDeleteOne {
+	builder := c.Delete().Where(suppliermetricbucket.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SupplierMetricBucketDeleteOne{builder}
+}
+
+// Query returns a query builder for SupplierMetricBucket.
+func (c *SupplierMetricBucketClient) Query() *SupplierMetricBucketQuery {
+	return &SupplierMetricBucketQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSupplierMetricBucket},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SupplierMetricBucket entity by its id.
+func (c *SupplierMetricBucketClient) Get(ctx context.Context, id int64) (*SupplierMetricBucket, error) {
+	return c.Query().Where(suppliermetricbucket.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SupplierMetricBucketClient) GetX(ctx context.Context, id int64) *SupplierMetricBucket {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SupplierMetricBucketClient) Hooks() []Hook {
+	return c.hooks.SupplierMetricBucket
+}
+
+// Interceptors returns the client interceptors.
+func (c *SupplierMetricBucketClient) Interceptors() []Interceptor {
+	return c.inters.SupplierMetricBucket
+}
+
+func (c *SupplierMetricBucketClient) mutate(ctx context.Context, m *SupplierMetricBucketMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SupplierMetricBucketCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SupplierMetricBucketUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SupplierMetricBucketUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SupplierMetricBucketDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SupplierMetricBucket mutation op: %q", m.Op())
+	}
+}
+
+// SupplierWithdrawalClient is a client for the SupplierWithdrawal schema.
+type SupplierWithdrawalClient struct {
+	config
+}
+
+// NewSupplierWithdrawalClient returns a client for the SupplierWithdrawal from the given config.
+func NewSupplierWithdrawalClient(c config) *SupplierWithdrawalClient {
+	return &SupplierWithdrawalClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `supplierwithdrawal.Hooks(f(g(h())))`.
+func (c *SupplierWithdrawalClient) Use(hooks ...Hook) {
+	c.hooks.SupplierWithdrawal = append(c.hooks.SupplierWithdrawal, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `supplierwithdrawal.Intercept(f(g(h())))`.
+func (c *SupplierWithdrawalClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SupplierWithdrawal = append(c.inters.SupplierWithdrawal, interceptors...)
+}
+
+// Create returns a builder for creating a SupplierWithdrawal entity.
+func (c *SupplierWithdrawalClient) Create() *SupplierWithdrawalCreate {
+	mutation := newSupplierWithdrawalMutation(c.config, OpCreate)
+	return &SupplierWithdrawalCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SupplierWithdrawal entities.
+func (c *SupplierWithdrawalClient) CreateBulk(builders ...*SupplierWithdrawalCreate) *SupplierWithdrawalCreateBulk {
+	return &SupplierWithdrawalCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SupplierWithdrawalClient) MapCreateBulk(slice any, setFunc func(*SupplierWithdrawalCreate, int)) *SupplierWithdrawalCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SupplierWithdrawalCreateBulk{err: fmt.Errorf("calling to SupplierWithdrawalClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SupplierWithdrawalCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SupplierWithdrawalCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SupplierWithdrawal.
+func (c *SupplierWithdrawalClient) Update() *SupplierWithdrawalUpdate {
+	mutation := newSupplierWithdrawalMutation(c.config, OpUpdate)
+	return &SupplierWithdrawalUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SupplierWithdrawalClient) UpdateOne(_m *SupplierWithdrawal) *SupplierWithdrawalUpdateOne {
+	mutation := newSupplierWithdrawalMutation(c.config, OpUpdateOne, withSupplierWithdrawal(_m))
+	return &SupplierWithdrawalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SupplierWithdrawalClient) UpdateOneID(id int64) *SupplierWithdrawalUpdateOne {
+	mutation := newSupplierWithdrawalMutation(c.config, OpUpdateOne, withSupplierWithdrawalID(id))
+	return &SupplierWithdrawalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SupplierWithdrawal.
+func (c *SupplierWithdrawalClient) Delete() *SupplierWithdrawalDelete {
+	mutation := newSupplierWithdrawalMutation(c.config, OpDelete)
+	return &SupplierWithdrawalDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SupplierWithdrawalClient) DeleteOne(_m *SupplierWithdrawal) *SupplierWithdrawalDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SupplierWithdrawalClient) DeleteOneID(id int64) *SupplierWithdrawalDeleteOne {
+	builder := c.Delete().Where(supplierwithdrawal.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SupplierWithdrawalDeleteOne{builder}
+}
+
+// Query returns a query builder for SupplierWithdrawal.
+func (c *SupplierWithdrawalClient) Query() *SupplierWithdrawalQuery {
+	return &SupplierWithdrawalQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSupplierWithdrawal},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SupplierWithdrawal entity by its id.
+func (c *SupplierWithdrawalClient) Get(ctx context.Context, id int64) (*SupplierWithdrawal, error) {
+	return c.Query().Where(supplierwithdrawal.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SupplierWithdrawalClient) GetX(ctx context.Context, id int64) *SupplierWithdrawal {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySupplier queries the supplier edge of a SupplierWithdrawal.
+func (c *SupplierWithdrawalClient) QuerySupplier(_m *SupplierWithdrawal) *SupplierQuery {
+	query := (&SupplierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(supplierwithdrawal.Table, supplierwithdrawal.FieldID, id),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, supplierwithdrawal.SupplierTable, supplierwithdrawal.SupplierColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SupplierWithdrawalClient) Hooks() []Hook {
+	return c.hooks.SupplierWithdrawal
+}
+
+// Interceptors returns the client interceptors.
+func (c *SupplierWithdrawalClient) Interceptors() []Interceptor {
+	return c.inters.SupplierWithdrawal
+}
+
+func (c *SupplierWithdrawalClient) mutate(ctx context.Context, m *SupplierWithdrawalMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SupplierWithdrawalCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SupplierWithdrawalUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SupplierWithdrawalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SupplierWithdrawalDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SupplierWithdrawal mutation op: %q", m.Op())
+	}
+}
+
 // TLSFingerprintProfileClient is a client for the TLSFingerprintProfile schema.
 type TLSFingerprintProfileClient struct {
 	config
@@ -5990,6 +6873,22 @@ func (c *UserClient) QueryPlatformQuotas(_m *User) *UserPlatformQuotaQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(userplatformquota.Table, userplatformquota.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PlatformQuotasTable, user.PlatformQuotasColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySupplier queries the supplier edge of a User.
+func (c *UserClient) QuerySupplier(_m *User) *SupplierQuery {
+	query := (&SupplierClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.SupplierTable, user.SupplierColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -6832,9 +7731,10 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Hook
+		Supplier, SupplierDocument, SupplierLedger, SupplierMetricBucket,
+		SupplierWithdrawal, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
@@ -6844,9 +7744,10 @@ type (
 		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
 		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
 		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
-		UserSubscription []ent.Interceptor
+		Supplier, SupplierDocument, SupplierLedger, SupplierMetricBucket,
+		SupplierWithdrawal, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserPlatformQuota, UserSubscription []ent.Interceptor
 	}
 )
 

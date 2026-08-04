@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -114,6 +115,67 @@ func (_u *GroupUpdate) SetNillableRateMultiplier(v *float64) *GroupUpdate {
 // AddRateMultiplier adds value to the "rate_multiplier" field.
 func (_u *GroupUpdate) AddRateMultiplier(v float64) *GroupUpdate {
 	_u.mutation.AddRateMultiplier(v)
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *GroupUpdate) SetSupplierID(v int64) *GroupUpdate {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSupplierID(v *int64) *GroupUpdate {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *GroupUpdate) ClearSupplierID() *GroupUpdate {
+	_u.mutation.ClearSupplierID()
+	return _u
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (_u *GroupUpdate) SetSupplierAdminAdjustment(v float64) *GroupUpdate {
+	_u.mutation.ResetSupplierAdminAdjustment()
+	_u.mutation.SetSupplierAdminAdjustment(v)
+	return _u
+}
+
+// SetNillableSupplierAdminAdjustment sets the "supplier_admin_adjustment" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSupplierAdminAdjustment(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetSupplierAdminAdjustment(*v)
+	}
+	return _u
+}
+
+// AddSupplierAdminAdjustment adds value to the "supplier_admin_adjustment" field.
+func (_u *GroupUpdate) AddSupplierAdminAdjustment(v float64) *GroupUpdate {
+	_u.mutation.AddSupplierAdminAdjustment(v)
+	return _u
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (_u *GroupUpdate) ClearSupplierAdminAdjustment() *GroupUpdate {
+	_u.mutation.ClearSupplierAdminAdjustment()
+	return _u
+}
+
+// SetSupplierForcedOffline sets the "supplier_forced_offline" field.
+func (_u *GroupUpdate) SetSupplierForcedOffline(v bool) *GroupUpdate {
+	_u.mutation.SetSupplierForcedOffline(v)
+	return _u
+}
+
+// SetNillableSupplierForcedOffline sets the "supplier_forced_offline" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSupplierForcedOffline(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetSupplierForcedOffline(*v)
+	}
 	return _u
 }
 
@@ -1099,6 +1161,11 @@ func (_u *GroupUpdate) AddAllowedUsers(v ...*User) *GroupUpdate {
 	return _u.AddAllowedUserIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *GroupUpdate) SetSupplier(v *Supplier) *GroupUpdate {
+	return _u.SetSupplierID(v.ID)
+}
+
 // Mutation returns the GroupMutation object of the builder.
 func (_u *GroupUpdate) Mutation() *GroupMutation {
 	return _u.mutation
@@ -1230,6 +1297,12 @@ func (_u *GroupUpdate) RemoveAllowedUsers(v ...*User) *GroupUpdate {
 	return _u.RemoveAllowedUserIDs(ids...)
 }
 
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *GroupUpdate) ClearSupplier() *GroupUpdate {
+	_u.mutation.ClearSupplier()
+	return _u
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *GroupUpdate) Save(ctx context.Context) (int, error) {
 	if err := _u.defaults(); err != nil {
@@ -1352,6 +1425,18 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(group.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.SupplierAdminAdjustment(); ok {
+		_spec.SetField(group.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierAdminAdjustment(); ok {
+		_spec.AddField(group.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierAdminAdjustmentCleared() {
+		_spec.ClearField(group.FieldSupplierAdminAdjustment, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierForcedOffline(); ok {
+		_spec.SetField(group.FieldSupplierForcedOffline, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
@@ -1909,6 +1994,35 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		edge.Target.Fields = specE.Fields
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   group.SupplierTable,
+			Columns: []string{group.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   group.SupplierTable,
+			Columns: []string{group.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{group.Label}
@@ -2007,6 +2121,67 @@ func (_u *GroupUpdateOne) SetNillableRateMultiplier(v *float64) *GroupUpdateOne 
 // AddRateMultiplier adds value to the "rate_multiplier" field.
 func (_u *GroupUpdateOne) AddRateMultiplier(v float64) *GroupUpdateOne {
 	_u.mutation.AddRateMultiplier(v)
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *GroupUpdateOne) SetSupplierID(v int64) *GroupUpdateOne {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSupplierID(v *int64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *GroupUpdateOne) ClearSupplierID() *GroupUpdateOne {
+	_u.mutation.ClearSupplierID()
+	return _u
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (_u *GroupUpdateOne) SetSupplierAdminAdjustment(v float64) *GroupUpdateOne {
+	_u.mutation.ResetSupplierAdminAdjustment()
+	_u.mutation.SetSupplierAdminAdjustment(v)
+	return _u
+}
+
+// SetNillableSupplierAdminAdjustment sets the "supplier_admin_adjustment" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSupplierAdminAdjustment(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSupplierAdminAdjustment(*v)
+	}
+	return _u
+}
+
+// AddSupplierAdminAdjustment adds value to the "supplier_admin_adjustment" field.
+func (_u *GroupUpdateOne) AddSupplierAdminAdjustment(v float64) *GroupUpdateOne {
+	_u.mutation.AddSupplierAdminAdjustment(v)
+	return _u
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (_u *GroupUpdateOne) ClearSupplierAdminAdjustment() *GroupUpdateOne {
+	_u.mutation.ClearSupplierAdminAdjustment()
+	return _u
+}
+
+// SetSupplierForcedOffline sets the "supplier_forced_offline" field.
+func (_u *GroupUpdateOne) SetSupplierForcedOffline(v bool) *GroupUpdateOne {
+	_u.mutation.SetSupplierForcedOffline(v)
+	return _u
+}
+
+// SetNillableSupplierForcedOffline sets the "supplier_forced_offline" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSupplierForcedOffline(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSupplierForcedOffline(*v)
+	}
 	return _u
 }
 
@@ -2992,6 +3167,11 @@ func (_u *GroupUpdateOne) AddAllowedUsers(v ...*User) *GroupUpdateOne {
 	return _u.AddAllowedUserIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *GroupUpdateOne) SetSupplier(v *Supplier) *GroupUpdateOne {
+	return _u.SetSupplierID(v.ID)
+}
+
 // Mutation returns the GroupMutation object of the builder.
 func (_u *GroupUpdateOne) Mutation() *GroupMutation {
 	return _u.mutation
@@ -3121,6 +3301,12 @@ func (_u *GroupUpdateOne) RemoveAllowedUsers(v ...*User) *GroupUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAllowedUserIDs(ids...)
+}
+
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *GroupUpdateOne) ClearSupplier() *GroupUpdateOne {
+	_u.mutation.ClearSupplier()
+	return _u
 }
 
 // Where appends a list predicates to the GroupUpdate builder.
@@ -3275,6 +3461,18 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(group.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.SupplierAdminAdjustment(); ok {
+		_spec.SetField(group.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierAdminAdjustment(); ok {
+		_spec.AddField(group.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierAdminAdjustmentCleared() {
+		_spec.ClearField(group.FieldSupplierAdminAdjustment, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierForcedOffline(); ok {
+		_spec.SetField(group.FieldSupplierForcedOffline, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
@@ -3830,6 +4028,35 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 		createE.defaults()
 		_, specE := createE.createSpec()
 		edge.Target.Fields = specE.Fields
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   group.SupplierTable,
+			Columns: []string{group.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   group.SupplierTable,
+			Columns: []string{group.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Group{config: _u.config}

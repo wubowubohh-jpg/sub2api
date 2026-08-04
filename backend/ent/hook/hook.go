@@ -369,6 +369,66 @@ func (f SubscriptionPlanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionPlanMutation", m)
 }
 
+// The SupplierFunc type is an adapter to allow the use of ordinary
+// function as Supplier mutator.
+type SupplierFunc func(context.Context, *ent.SupplierMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupplierFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupplierMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupplierMutation", m)
+}
+
+// The SupplierDocumentFunc type is an adapter to allow the use of ordinary
+// function as SupplierDocument mutator.
+type SupplierDocumentFunc func(context.Context, *ent.SupplierDocumentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupplierDocumentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupplierDocumentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupplierDocumentMutation", m)
+}
+
+// The SupplierLedgerFunc type is an adapter to allow the use of ordinary
+// function as SupplierLedger mutator.
+type SupplierLedgerFunc func(context.Context, *ent.SupplierLedgerMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupplierLedgerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupplierLedgerMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupplierLedgerMutation", m)
+}
+
+// The SupplierMetricBucketFunc type is an adapter to allow the use of ordinary
+// function as SupplierMetricBucket mutator.
+type SupplierMetricBucketFunc func(context.Context, *ent.SupplierMetricBucketMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupplierMetricBucketFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupplierMetricBucketMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupplierMetricBucketMutation", m)
+}
+
+// The SupplierWithdrawalFunc type is an adapter to allow the use of ordinary
+// function as SupplierWithdrawal mutator.
+type SupplierWithdrawalFunc func(context.Context, *ent.SupplierWithdrawalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SupplierWithdrawalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SupplierWithdrawalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SupplierWithdrawalMutation", m)
+}
+
 // The TLSFingerprintProfileFunc type is an adapter to allow the use of ordinary
 // function as TLSFingerprintProfile mutator.
 type TLSFingerprintProfileFunc func(context.Context, *ent.TLSFingerprintProfileMutation) (ent.Value, error)

@@ -686,6 +686,16 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 	if apiKey.GroupID != nil && apiKey.Group != nil {
 		groupDefault := apiKey.Group.RateMultiplier
+		if apiKey.Group.SupplierID != nil {
+			adjustment := s.settingService.GetSupplierGlobalRateAdjustment(ctx)
+			if apiKey.Group.SupplierAdminAdjustment != nil {
+				adjustment = *apiKey.Group.SupplierAdminAdjustment
+			}
+			groupDefault += adjustment
+			if groupDefault < 0 {
+				groupDefault = 0
+			}
+		}
 		multiplier = s.ResolveUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
 	// token 倍率叠加高峰因子（token 计费含图片 token，图片按次倍率不受影响）。高峰因子按请求时刻现算，

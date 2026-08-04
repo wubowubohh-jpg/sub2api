@@ -40,6 +40,18 @@ const (
 	FieldGroupID = "group_id"
 	// FieldSubscriptionID holds the string denoting the subscription_id field in the database.
 	FieldSubscriptionID = "subscription_id"
+	// FieldSupplierID holds the string denoting the supplier_id field in the database.
+	FieldSupplierID = "supplier_id"
+	// FieldSupplierBaseRate holds the string denoting the supplier_base_rate field in the database.
+	FieldSupplierBaseRate = "supplier_base_rate"
+	// FieldSupplierAdminAdjustment holds the string denoting the supplier_admin_adjustment field in the database.
+	FieldSupplierAdminAdjustment = "supplier_admin_adjustment"
+	// FieldSupplierModelCostUsd holds the string denoting the supplier_model_cost_usd field in the database.
+	FieldSupplierModelCostUsd = "supplier_model_cost_usd"
+	// FieldSupplierRechargeRatio holds the string denoting the supplier_recharge_ratio field in the database.
+	FieldSupplierRechargeRatio = "supplier_recharge_ratio"
+	// FieldSupplierEarningCny holds the string denoting the supplier_earning_cny field in the database.
+	FieldSupplierEarningCny = "supplier_earning_cny"
 	// FieldInputTokens holds the string denoting the input_tokens field in the database.
 	FieldInputTokens = "input_tokens"
 	// FieldOutputTokens holds the string denoting the output_tokens field in the database.
@@ -169,6 +181,12 @@ var Columns = []string{
 	FieldBillingMode,
 	FieldGroupID,
 	FieldSubscriptionID,
+	FieldSupplierID,
+	FieldSupplierBaseRate,
+	FieldSupplierAdminAdjustment,
+	FieldSupplierModelCostUsd,
+	FieldSupplierRechargeRatio,
+	FieldSupplierEarningCny,
 	FieldInputTokens,
 	FieldOutputTokens,
 	FieldCacheCreationTokens,
@@ -355,6 +373,36 @@ func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionID orders the results by the subscription_id field.
 func BySubscriptionID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionID, opts...).ToFunc()
+}
+
+// BySupplierID orders the results by the supplier_id field.
+func BySupplierID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierID, opts...).ToFunc()
+}
+
+// BySupplierBaseRate orders the results by the supplier_base_rate field.
+func BySupplierBaseRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierBaseRate, opts...).ToFunc()
+}
+
+// BySupplierAdminAdjustment orders the results by the supplier_admin_adjustment field.
+func BySupplierAdminAdjustment(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierAdminAdjustment, opts...).ToFunc()
+}
+
+// BySupplierModelCostUsd orders the results by the supplier_model_cost_usd field.
+func BySupplierModelCostUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierModelCostUsd, opts...).ToFunc()
+}
+
+// BySupplierRechargeRatio orders the results by the supplier_recharge_ratio field.
+func BySupplierRechargeRatio(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierRechargeRatio, opts...).ToFunc()
+}
+
+// BySupplierEarningCny orders the results by the supplier_earning_cny field.
+func BySupplierEarningCny(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierEarningCny, opts...).ToFunc()
 }
 
 // ByInputTokens orders the results by the input_tokens field.

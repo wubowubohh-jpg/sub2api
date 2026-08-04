@@ -281,6 +281,48 @@ func (_u *ChannelMonitorDailyRollupUpdate) AddCountPingLatency(v int) *ChannelMo
 	return _u
 }
 
+// SetSumFirstTokenMs sets the "sum_first_token_ms" field.
+func (_u *ChannelMonitorDailyRollupUpdate) SetSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpdate {
+	_u.mutation.ResetSumFirstTokenMs()
+	_u.mutation.SetSumFirstTokenMs(v)
+	return _u
+}
+
+// SetNillableSumFirstTokenMs sets the "sum_first_token_ms" field if the given value is not nil.
+func (_u *ChannelMonitorDailyRollupUpdate) SetNillableSumFirstTokenMs(v *int64) *ChannelMonitorDailyRollupUpdate {
+	if v != nil {
+		_u.SetSumFirstTokenMs(*v)
+	}
+	return _u
+}
+
+// AddSumFirstTokenMs adds value to the "sum_first_token_ms" field.
+func (_u *ChannelMonitorDailyRollupUpdate) AddSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpdate {
+	_u.mutation.AddSumFirstTokenMs(v)
+	return _u
+}
+
+// SetCountFirstToken sets the "count_first_token" field.
+func (_u *ChannelMonitorDailyRollupUpdate) SetCountFirstToken(v int) *ChannelMonitorDailyRollupUpdate {
+	_u.mutation.ResetCountFirstToken()
+	_u.mutation.SetCountFirstToken(v)
+	return _u
+}
+
+// SetNillableCountFirstToken sets the "count_first_token" field if the given value is not nil.
+func (_u *ChannelMonitorDailyRollupUpdate) SetNillableCountFirstToken(v *int) *ChannelMonitorDailyRollupUpdate {
+	if v != nil {
+		_u.SetCountFirstToken(*v)
+	}
+	return _u
+}
+
+// AddCountFirstToken adds value to the "count_first_token" field.
+func (_u *ChannelMonitorDailyRollupUpdate) AddCountFirstToken(v int) *ChannelMonitorDailyRollupUpdate {
+	_u.mutation.AddCountFirstToken(v)
+	return _u
+}
+
 // SetComputedAt sets the "computed_at" field.
 func (_u *ChannelMonitorDailyRollupUpdate) SetComputedAt(v time.Time) *ChannelMonitorDailyRollupUpdate {
 	_u.mutation.SetComputedAt(v)
@@ -429,6 +471,18 @@ func (_u *ChannelMonitorDailyRollupUpdate) sqlSave(ctx context.Context) (_node i
 	}
 	if value, ok := _u.mutation.AddedCountPingLatency(); ok {
 		_spec.AddField(channelmonitordailyrollup.FieldCountPingLatency, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SumFirstTokenMs(); ok {
+		_spec.SetField(channelmonitordailyrollup.FieldSumFirstTokenMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSumFirstTokenMs(); ok {
+		_spec.AddField(channelmonitordailyrollup.FieldSumFirstTokenMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CountFirstToken(); ok {
+		_spec.SetField(channelmonitordailyrollup.FieldCountFirstToken, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCountFirstToken(); ok {
+		_spec.AddField(channelmonitordailyrollup.FieldCountFirstToken, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ComputedAt(); ok {
 		_spec.SetField(channelmonitordailyrollup.FieldComputedAt, field.TypeTime, value)
@@ -734,6 +788,48 @@ func (_u *ChannelMonitorDailyRollupUpdateOne) AddCountPingLatency(v int) *Channe
 	return _u
 }
 
+// SetSumFirstTokenMs sets the "sum_first_token_ms" field.
+func (_u *ChannelMonitorDailyRollupUpdateOne) SetSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpdateOne {
+	_u.mutation.ResetSumFirstTokenMs()
+	_u.mutation.SetSumFirstTokenMs(v)
+	return _u
+}
+
+// SetNillableSumFirstTokenMs sets the "sum_first_token_ms" field if the given value is not nil.
+func (_u *ChannelMonitorDailyRollupUpdateOne) SetNillableSumFirstTokenMs(v *int64) *ChannelMonitorDailyRollupUpdateOne {
+	if v != nil {
+		_u.SetSumFirstTokenMs(*v)
+	}
+	return _u
+}
+
+// AddSumFirstTokenMs adds value to the "sum_first_token_ms" field.
+func (_u *ChannelMonitorDailyRollupUpdateOne) AddSumFirstTokenMs(v int64) *ChannelMonitorDailyRollupUpdateOne {
+	_u.mutation.AddSumFirstTokenMs(v)
+	return _u
+}
+
+// SetCountFirstToken sets the "count_first_token" field.
+func (_u *ChannelMonitorDailyRollupUpdateOne) SetCountFirstToken(v int) *ChannelMonitorDailyRollupUpdateOne {
+	_u.mutation.ResetCountFirstToken()
+	_u.mutation.SetCountFirstToken(v)
+	return _u
+}
+
+// SetNillableCountFirstToken sets the "count_first_token" field if the given value is not nil.
+func (_u *ChannelMonitorDailyRollupUpdateOne) SetNillableCountFirstToken(v *int) *ChannelMonitorDailyRollupUpdateOne {
+	if v != nil {
+		_u.SetCountFirstToken(*v)
+	}
+	return _u
+}
+
+// AddCountFirstToken adds value to the "count_first_token" field.
+func (_u *ChannelMonitorDailyRollupUpdateOne) AddCountFirstToken(v int) *ChannelMonitorDailyRollupUpdateOne {
+	_u.mutation.AddCountFirstToken(v)
+	return _u
+}
+
 // SetComputedAt sets the "computed_at" field.
 func (_u *ChannelMonitorDailyRollupUpdateOne) SetComputedAt(v time.Time) *ChannelMonitorDailyRollupUpdateOne {
 	_u.mutation.SetComputedAt(v)
@@ -912,6 +1008,18 @@ func (_u *ChannelMonitorDailyRollupUpdateOne) sqlSave(ctx context.Context) (_nod
 	}
 	if value, ok := _u.mutation.AddedCountPingLatency(); ok {
 		_spec.AddField(channelmonitordailyrollup.FieldCountPingLatency, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SumFirstTokenMs(); ok {
+		_spec.SetField(channelmonitordailyrollup.FieldSumFirstTokenMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSumFirstTokenMs(); ok {
+		_spec.AddField(channelmonitordailyrollup.FieldSumFirstTokenMs, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CountFirstToken(); ok {
+		_spec.SetField(channelmonitordailyrollup.FieldCountFirstToken, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCountFirstToken(); ok {
+		_spec.AddField(channelmonitordailyrollup.FieldCountFirstToken, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ComputedAt(); ok {
 		_spec.SetField(channelmonitordailyrollup.FieldComputedAt, field.TypeTime, value)

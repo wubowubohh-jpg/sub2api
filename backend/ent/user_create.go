@@ -19,6 +19,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -549,6 +550,25 @@ func (_c *UserCreate) AddPlatformQuotas(v ...*UserPlatformQuota) *UserCreate {
 	return _c.AddPlatformQuotaIDs(ids...)
 }
 
+// SetSupplierID sets the "supplier" edge to the Supplier entity by ID.
+func (_c *UserCreate) SetSupplierID(id int64) *UserCreate {
+	_c.mutation.SetSupplierID(id)
+	return _c
+}
+
+// SetNillableSupplierID sets the "supplier" edge to the Supplier entity by ID if the given value is not nil.
+func (_c *UserCreate) SetNillableSupplierID(id *int64) *UserCreate {
+	if id != nil {
+		_c = _c.SetSupplierID(*id)
+	}
+	return _c
+}
+
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_c *UserCreate) SetSupplier(v *Supplier) *UserCreate {
+	return _c.SetSupplierID(v.ID)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_c *UserCreate) Mutation() *UserMutation {
 	return _c.mutation
@@ -1073,6 +1093,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userplatformquota.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SupplierTable,
+			Columns: []string{user.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

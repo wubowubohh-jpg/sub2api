@@ -1684,6 +1684,29 @@ func HasPlatformQuotasWith(preds ...predicate.UserPlatformQuota) predicate.User 
 	})
 }
 
+// HasSupplier applies the HasEdge predicate on the "supplier" edge.
+func HasSupplier() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, SupplierTable, SupplierColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSupplierWith applies the HasEdge predicate on the "supplier" edge with a given conditions (other predicates).
+func HasSupplierWith(preds ...predicate.Supplier) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newSupplierStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasUserAllowedGroups applies the HasEdge predicate on the "user_allowed_groups" edge.
 func HasUserAllowedGroups() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

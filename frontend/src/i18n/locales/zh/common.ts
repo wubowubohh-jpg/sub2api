@@ -150,6 +150,9 @@ export default {
 
   // Navigation
   nav: {
+    supplierHall: '供应商大厅',
+    supplierWorkspace: '供应商工作台',
+    suppliers: '供应商管理',
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',

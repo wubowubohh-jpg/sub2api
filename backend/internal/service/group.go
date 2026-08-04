@@ -16,11 +16,14 @@ type GroupModelsListConfig = domain.GroupModelsListConfig
 type ReasoningEffortMapping = domain.ReasoningEffortMapping
 
 type Group struct {
-	ID             int64
-	Name           string
-	Description    string
-	Platform       string
-	RateMultiplier float64
+	ID                      int64
+	Name                    string
+	Description             string
+	Platform                string
+	RateMultiplier          float64
+	SupplierID              *int64
+	SupplierAdminAdjustment *float64
+	SupplierForcedOffline   bool
 	// 高峰时段倍率：peak_rate_enabled 为 true 且当前时刻处于 [PeakStart, PeakEnd) 时，
 	// token 计费倍率额外乘以 PeakRateMultiplier。详见 PeakMultiplierAt。
 	PeakRateEnabled    bool
@@ -118,7 +121,7 @@ type Group struct {
 }
 
 func (g *Group) IsActive() bool {
-	return g.Status == StatusActive
+	return g.Status == StatusActive && !g.SupplierForcedOffline
 }
 
 func (g *Group) IsSubscriptionType() bool {

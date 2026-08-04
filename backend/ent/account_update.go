@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 )
 
@@ -68,6 +69,26 @@ func (_u *AccountUpdate) SetNillableName(v *string) *AccountUpdate {
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *AccountUpdate) SetSupplierID(v int64) *AccountUpdate {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableSupplierID(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *AccountUpdate) ClearSupplierID() *AccountUpdate {
+	_u.mutation.ClearSupplierID()
 	return _u
 }
 
@@ -633,6 +654,11 @@ func (_u *AccountUpdate) AddUsageLogs(v ...*UsageLog) *AccountUpdate {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdate) SetSupplier(v *Supplier) *AccountUpdate {
+	return _u.SetSupplierID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_u *AccountUpdate) Mutation() *AccountMutation {
 	return _u.mutation
@@ -711,6 +737,12 @@ func (_u *AccountUpdate) RemoveUsageLogs(v ...*UsageLog) *AccountUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdate) ClearSupplier() *AccountUpdate {
+	_u.mutation.ClearSupplier()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1151,6 +1183,35 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{account.Label}
@@ -1208,6 +1269,26 @@ func (_u *AccountUpdateOne) SetNillableName(v *string) *AccountUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *AccountUpdateOne) SetSupplierID(v int64) *AccountUpdateOne {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableSupplierID(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *AccountUpdateOne) ClearSupplierID() *AccountUpdateOne {
+	_u.mutation.ClearSupplierID()
 	return _u
 }
 
@@ -1773,6 +1854,11 @@ func (_u *AccountUpdateOne) AddUsageLogs(v ...*UsageLog) *AccountUpdateOne {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdateOne) SetSupplier(v *Supplier) *AccountUpdateOne {
+	return _u.SetSupplierID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_u *AccountUpdateOne) Mutation() *AccountMutation {
 	return _u.mutation
@@ -1851,6 +1937,12 @@ func (_u *AccountUpdateOne) RemoveUsageLogs(v ...*UsageLog) *AccountUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdateOne) ClearSupplier() *AccountUpdateOne {
+	_u.mutation.ClearSupplier()
+	return _u
 }
 
 // Where appends a list predicates to the AccountUpdate builder.
@@ -2314,6 +2406,35 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

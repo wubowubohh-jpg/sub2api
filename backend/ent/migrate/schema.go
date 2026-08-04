@@ -127,6 +127,7 @@ var (
 		{Name: "quota_dimension", Type: field.TypeEnum, Enums: []string{"global", "spark"}, Default: "global"},
 		{Name: "proxy_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "parent_account_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "supplier_id", Type: field.TypeInt64, Nullable: true},
 	}
 	// AccountsTable holds the schema information for the "accounts" table.
 	AccountsTable = &schema.Table{
@@ -145,6 +146,12 @@ var (
 				Columns:    []*schema.Column{AccountsColumns[31]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.Restrict,
+			},
+			{
+				Symbol:     "accounts_suppliers_accounts",
+				Columns:    []*schema.Column{AccountsColumns[32]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.SetNull,
 			},
 		},
 		Indexes: []*schema.Index{
@@ -217,6 +224,11 @@ var (
 				Name:    "account_parent_account_id",
 				Unique:  false,
 				Columns: []*schema.Column{AccountsColumns[31]},
+			},
+			{
+				Name:    "account_supplier_id_status_schedulable",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[32], AccountsColumns[15], AccountsColumns[20]},
 			},
 		},
 	}
@@ -635,6 +647,7 @@ var (
 		{Name: "jitter_seconds", Type: field.TypeInt, Default: 0},
 		{Name: "last_checked_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_by", Type: field.TypeInt64},
+		{Name: "group_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "extra_headers", Type: field.TypeJSON},
 		{Name: "body_override_mode", Type: field.TypeString, Size: 10, Default: "off"},
 		{Name: "body_override", Type: field.TypeJSON, Nullable: true},
@@ -648,7 +661,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_monitors_channel_monitor_request_templates_request_template",
-				Columns:    []*schema.Column{ChannelMonitorsColumns[19]},
+				Columns:    []*schema.Column{ChannelMonitorsColumns[20]},
 				RefColumns: []*schema.Column{ChannelMonitorRequestTemplatesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -677,7 +690,12 @@ var (
 			{
 				Name:    "channelmonitor_template_id",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorsColumns[19]},
+				Columns: []*schema.Column{ChannelMonitorsColumns[20]},
+			},
+			{
+				Name:    "channelmonitor_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChannelMonitorsColumns[16]},
 			},
 		},
 	}
@@ -696,6 +714,8 @@ var (
 		{Name: "count_latency", Type: field.TypeInt, Default: 0},
 		{Name: "sum_ping_latency_ms", Type: field.TypeInt64, Default: 0},
 		{Name: "count_ping_latency", Type: field.TypeInt, Default: 0},
+		{Name: "sum_first_token_ms", Type: field.TypeInt64, Default: 0},
+		{Name: "count_first_token", Type: field.TypeInt, Default: 0},
 		{Name: "computed_at", Type: field.TypeTime},
 		{Name: "monitor_id", Type: field.TypeInt64},
 	}
@@ -707,7 +727,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_monitor_daily_rollups_channel_monitors_daily_rollups",
-				Columns:    []*schema.Column{ChannelMonitorDailyRollupsColumns[14]},
+				Columns:    []*schema.Column{ChannelMonitorDailyRollupsColumns[16]},
 				RefColumns: []*schema.Column{ChannelMonitorsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -716,7 +736,7 @@ var (
 			{
 				Name:    "channelmonitordailyrollup_monitor_id_model_bucket_date",
 				Unique:  true,
-				Columns: []*schema.Column{ChannelMonitorDailyRollupsColumns[14], ChannelMonitorDailyRollupsColumns[1], ChannelMonitorDailyRollupsColumns[2]},
+				Columns: []*schema.Column{ChannelMonitorDailyRollupsColumns[16], ChannelMonitorDailyRollupsColumns[1], ChannelMonitorDailyRollupsColumns[2]},
 			},
 			{
 				Name:    "channelmonitordailyrollup_bucket_date",
@@ -732,6 +752,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"operational", "degraded", "failed", "error"}},
 		{Name: "latency_ms", Type: field.TypeInt, Nullable: true},
 		{Name: "ping_latency_ms", Type: field.TypeInt, Nullable: true},
+		{Name: "first_token_ms", Type: field.TypeInt, Nullable: true},
 		{Name: "message", Type: field.TypeString, Nullable: true, Size: 500, Default: ""},
 		{Name: "checked_at", Type: field.TypeTime},
 		{Name: "monitor_id", Type: field.TypeInt64},
@@ -744,7 +765,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "channel_monitor_histories_channel_monitors_history",
-				Columns:    []*schema.Column{ChannelMonitorHistoriesColumns[7]},
+				Columns:    []*schema.Column{ChannelMonitorHistoriesColumns[8]},
 				RefColumns: []*schema.Column{ChannelMonitorsColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -753,12 +774,12 @@ var (
 			{
 				Name:    "channelmonitorhistory_monitor_id_model_checked_at",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[7], ChannelMonitorHistoriesColumns[1], ChannelMonitorHistoriesColumns[6]},
+				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[8], ChannelMonitorHistoriesColumns[1], ChannelMonitorHistoriesColumns[7]},
 			},
 			{
 				Name:    "channelmonitorhistory_checked_at",
 				Unique:  false,
-				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[6]},
+				Columns: []*schema.Column{ChannelMonitorHistoriesColumns[7]},
 			},
 		},
 	}
@@ -901,6 +922,8 @@ var (
 		{Name: "name", Type: field.TypeString, Size: 100},
 		{Name: "description", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "rate_multiplier", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "supplier_admin_adjustment", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "supplier_forced_offline", Type: field.TypeBool, Default: false},
 		{Name: "peak_rate_enabled", Type: field.TypeBool, Default: false},
 		{Name: "peak_start", Type: field.TypeString, Size: 5, Default: ""},
 		{Name: "peak_end", Type: field.TypeString, Size: 5, Default: ""},
@@ -950,32 +973,41 @@ var (
 		{Name: "profit_control_enabled", Type: field.TypeBool, Default: false},
 		{Name: "profit_min_margin", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
 		{Name: "profit_safety_buffer", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "supplier_id", Type: field.TypeInt64, Nullable: true},
 	}
 	// GroupsTable holds the schema information for the "groups" table.
 	GroupsTable = &schema.Table{
 		Name:       "groups",
 		Columns:    GroupsColumns,
 		PrimaryKey: []*schema.Column{GroupsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "groups_suppliers_groups",
+				Columns:    []*schema.Column{GroupsColumns[58]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "group_status",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[12]},
+				Columns: []*schema.Column{GroupsColumns[14]},
 			},
 			{
 				Name:    "group_platform",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[14]},
+				Columns: []*schema.Column{GroupsColumns[16]},
 			},
 			{
 				Name:    "group_subscription_type",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[15]},
+				Columns: []*schema.Column{GroupsColumns[17]},
 			},
 			{
 				Name:    "group_is_exclusive",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[11]},
+				Columns: []*schema.Column{GroupsColumns[13]},
 			},
 			{
 				Name:    "group_deleted_at",
@@ -985,12 +1017,17 @@ var (
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[42]},
+				Columns: []*schema.Column{GroupsColumns[44]},
+			},
+			{
+				Name:    "group_supplier_id_status_supplier_forced_offline",
+				Unique:  false,
+				Columns: []*schema.Column{GroupsColumns[58], GroupsColumns[14], GroupsColumns[8]},
 			},
 			{
 				Name:    "idx_groups_duplicate_operation_id_active",
 				Unique:  true,
-				Columns: []*schema.Column{GroupsColumns[13]},
+				Columns: []*schema.Column{GroupsColumns[15]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "duplicate_operation_id IS NOT NULL AND deleted_at IS NULL",
 				},
@@ -1552,6 +1589,221 @@ var (
 			},
 		},
 	}
+	// SuppliersColumns holds the columns for the "suppliers" table.
+	SuppliersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "relay_url", Type: field.TypeString, Size: 500},
+		{Name: "application_note", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "frozen"}, Default: "pending"},
+		{Name: "reviewed_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "review_note", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "freeze_reason", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "pending_balance_cny", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "available_balance_cny", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "frozen_balance_cny", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "payout_profile", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeInt64, Unique: true},
+	}
+	// SuppliersTable holds the schema information for the "suppliers" table.
+	SuppliersTable = &schema.Table{
+		Name:       "suppliers",
+		Columns:    SuppliersColumns,
+		PrimaryKey: []*schema.Column{SuppliersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "suppliers_users_supplier",
+				Columns:    []*schema.Column{SuppliersColumns[15]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supplier_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{SuppliersColumns[15]},
+			},
+			{
+				Name:    "supplier_status",
+				Unique:  false,
+				Columns: []*schema.Column{SuppliersColumns[4]},
+			},
+			{
+				Name:    "supplier_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SuppliersColumns[13]},
+			},
+		},
+	}
+	// SupplierDocumentsColumns holds the columns for the "supplier_documents" table.
+	SupplierDocumentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "storage_key", Type: field.TypeString, Size: 500},
+		{Name: "original_name", Type: field.TypeString, Size: 255},
+		{Name: "content_type", Type: field.TypeString, Size: 50},
+		{Name: "size_bytes", Type: field.TypeInt64},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "supplier_id", Type: field.TypeInt64},
+	}
+	// SupplierDocumentsTable holds the schema information for the "supplier_documents" table.
+	SupplierDocumentsTable = &schema.Table{
+		Name:       "supplier_documents",
+		Columns:    SupplierDocumentsColumns,
+		PrimaryKey: []*schema.Column{SupplierDocumentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "supplier_documents_suppliers_documents",
+				Columns:    []*schema.Column{SupplierDocumentsColumns[6]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supplierdocument_supplier_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupplierDocumentsColumns[6], SupplierDocumentsColumns[5]},
+			},
+		},
+	}
+	// SupplierLedgersColumns holds the columns for the "supplier_ledgers" table.
+	SupplierLedgersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "group_id", Type: field.TypeInt64},
+		{Name: "usage_log_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "reversal_of_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "event_key", Type: field.TypeString, Size: 128},
+		{Name: "entry_type", Type: field.TypeEnum, Enums: []string{"earning", "reversal", "release", "withdrawal", "withdrawal_refund"}},
+		{Name: "bucket", Type: field.TypeEnum, Enums: []string{"pending", "available", "frozen"}},
+		{Name: "base_rate", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "admin_adjustment", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "effective_rate", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "model_cost_usd", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "recharge_ratio", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "earning_usd", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "amount_cny", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "available_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "supplier_id", Type: field.TypeInt64},
+	}
+	// SupplierLedgersTable holds the schema information for the "supplier_ledgers" table.
+	SupplierLedgersTable = &schema.Table{
+		Name:       "supplier_ledgers",
+		Columns:    SupplierLedgersColumns,
+		PrimaryKey: []*schema.Column{SupplierLedgersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "supplier_ledgers_suppliers_ledger_entries",
+				Columns:    []*schema.Column{SupplierLedgersColumns[16]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supplierledger_event_key",
+				Unique:  true,
+				Columns: []*schema.Column{SupplierLedgersColumns[4]},
+			},
+			{
+				Name:    "supplierledger_supplier_id_bucket_available_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupplierLedgersColumns[16], SupplierLedgersColumns[6], SupplierLedgersColumns[14]},
+			},
+			{
+				Name:    "supplierledger_usage_log_id",
+				Unique:  false,
+				Columns: []*schema.Column{SupplierLedgersColumns[2]},
+			},
+		},
+	}
+	// SupplierMetricBucketsColumns holds the columns for the "supplier_metric_buckets" table.
+	SupplierMetricBucketsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "group_id", Type: field.TypeInt64},
+		{Name: "bucket_start", Type: field.TypeTime},
+		{Name: "resolution", Type: field.TypeEnum, Enums: []string{"5m", "1h", "1d"}},
+		{Name: "request_count", Type: field.TypeInt64, Default: 0},
+		{Name: "success_count", Type: field.TypeInt64, Default: 0},
+		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "cache_read_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "input_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "duration_ms_sum", Type: field.TypeInt64, Default: 0},
+		{Name: "first_token_ms_sum", Type: field.TypeInt64, Default: 0},
+		{Name: "first_token_count", Type: field.TypeInt64, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// SupplierMetricBucketsTable holds the schema information for the "supplier_metric_buckets" table.
+	SupplierMetricBucketsTable = &schema.Table{
+		Name:       "supplier_metric_buckets",
+		Columns:    SupplierMetricBucketsColumns,
+		PrimaryKey: []*schema.Column{SupplierMetricBucketsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "suppliermetricbucket_group_id_resolution_bucket_start",
+				Unique:  true,
+				Columns: []*schema.Column{SupplierMetricBucketsColumns[1], SupplierMetricBucketsColumns[3], SupplierMetricBucketsColumns[2]},
+			},
+			{
+				Name:    "suppliermetricbucket_resolution_bucket_start",
+				Unique:  false,
+				Columns: []*schema.Column{SupplierMetricBucketsColumns[3], SupplierMetricBucketsColumns[2]},
+			},
+		},
+	}
+	// SupplierWithdrawalsColumns holds the columns for the "supplier_withdrawals" table.
+	SupplierWithdrawalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "request_no", Type: field.TypeString, Size: 64},
+		{Name: "amount_cny", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "method", Type: field.TypeEnum, Enums: []string{"alipay", "wechat", "bank"}},
+		{Name: "payout_snapshot", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "paid"}, Default: "pending"},
+		{Name: "reviewed_by", Type: field.TypeInt64, Nullable: true},
+		{Name: "review_note", Type: field.TypeString, Default: ""},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "payment_proof_key", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "paid_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "supplier_id", Type: field.TypeInt64},
+	}
+	// SupplierWithdrawalsTable holds the schema information for the "supplier_withdrawals" table.
+	SupplierWithdrawalsTable = &schema.Table{
+		Name:       "supplier_withdrawals",
+		Columns:    SupplierWithdrawalsColumns,
+		PrimaryKey: []*schema.Column{SupplierWithdrawalsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "supplier_withdrawals_suppliers_withdrawals",
+				Columns:    []*schema.Column{SupplierWithdrawalsColumns[13]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supplierwithdrawal_request_no",
+				Unique:  true,
+				Columns: []*schema.Column{SupplierWithdrawalsColumns[1]},
+			},
+			{
+				Name:    "supplierwithdrawal_supplier_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupplierWithdrawalsColumns[13], SupplierWithdrawalsColumns[5], SupplierWithdrawalsColumns[11]},
+			},
+			{
+				Name:    "supplierwithdrawal_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SupplierWithdrawalsColumns[5], SupplierWithdrawalsColumns[11]},
+			},
+		},
+	}
 	// TLSFingerprintProfilesColumns holds the columns for the "tls_fingerprint_profiles" table.
 	TLSFingerprintProfilesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1625,6 +1877,12 @@ var (
 		{Name: "model_mapping_chain", Type: field.TypeString, Nullable: true, Size: 500},
 		{Name: "billing_tier", Type: field.TypeString, Nullable: true, Size: 50},
 		{Name: "billing_mode", Type: field.TypeString, Nullable: true, Size: 20},
+		{Name: "supplier_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "supplier_base_rate", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "supplier_admin_adjustment", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "supplier_model_cost_usd", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "supplier_recharge_ratio", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "supplier_earning_cny", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "input_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "output_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "cache_creation_tokens", Type: field.TypeInt, Default: 0},
@@ -1671,31 +1929,31 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_api_keys_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[41]},
+				Columns:    []*schema.Column{UsageLogsColumns[47]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_accounts_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[42]},
+				Columns:    []*schema.Column{UsageLogsColumns[48]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_groups_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[43]},
+				Columns:    []*schema.Column{UsageLogsColumns[49]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_users_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[44]},
+				Columns:    []*schema.Column{UsageLogsColumns[50]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_user_subscriptions_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[45]},
+				Columns:    []*schema.Column{UsageLogsColumns[51]},
 				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -1704,32 +1962,32 @@ var (
 			{
 				Name:    "usagelog_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[44]},
+				Columns: []*schema.Column{UsageLogsColumns[50]},
 			},
 			{
 				Name:    "usagelog_api_key_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[41]},
+				Columns: []*schema.Column{UsageLogsColumns[47]},
 			},
 			{
 				Name:    "usagelog_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[42]},
+				Columns: []*schema.Column{UsageLogsColumns[48]},
 			},
 			{
 				Name:    "usagelog_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[43]},
+				Columns: []*schema.Column{UsageLogsColumns[49]},
 			},
 			{
 				Name:    "usagelog_subscription_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[45]},
+				Columns: []*schema.Column{UsageLogsColumns[51]},
 			},
 			{
 				Name:    "usagelog_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[40]},
+				Columns: []*schema.Column{UsageLogsColumns[46]},
 			},
 			{
 				Name:    "usagelog_model",
@@ -1749,17 +2007,17 @@ var (
 			{
 				Name:    "usagelog_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[44], UsageLogsColumns[40]},
+				Columns: []*schema.Column{UsageLogsColumns[50], UsageLogsColumns[46]},
 			},
 			{
 				Name:    "usagelog_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[41], UsageLogsColumns[40]},
+				Columns: []*schema.Column{UsageLogsColumns[47], UsageLogsColumns[46]},
 			},
 			{
 				Name:    "usagelog_group_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[43], UsageLogsColumns[40]},
+				Columns: []*schema.Column{UsageLogsColumns[49], UsageLogsColumns[46]},
 			},
 		},
 	}
@@ -2096,6 +2354,11 @@ var (
 		SecuritySecretsTable,
 		SettingsTable,
 		SubscriptionPlansTable,
+		SuppliersTable,
+		SupplierDocumentsTable,
+		SupplierLedgersTable,
+		SupplierMetricBucketsTable,
+		SupplierWithdrawalsTable,
 		TLSFingerprintProfilesTable,
 		UsageCleanupTasksTable,
 		UsageLogsTable,
@@ -2116,6 +2379,7 @@ func init() {
 	}
 	AccountsTable.ForeignKeys[0].RefTable = ProxiesTable
 	AccountsTable.ForeignKeys[1].RefTable = AccountsTable
+	AccountsTable.ForeignKeys[2].RefTable = SuppliersTable
 	AccountsTable.Annotation = &entsql.Annotation{
 		Table: "accounts",
 	}
@@ -2171,6 +2435,7 @@ func init() {
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",
 	}
+	GroupsTable.ForeignKeys[0].RefTable = SuppliersTable
 	GroupsTable.Annotation = &entsql.Annotation{
 		Table: "groups",
 	}
@@ -2221,6 +2486,25 @@ func init() {
 	}
 	SubscriptionPlansTable.Annotation = &entsql.Annotation{
 		Table: "subscription_plans",
+	}
+	SuppliersTable.ForeignKeys[0].RefTable = UsersTable
+	SuppliersTable.Annotation = &entsql.Annotation{
+		Table: "suppliers",
+	}
+	SupplierDocumentsTable.ForeignKeys[0].RefTable = SuppliersTable
+	SupplierDocumentsTable.Annotation = &entsql.Annotation{
+		Table: "supplier_documents",
+	}
+	SupplierLedgersTable.ForeignKeys[0].RefTable = SuppliersTable
+	SupplierLedgersTable.Annotation = &entsql.Annotation{
+		Table: "supplier_ledgers",
+	}
+	SupplierMetricBucketsTable.Annotation = &entsql.Annotation{
+		Table: "supplier_metric_buckets",
+	}
+	SupplierWithdrawalsTable.ForeignKeys[0].RefTable = SuppliersTable
+	SupplierWithdrawalsTable.Annotation = &entsql.Annotation{
+		Table: "supplier_withdrawals",
 	}
 	TLSFingerprintProfilesTable.Annotation = &entsql.Annotation{
 		Table: "tls_fingerprint_profiles",

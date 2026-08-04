@@ -39,6 +39,7 @@ func (ChannelMonitorHistory) Fields() []ent.Field {
 		field.Int("ping_latency_ms").
 			Optional().
 			Nillable(),
+		field.Int("first_token_ms").Optional().Nillable(),
 		field.String("message").
 			Optional().
 			Default("").

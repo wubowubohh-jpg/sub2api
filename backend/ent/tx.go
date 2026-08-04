@@ -74,6 +74,16 @@ type Tx struct {
 	Setting *SettingClient
 	// SubscriptionPlan is the client for interacting with the SubscriptionPlan builders.
 	SubscriptionPlan *SubscriptionPlanClient
+	// Supplier is the client for interacting with the Supplier builders.
+	Supplier *SupplierClient
+	// SupplierDocument is the client for interacting with the SupplierDocument builders.
+	SupplierDocument *SupplierDocumentClient
+	// SupplierLedger is the client for interacting with the SupplierLedger builders.
+	SupplierLedger *SupplierLedgerClient
+	// SupplierMetricBucket is the client for interacting with the SupplierMetricBucket builders.
+	SupplierMetricBucket *SupplierMetricBucketClient
+	// SupplierWithdrawal is the client for interacting with the SupplierWithdrawal builders.
+	SupplierWithdrawal *SupplierWithdrawalClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
@@ -253,6 +263,11 @@ func (tx *Tx) init() {
 	tx.SecuritySecret = NewSecuritySecretClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)
 	tx.SubscriptionPlan = NewSubscriptionPlanClient(tx.config)
+	tx.Supplier = NewSupplierClient(tx.config)
+	tx.SupplierDocument = NewSupplierDocumentClient(tx.config)
+	tx.SupplierLedger = NewSupplierLedgerClient(tx.config)
+	tx.SupplierMetricBucket = NewSupplierMetricBucketClient(tx.config)
+	tx.SupplierWithdrawal = NewSupplierWithdrawalClient(tx.config)
 	tx.TLSFingerprintProfile = NewTLSFingerprintProfileClient(tx.config)
 	tx.UsageCleanupTask = NewUsageCleanupTaskClient(tx.config)
 	tx.UsageLog = NewUsageLogClient(tx.config)

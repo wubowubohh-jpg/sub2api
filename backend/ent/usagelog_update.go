@@ -269,6 +269,168 @@ func (_u *UsageLogUpdate) ClearSubscriptionID() *UsageLogUpdate {
 	return _u
 }
 
+// SetSupplierID sets the "supplier_id" field.
+func (_u *UsageLogUpdate) SetSupplierID(v int64) *UsageLogUpdate {
+	_u.mutation.ResetSupplierID()
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableSupplierID(v *int64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// AddSupplierID adds value to the "supplier_id" field.
+func (_u *UsageLogUpdate) AddSupplierID(v int64) *UsageLogUpdate {
+	_u.mutation.AddSupplierID(v)
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *UsageLogUpdate) ClearSupplierID() *UsageLogUpdate {
+	_u.mutation.ClearSupplierID()
+	return _u
+}
+
+// SetSupplierBaseRate sets the "supplier_base_rate" field.
+func (_u *UsageLogUpdate) SetSupplierBaseRate(v float64) *UsageLogUpdate {
+	_u.mutation.ResetSupplierBaseRate()
+	_u.mutation.SetSupplierBaseRate(v)
+	return _u
+}
+
+// SetNillableSupplierBaseRate sets the "supplier_base_rate" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableSupplierBaseRate(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetSupplierBaseRate(*v)
+	}
+	return _u
+}
+
+// AddSupplierBaseRate adds value to the "supplier_base_rate" field.
+func (_u *UsageLogUpdate) AddSupplierBaseRate(v float64) *UsageLogUpdate {
+	_u.mutation.AddSupplierBaseRate(v)
+	return _u
+}
+
+// ClearSupplierBaseRate clears the value of the "supplier_base_rate" field.
+func (_u *UsageLogUpdate) ClearSupplierBaseRate() *UsageLogUpdate {
+	_u.mutation.ClearSupplierBaseRate()
+	return _u
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (_u *UsageLogUpdate) SetSupplierAdminAdjustment(v float64) *UsageLogUpdate {
+	_u.mutation.ResetSupplierAdminAdjustment()
+	_u.mutation.SetSupplierAdminAdjustment(v)
+	return _u
+}
+
+// SetNillableSupplierAdminAdjustment sets the "supplier_admin_adjustment" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableSupplierAdminAdjustment(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetSupplierAdminAdjustment(*v)
+	}
+	return _u
+}
+
+// AddSupplierAdminAdjustment adds value to the "supplier_admin_adjustment" field.
+func (_u *UsageLogUpdate) AddSupplierAdminAdjustment(v float64) *UsageLogUpdate {
+	_u.mutation.AddSupplierAdminAdjustment(v)
+	return _u
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (_u *UsageLogUpdate) ClearSupplierAdminAdjustment() *UsageLogUpdate {
+	_u.mutation.ClearSupplierAdminAdjustment()
+	return _u
+}
+
+// SetSupplierModelCostUsd sets the "supplier_model_cost_usd" field.
+func (_u *UsageLogUpdate) SetSupplierModelCostUsd(v float64) *UsageLogUpdate {
+	_u.mutation.ResetSupplierModelCostUsd()
+	_u.mutation.SetSupplierModelCostUsd(v)
+	return _u
+}
+
+// SetNillableSupplierModelCostUsd sets the "supplier_model_cost_usd" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableSupplierModelCostUsd(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetSupplierModelCostUsd(*v)
+	}
+	return _u
+}
+
+// AddSupplierModelCostUsd adds value to the "supplier_model_cost_usd" field.
+func (_u *UsageLogUpdate) AddSupplierModelCostUsd(v float64) *UsageLogUpdate {
+	_u.mutation.AddSupplierModelCostUsd(v)
+	return _u
+}
+
+// ClearSupplierModelCostUsd clears the value of the "supplier_model_cost_usd" field.
+func (_u *UsageLogUpdate) ClearSupplierModelCostUsd() *UsageLogUpdate {
+	_u.mutation.ClearSupplierModelCostUsd()
+	return _u
+}
+
+// SetSupplierRechargeRatio sets the "supplier_recharge_ratio" field.
+func (_u *UsageLogUpdate) SetSupplierRechargeRatio(v float64) *UsageLogUpdate {
+	_u.mutation.ResetSupplierRechargeRatio()
+	_u.mutation.SetSupplierRechargeRatio(v)
+	return _u
+}
+
+// SetNillableSupplierRechargeRatio sets the "supplier_recharge_ratio" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableSupplierRechargeRatio(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetSupplierRechargeRatio(*v)
+	}
+	return _u
+}
+
+// AddSupplierRechargeRatio adds value to the "supplier_recharge_ratio" field.
+func (_u *UsageLogUpdate) AddSupplierRechargeRatio(v float64) *UsageLogUpdate {
+	_u.mutation.AddSupplierRechargeRatio(v)
+	return _u
+}
+
+// ClearSupplierRechargeRatio clears the value of the "supplier_recharge_ratio" field.
+func (_u *UsageLogUpdate) ClearSupplierRechargeRatio() *UsageLogUpdate {
+	_u.mutation.ClearSupplierRechargeRatio()
+	return _u
+}
+
+// SetSupplierEarningCny sets the "supplier_earning_cny" field.
+func (_u *UsageLogUpdate) SetSupplierEarningCny(v float64) *UsageLogUpdate {
+	_u.mutation.ResetSupplierEarningCny()
+	_u.mutation.SetSupplierEarningCny(v)
+	return _u
+}
+
+// SetNillableSupplierEarningCny sets the "supplier_earning_cny" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableSupplierEarningCny(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetSupplierEarningCny(*v)
+	}
+	return _u
+}
+
+// AddSupplierEarningCny adds value to the "supplier_earning_cny" field.
+func (_u *UsageLogUpdate) AddSupplierEarningCny(v float64) *UsageLogUpdate {
+	_u.mutation.AddSupplierEarningCny(v)
+	return _u
+}
+
+// ClearSupplierEarningCny clears the value of the "supplier_earning_cny" field.
+func (_u *UsageLogUpdate) ClearSupplierEarningCny() *UsageLogUpdate {
+	_u.mutation.ClearSupplierEarningCny()
+	return _u
+}
+
 // SetInputTokens sets the "input_tokens" field.
 func (_u *UsageLogUpdate) SetInputTokens(v int) *UsageLogUpdate {
 	_u.mutation.ResetInputTokens()
@@ -1135,6 +1297,60 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.BillingModeCleared() {
 		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
 	}
+	if value, ok := _u.mutation.SupplierID(); ok {
+		_spec.SetField(usagelog.FieldSupplierID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierID(); ok {
+		_spec.AddField(usagelog.FieldSupplierID, field.TypeInt64, value)
+	}
+	if _u.mutation.SupplierIDCleared() {
+		_spec.ClearField(usagelog.FieldSupplierID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SupplierBaseRate(); ok {
+		_spec.SetField(usagelog.FieldSupplierBaseRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierBaseRate(); ok {
+		_spec.AddField(usagelog.FieldSupplierBaseRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierBaseRateCleared() {
+		_spec.ClearField(usagelog.FieldSupplierBaseRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierAdminAdjustment(); ok {
+		_spec.SetField(usagelog.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierAdminAdjustment(); ok {
+		_spec.AddField(usagelog.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierAdminAdjustmentCleared() {
+		_spec.ClearField(usagelog.FieldSupplierAdminAdjustment, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierModelCostUsd(); ok {
+		_spec.SetField(usagelog.FieldSupplierModelCostUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierModelCostUsd(); ok {
+		_spec.AddField(usagelog.FieldSupplierModelCostUsd, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierModelCostUsdCleared() {
+		_spec.ClearField(usagelog.FieldSupplierModelCostUsd, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierRechargeRatio(); ok {
+		_spec.SetField(usagelog.FieldSupplierRechargeRatio, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierRechargeRatio(); ok {
+		_spec.AddField(usagelog.FieldSupplierRechargeRatio, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierRechargeRatioCleared() {
+		_spec.ClearField(usagelog.FieldSupplierRechargeRatio, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierEarningCny(); ok {
+		_spec.SetField(usagelog.FieldSupplierEarningCny, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierEarningCny(); ok {
+		_spec.AddField(usagelog.FieldSupplierEarningCny, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierEarningCnyCleared() {
+		_spec.ClearField(usagelog.FieldSupplierEarningCny, field.TypeFloat64)
+	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 	}
@@ -1723,6 +1939,168 @@ func (_u *UsageLogUpdateOne) SetNillableSubscriptionID(v *int64) *UsageLogUpdate
 // ClearSubscriptionID clears the value of the "subscription_id" field.
 func (_u *UsageLogUpdateOne) ClearSubscriptionID() *UsageLogUpdateOne {
 	_u.mutation.ClearSubscriptionID()
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *UsageLogUpdateOne) SetSupplierID(v int64) *UsageLogUpdateOne {
+	_u.mutation.ResetSupplierID()
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableSupplierID(v *int64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// AddSupplierID adds value to the "supplier_id" field.
+func (_u *UsageLogUpdateOne) AddSupplierID(v int64) *UsageLogUpdateOne {
+	_u.mutation.AddSupplierID(v)
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *UsageLogUpdateOne) ClearSupplierID() *UsageLogUpdateOne {
+	_u.mutation.ClearSupplierID()
+	return _u
+}
+
+// SetSupplierBaseRate sets the "supplier_base_rate" field.
+func (_u *UsageLogUpdateOne) SetSupplierBaseRate(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetSupplierBaseRate()
+	_u.mutation.SetSupplierBaseRate(v)
+	return _u
+}
+
+// SetNillableSupplierBaseRate sets the "supplier_base_rate" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableSupplierBaseRate(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetSupplierBaseRate(*v)
+	}
+	return _u
+}
+
+// AddSupplierBaseRate adds value to the "supplier_base_rate" field.
+func (_u *UsageLogUpdateOne) AddSupplierBaseRate(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddSupplierBaseRate(v)
+	return _u
+}
+
+// ClearSupplierBaseRate clears the value of the "supplier_base_rate" field.
+func (_u *UsageLogUpdateOne) ClearSupplierBaseRate() *UsageLogUpdateOne {
+	_u.mutation.ClearSupplierBaseRate()
+	return _u
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (_u *UsageLogUpdateOne) SetSupplierAdminAdjustment(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetSupplierAdminAdjustment()
+	_u.mutation.SetSupplierAdminAdjustment(v)
+	return _u
+}
+
+// SetNillableSupplierAdminAdjustment sets the "supplier_admin_adjustment" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableSupplierAdminAdjustment(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetSupplierAdminAdjustment(*v)
+	}
+	return _u
+}
+
+// AddSupplierAdminAdjustment adds value to the "supplier_admin_adjustment" field.
+func (_u *UsageLogUpdateOne) AddSupplierAdminAdjustment(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddSupplierAdminAdjustment(v)
+	return _u
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (_u *UsageLogUpdateOne) ClearSupplierAdminAdjustment() *UsageLogUpdateOne {
+	_u.mutation.ClearSupplierAdminAdjustment()
+	return _u
+}
+
+// SetSupplierModelCostUsd sets the "supplier_model_cost_usd" field.
+func (_u *UsageLogUpdateOne) SetSupplierModelCostUsd(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetSupplierModelCostUsd()
+	_u.mutation.SetSupplierModelCostUsd(v)
+	return _u
+}
+
+// SetNillableSupplierModelCostUsd sets the "supplier_model_cost_usd" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableSupplierModelCostUsd(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetSupplierModelCostUsd(*v)
+	}
+	return _u
+}
+
+// AddSupplierModelCostUsd adds value to the "supplier_model_cost_usd" field.
+func (_u *UsageLogUpdateOne) AddSupplierModelCostUsd(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddSupplierModelCostUsd(v)
+	return _u
+}
+
+// ClearSupplierModelCostUsd clears the value of the "supplier_model_cost_usd" field.
+func (_u *UsageLogUpdateOne) ClearSupplierModelCostUsd() *UsageLogUpdateOne {
+	_u.mutation.ClearSupplierModelCostUsd()
+	return _u
+}
+
+// SetSupplierRechargeRatio sets the "supplier_recharge_ratio" field.
+func (_u *UsageLogUpdateOne) SetSupplierRechargeRatio(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetSupplierRechargeRatio()
+	_u.mutation.SetSupplierRechargeRatio(v)
+	return _u
+}
+
+// SetNillableSupplierRechargeRatio sets the "supplier_recharge_ratio" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableSupplierRechargeRatio(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetSupplierRechargeRatio(*v)
+	}
+	return _u
+}
+
+// AddSupplierRechargeRatio adds value to the "supplier_recharge_ratio" field.
+func (_u *UsageLogUpdateOne) AddSupplierRechargeRatio(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddSupplierRechargeRatio(v)
+	return _u
+}
+
+// ClearSupplierRechargeRatio clears the value of the "supplier_recharge_ratio" field.
+func (_u *UsageLogUpdateOne) ClearSupplierRechargeRatio() *UsageLogUpdateOne {
+	_u.mutation.ClearSupplierRechargeRatio()
+	return _u
+}
+
+// SetSupplierEarningCny sets the "supplier_earning_cny" field.
+func (_u *UsageLogUpdateOne) SetSupplierEarningCny(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetSupplierEarningCny()
+	_u.mutation.SetSupplierEarningCny(v)
+	return _u
+}
+
+// SetNillableSupplierEarningCny sets the "supplier_earning_cny" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableSupplierEarningCny(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetSupplierEarningCny(*v)
+	}
+	return _u
+}
+
+// AddSupplierEarningCny adds value to the "supplier_earning_cny" field.
+func (_u *UsageLogUpdateOne) AddSupplierEarningCny(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddSupplierEarningCny(v)
+	return _u
+}
+
+// ClearSupplierEarningCny clears the value of the "supplier_earning_cny" field.
+func (_u *UsageLogUpdateOne) ClearSupplierEarningCny() *UsageLogUpdateOne {
+	_u.mutation.ClearSupplierEarningCny()
 	return _u
 }
 
@@ -2621,6 +2999,60 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.BillingModeCleared() {
 		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
+	}
+	if value, ok := _u.mutation.SupplierID(); ok {
+		_spec.SetField(usagelog.FieldSupplierID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierID(); ok {
+		_spec.AddField(usagelog.FieldSupplierID, field.TypeInt64, value)
+	}
+	if _u.mutation.SupplierIDCleared() {
+		_spec.ClearField(usagelog.FieldSupplierID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.SupplierBaseRate(); ok {
+		_spec.SetField(usagelog.FieldSupplierBaseRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierBaseRate(); ok {
+		_spec.AddField(usagelog.FieldSupplierBaseRate, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierBaseRateCleared() {
+		_spec.ClearField(usagelog.FieldSupplierBaseRate, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierAdminAdjustment(); ok {
+		_spec.SetField(usagelog.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierAdminAdjustment(); ok {
+		_spec.AddField(usagelog.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierAdminAdjustmentCleared() {
+		_spec.ClearField(usagelog.FieldSupplierAdminAdjustment, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierModelCostUsd(); ok {
+		_spec.SetField(usagelog.FieldSupplierModelCostUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierModelCostUsd(); ok {
+		_spec.AddField(usagelog.FieldSupplierModelCostUsd, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierModelCostUsdCleared() {
+		_spec.ClearField(usagelog.FieldSupplierModelCostUsd, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierRechargeRatio(); ok {
+		_spec.SetField(usagelog.FieldSupplierRechargeRatio, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierRechargeRatio(); ok {
+		_spec.AddField(usagelog.FieldSupplierRechargeRatio, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierRechargeRatioCleared() {
+		_spec.ClearField(usagelog.FieldSupplierRechargeRatio, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.SupplierEarningCny(); ok {
+		_spec.SetField(usagelog.FieldSupplierEarningCny, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedSupplierEarningCny(); ok {
+		_spec.AddField(usagelog.FieldSupplierEarningCny, field.TypeFloat64, value)
+	}
+	if _u.mutation.SupplierEarningCnyCleared() {
+		_spec.ClearField(usagelog.FieldSupplierEarningCny, field.TypeFloat64)
 	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)

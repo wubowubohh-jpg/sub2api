@@ -119,6 +119,20 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// Supplier applications, moderation and settlement operations.
+		suppliers := admin.Group("/suppliers")
+		{
+			suppliers.GET("", h.Supplier.AdminList)
+			suppliers.PUT("/:id/review", h.Supplier.AdminReview)
+			suppliers.POST("/:id/freeze", h.Supplier.AdminFreeze)
+			suppliers.PUT("/groups/:group_id/moderation", h.Supplier.AdminModerateGroup)
+			suppliers.GET("/settings", h.Supplier.AdminSettings)
+			suppliers.PUT("/settings", h.Supplier.AdminUpdateSettings)
+			suppliers.POST("/settlement/reconcile", h.Supplier.AdminReconcile)
+		}
+		admin.GET("/supplier-withdrawals", h.Supplier.AdminWithdrawals)
+		admin.PUT("/supplier-withdrawals/:withdrawal_id", h.Supplier.AdminReviewWithdrawal)
 	}
 }
 

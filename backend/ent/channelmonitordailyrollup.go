@@ -44,6 +44,10 @@ type ChannelMonitorDailyRollup struct {
 	SumPingLatencyMs int64 `json:"sum_ping_latency_ms,omitempty"`
 	// CountPingLatency holds the value of the "count_ping_latency" field.
 	CountPingLatency int `json:"count_ping_latency,omitempty"`
+	// SumFirstTokenMs holds the value of the "sum_first_token_ms" field.
+	SumFirstTokenMs int64 `json:"sum_first_token_ms,omitempty"`
+	// CountFirstToken holds the value of the "count_first_token" field.
+	CountFirstToken int `json:"count_first_token,omitempty"`
 	// ComputedAt holds the value of the "computed_at" field.
 	ComputedAt time.Time `json:"computed_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -77,7 +81,7 @@ func (*ChannelMonitorDailyRollup) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channelmonitordailyrollup.FieldID, channelmonitordailyrollup.FieldMonitorID, channelmonitordailyrollup.FieldTotalChecks, channelmonitordailyrollup.FieldOkCount, channelmonitordailyrollup.FieldOperationalCount, channelmonitordailyrollup.FieldDegradedCount, channelmonitordailyrollup.FieldFailedCount, channelmonitordailyrollup.FieldErrorCount, channelmonitordailyrollup.FieldSumLatencyMs, channelmonitordailyrollup.FieldCountLatency, channelmonitordailyrollup.FieldSumPingLatencyMs, channelmonitordailyrollup.FieldCountPingLatency:
+		case channelmonitordailyrollup.FieldID, channelmonitordailyrollup.FieldMonitorID, channelmonitordailyrollup.FieldTotalChecks, channelmonitordailyrollup.FieldOkCount, channelmonitordailyrollup.FieldOperationalCount, channelmonitordailyrollup.FieldDegradedCount, channelmonitordailyrollup.FieldFailedCount, channelmonitordailyrollup.FieldErrorCount, channelmonitordailyrollup.FieldSumLatencyMs, channelmonitordailyrollup.FieldCountLatency, channelmonitordailyrollup.FieldSumPingLatencyMs, channelmonitordailyrollup.FieldCountPingLatency, channelmonitordailyrollup.FieldSumFirstTokenMs, channelmonitordailyrollup.FieldCountFirstToken:
 			values[i] = new(sql.NullInt64)
 		case channelmonitordailyrollup.FieldModel:
 			values[i] = new(sql.NullString)
@@ -182,6 +186,18 @@ func (_m *ChannelMonitorDailyRollup) assignValues(columns []string, values []any
 			} else if value.Valid {
 				_m.CountPingLatency = int(value.Int64)
 			}
+		case channelmonitordailyrollup.FieldSumFirstTokenMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field sum_first_token_ms", values[i])
+			} else if value.Valid {
+				_m.SumFirstTokenMs = value.Int64
+			}
+		case channelmonitordailyrollup.FieldCountFirstToken:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field count_first_token", values[i])
+			} else if value.Valid {
+				_m.CountFirstToken = int(value.Int64)
+			}
 		case channelmonitordailyrollup.FieldComputedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field computed_at", values[i])
@@ -267,6 +283,12 @@ func (_m *ChannelMonitorDailyRollup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("count_ping_latency=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CountPingLatency))
+	builder.WriteString(", ")
+	builder.WriteString("sum_first_token_ms=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SumFirstTokenMs))
+	builder.WriteString(", ")
+	builder.WriteString("count_first_token=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CountFirstToken))
 	builder.WriteString(", ")
 	builder.WriteString("computed_at=")
 	builder.WriteString(_m.ComputedAt.Format(time.ANSIC))

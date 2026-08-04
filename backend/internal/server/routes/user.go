@@ -141,5 +141,22 @@ func RegisterUserRoutes(
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
 		}
+
+		// Supplier onboarding, workspace and marketplace.
+		suppliers := authenticated.Group("/suppliers")
+		{
+			suppliers.POST("/apply", h.Supplier.Apply)
+			suppliers.POST("/documents", h.Supplier.UploadDocument)
+			suppliers.GET("/me", h.Supplier.Me)
+			suppliers.GET("/groups", h.Supplier.MyGroups)
+			suppliers.POST("/groups", h.Supplier.CreateGroup)
+			suppliers.PUT("/groups/:id", h.Supplier.UpdateGroup)
+			suppliers.GET("/accounts", h.Supplier.MyAccounts)
+			suppliers.POST("/accounts", h.Supplier.CreateAccount)
+			suppliers.PUT("/accounts/:id", h.Supplier.UpdateAccount)
+			suppliers.POST("/withdrawals", h.Supplier.Withdraw)
+			suppliers.GET("/withdrawals", h.Supplier.MyWithdrawals)
+		}
+		authenticated.GET("/supplier-hall", h.Supplier.Hall)
 	}
 }

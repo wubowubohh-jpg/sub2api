@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 )
 
@@ -70,6 +71,20 @@ func (_c *AccountCreate) SetNillableDeletedAt(v *time.Time) *AccountCreate {
 // SetName sets the "name" field.
 func (_c *AccountCreate) SetName(v string) *AccountCreate {
 	_c.mutation.SetName(v)
+	return _c
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_c *AccountCreate) SetSupplierID(v int64) *AccountCreate {
+	_c.mutation.SetSupplierID(v)
+	return _c
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableSupplierID(v *int64) *AccountCreate {
+	if v != nil {
+		_c.SetSupplierID(*v)
+	}
 	return _c
 }
 
@@ -488,6 +503,11 @@ func (_c *AccountCreate) AddUsageLogs(v ...*UsageLog) *AccountCreate {
 	return _c.AddUsageLogIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_c *AccountCreate) SetSupplier(v *Supplier) *AccountCreate {
+	return _c.SetSupplierID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_c *AccountCreate) Mutation() *AccountMutation {
 	return _c.mutation
@@ -887,6 +907,23 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SupplierID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -978,6 +1015,24 @@ func (u *AccountUpsert) SetName(v string) *AccountUpsert {
 // UpdateName sets the "name" field to the value that was provided on create.
 func (u *AccountUpsert) UpdateName() *AccountUpsert {
 	u.SetExcluded(account.FieldName)
+	return u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *AccountUpsert) SetSupplierID(v int64) *AccountUpsert {
+	u.Set(account.FieldSupplierID, v)
+	return u
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateSupplierID() *AccountUpsert {
+	u.SetExcluded(account.FieldSupplierID)
+	return u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *AccountUpsert) ClearSupplierID() *AccountUpsert {
+	u.SetNull(account.FieldSupplierID)
 	return u
 }
 
@@ -1522,6 +1577,27 @@ func (u *AccountUpsertOne) SetName(v string) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateName() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *AccountUpsertOne) SetSupplierID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateSupplierID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *AccountUpsertOne) ClearSupplierID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSupplierID()
 	})
 }
 
@@ -2307,6 +2383,27 @@ func (u *AccountUpsertBulk) SetName(v string) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateName() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *AccountUpsertBulk) SetSupplierID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateSupplierID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *AccountUpsertBulk) ClearSupplierID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSupplierID()
 	})
 }
 

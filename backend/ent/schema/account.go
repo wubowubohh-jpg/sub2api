@@ -54,6 +54,7 @@ func (Account) Fields() []ent.Field {
 		field.String("name").
 			MaxLen(100).
 			NotEmpty(),
+		field.Int64("supplier_id").Optional().Nillable(),
 		// notes: 管理员备注（可为空）
 		field.String("notes").
 			Optional().
@@ -227,6 +228,7 @@ func (Account) Edges() []ent.Edge {
 			Unique(),
 		// usage_logs: 该账户的使用日志
 		edge.To("usage_logs", UsageLog.Type),
+		edge.From("supplier", Supplier.Type).Ref("accounts").Field("supplier_id").Unique(),
 	}
 }
 
@@ -249,5 +251,6 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("priority", "status"),
 		index.Fields("deleted_at"), // 软删除查询优化
 		index.Fields("parent_account_id"),
+		index.Fields("supplier_id", "status", "schedulable"),
 	}
 }

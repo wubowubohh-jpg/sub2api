@@ -251,6 +251,33 @@ func (_u *ChannelMonitorUpdate) AddCreatedBy(v int64) *ChannelMonitorUpdate {
 	return _u
 }
 
+// SetGroupID sets the "group_id" field.
+func (_u *ChannelMonitorUpdate) SetGroupID(v int64) *ChannelMonitorUpdate {
+	_u.mutation.ResetGroupID()
+	_u.mutation.SetGroupID(v)
+	return _u
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_u *ChannelMonitorUpdate) SetNillableGroupID(v *int64) *ChannelMonitorUpdate {
+	if v != nil {
+		_u.SetGroupID(*v)
+	}
+	return _u
+}
+
+// AddGroupID adds value to the "group_id" field.
+func (_u *ChannelMonitorUpdate) AddGroupID(v int64) *ChannelMonitorUpdate {
+	_u.mutation.AddGroupID(v)
+	return _u
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (_u *ChannelMonitorUpdate) ClearGroupID() *ChannelMonitorUpdate {
+	_u.mutation.ClearGroupID()
+	return _u
+}
+
 // SetTemplateID sets the "template_id" field.
 func (_u *ChannelMonitorUpdate) SetTemplateID(v int64) *ChannelMonitorUpdate {
 	_u.mutation.SetTemplateID(v)
@@ -569,6 +596,15 @@ func (_u *ChannelMonitorUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(channelmonitor.FieldCreatedBy, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.GroupID(); ok {
+		_spec.SetField(channelmonitor.FieldGroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGroupID(); ok {
+		_spec.AddField(channelmonitor.FieldGroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(channelmonitor.FieldGroupID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.ExtraHeaders(); ok {
 		_spec.SetField(channelmonitor.FieldExtraHeaders, field.TypeJSON, value)
@@ -940,6 +976,33 @@ func (_u *ChannelMonitorUpdateOne) AddCreatedBy(v int64) *ChannelMonitorUpdateOn
 	return _u
 }
 
+// SetGroupID sets the "group_id" field.
+func (_u *ChannelMonitorUpdateOne) SetGroupID(v int64) *ChannelMonitorUpdateOne {
+	_u.mutation.ResetGroupID()
+	_u.mutation.SetGroupID(v)
+	return _u
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_u *ChannelMonitorUpdateOne) SetNillableGroupID(v *int64) *ChannelMonitorUpdateOne {
+	if v != nil {
+		_u.SetGroupID(*v)
+	}
+	return _u
+}
+
+// AddGroupID adds value to the "group_id" field.
+func (_u *ChannelMonitorUpdateOne) AddGroupID(v int64) *ChannelMonitorUpdateOne {
+	_u.mutation.AddGroupID(v)
+	return _u
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (_u *ChannelMonitorUpdateOne) ClearGroupID() *ChannelMonitorUpdateOne {
+	_u.mutation.ClearGroupID()
+	return _u
+}
+
 // SetTemplateID sets the "template_id" field.
 func (_u *ChannelMonitorUpdateOne) SetTemplateID(v int64) *ChannelMonitorUpdateOne {
 	_u.mutation.SetTemplateID(v)
@@ -1288,6 +1351,15 @@ func (_u *ChannelMonitorUpdateOne) sqlSave(ctx context.Context) (_node *ChannelM
 	}
 	if value, ok := _u.mutation.AddedCreatedBy(); ok {
 		_spec.AddField(channelmonitor.FieldCreatedBy, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.GroupID(); ok {
+		_spec.SetField(channelmonitor.FieldGroupID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGroupID(); ok {
+		_spec.AddField(channelmonitor.FieldGroupID, field.TypeInt64, value)
+	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(channelmonitor.FieldGroupID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.ExtraHeaders(); ok {
 		_spec.SetField(channelmonitor.FieldExtraHeaders, field.TypeJSON, value)

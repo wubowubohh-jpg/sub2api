@@ -75,6 +75,11 @@ func Name(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldName, v))
 }
 
+// SupplierID applies equality check predicate on the "supplier_id" field. It's identical to SupplierIDEQ.
+func SupplierID(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSupplierID, v))
+}
+
 // Notes applies equality check predicate on the "notes" field. It's identical to NotesEQ.
 func Notes(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldNotes, v))
@@ -388,6 +393,36 @@ func NameEqualFold(v string) predicate.Account {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.Account {
 	return predicate.Account(sql.FieldContainsFold(FieldName, v))
+}
+
+// SupplierIDEQ applies the EQ predicate on the "supplier_id" field.
+func SupplierIDEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSupplierID, v))
+}
+
+// SupplierIDNEQ applies the NEQ predicate on the "supplier_id" field.
+func SupplierIDNEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldSupplierID, v))
+}
+
+// SupplierIDIn applies the In predicate on the "supplier_id" field.
+func SupplierIDIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDNotIn applies the NotIn predicate on the "supplier_id" field.
+func SupplierIDNotIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDIsNil applies the IsNil predicate on the "supplier_id" field.
+func SupplierIDIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldSupplierID))
+}
+
+// SupplierIDNotNil applies the NotNil predicate on the "supplier_id" field.
+func SupplierIDNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldSupplierID))
 }
 
 // NotesEQ applies the EQ predicate on the "notes" field.
@@ -1712,6 +1747,29 @@ func HasUsageLogs() predicate.Account {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.Account {
 	return predicate.Account(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSupplier applies the HasEdge predicate on the "supplier" edge.
+func HasSupplier() predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, SupplierTable, SupplierColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSupplierWith applies the HasEdge predicate on the "supplier" edge with a given conditions (other predicates).
+func HasSupplierWith(preds ...predicate.Supplier) predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := newSupplierStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

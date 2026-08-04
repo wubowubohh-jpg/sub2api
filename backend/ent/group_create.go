@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
@@ -101,6 +102,48 @@ func (_c *GroupCreate) SetRateMultiplier(v float64) *GroupCreate {
 func (_c *GroupCreate) SetNillableRateMultiplier(v *float64) *GroupCreate {
 	if v != nil {
 		_c.SetRateMultiplier(*v)
+	}
+	return _c
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_c *GroupCreate) SetSupplierID(v int64) *GroupCreate {
+	_c.mutation.SetSupplierID(v)
+	return _c
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSupplierID(v *int64) *GroupCreate {
+	if v != nil {
+		_c.SetSupplierID(*v)
+	}
+	return _c
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (_c *GroupCreate) SetSupplierAdminAdjustment(v float64) *GroupCreate {
+	_c.mutation.SetSupplierAdminAdjustment(v)
+	return _c
+}
+
+// SetNillableSupplierAdminAdjustment sets the "supplier_admin_adjustment" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSupplierAdminAdjustment(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetSupplierAdminAdjustment(*v)
+	}
+	return _c
+}
+
+// SetSupplierForcedOffline sets the "supplier_forced_offline" field.
+func (_c *GroupCreate) SetSupplierForcedOffline(v bool) *GroupCreate {
+	_c.mutation.SetSupplierForcedOffline(v)
+	return _c
+}
+
+// SetNillableSupplierForcedOffline sets the "supplier_forced_offline" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSupplierForcedOffline(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetSupplierForcedOffline(*v)
 	}
 	return _c
 }
@@ -857,6 +900,11 @@ func (_c *GroupCreate) AddAllowedUsers(v ...*User) *GroupCreate {
 	return _c.AddAllowedUserIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_c *GroupCreate) SetSupplier(v *Supplier) *GroupCreate {
+	return _c.SetSupplierID(v.ID)
+}
+
 // Mutation returns the GroupMutation object of the builder.
 func (_c *GroupCreate) Mutation() *GroupMutation {
 	return _c.mutation
@@ -911,6 +959,10 @@ func (_c *GroupCreate) defaults() error {
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		v := group.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
+	}
+	if _, ok := _c.mutation.SupplierForcedOffline(); !ok {
+		v := group.DefaultSupplierForcedOffline
+		_c.mutation.SetSupplierForcedOffline(v)
 	}
 	if _, ok := _c.mutation.PeakRateEnabled(); !ok {
 		v := group.DefaultPeakRateEnabled
@@ -1073,6 +1125,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "Group.rate_multiplier"`)}
+	}
+	if _, ok := _c.mutation.SupplierForcedOffline(); !ok {
+		return &ValidationError{Name: "supplier_forced_offline", err: errors.New(`ent: missing required field "Group.supplier_forced_offline"`)}
 	}
 	if _, ok := _c.mutation.PeakRateEnabled(); !ok {
 		return &ValidationError{Name: "peak_rate_enabled", err: errors.New(`ent: missing required field "Group.peak_rate_enabled"`)}
@@ -1269,6 +1324,14 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(group.FieldRateMultiplier, field.TypeFloat64, value)
 		_node.RateMultiplier = value
+	}
+	if value, ok := _c.mutation.SupplierAdminAdjustment(); ok {
+		_spec.SetField(group.FieldSupplierAdminAdjustment, field.TypeFloat64, value)
+		_node.SupplierAdminAdjustment = &value
+	}
+	if value, ok := _c.mutation.SupplierForcedOffline(); ok {
+		_spec.SetField(group.FieldSupplierForcedOffline, field.TypeBool, value)
+		_node.SupplierForcedOffline = value
 	}
 	if value, ok := _c.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
@@ -1570,6 +1633,23 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		edge.Target.Fields = specE.Fields
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   group.SupplierTable,
+			Columns: []string{group.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SupplierID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -1697,6 +1777,60 @@ func (u *GroupUpsert) UpdateRateMultiplier() *GroupUpsert {
 // AddRateMultiplier adds v to the "rate_multiplier" field.
 func (u *GroupUpsert) AddRateMultiplier(v float64) *GroupUpsert {
 	u.Add(group.FieldRateMultiplier, v)
+	return u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *GroupUpsert) SetSupplierID(v int64) *GroupUpsert {
+	u.Set(group.FieldSupplierID, v)
+	return u
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSupplierID() *GroupUpsert {
+	u.SetExcluded(group.FieldSupplierID)
+	return u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *GroupUpsert) ClearSupplierID() *GroupUpsert {
+	u.SetNull(group.FieldSupplierID)
+	return u
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (u *GroupUpsert) SetSupplierAdminAdjustment(v float64) *GroupUpsert {
+	u.Set(group.FieldSupplierAdminAdjustment, v)
+	return u
+}
+
+// UpdateSupplierAdminAdjustment sets the "supplier_admin_adjustment" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSupplierAdminAdjustment() *GroupUpsert {
+	u.SetExcluded(group.FieldSupplierAdminAdjustment)
+	return u
+}
+
+// AddSupplierAdminAdjustment adds v to the "supplier_admin_adjustment" field.
+func (u *GroupUpsert) AddSupplierAdminAdjustment(v float64) *GroupUpsert {
+	u.Add(group.FieldSupplierAdminAdjustment, v)
+	return u
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (u *GroupUpsert) ClearSupplierAdminAdjustment() *GroupUpsert {
+	u.SetNull(group.FieldSupplierAdminAdjustment)
+	return u
+}
+
+// SetSupplierForcedOffline sets the "supplier_forced_offline" field.
+func (u *GroupUpsert) SetSupplierForcedOffline(v bool) *GroupUpsert {
+	u.Set(group.FieldSupplierForcedOffline, v)
+	return u
+}
+
+// UpdateSupplierForcedOffline sets the "supplier_forced_offline" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSupplierForcedOffline() *GroupUpsert {
+	u.SetExcluded(group.FieldSupplierForcedOffline)
 	return u
 }
 
@@ -2622,6 +2756,69 @@ func (u *GroupUpsertOne) AddRateMultiplier(v float64) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateRateMultiplier() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *GroupUpsertOne) SetSupplierID(v int64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSupplierID() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *GroupUpsertOne) ClearSupplierID() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSupplierID()
+	})
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (u *GroupUpsertOne) SetSupplierAdminAdjustment(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSupplierAdminAdjustment(v)
+	})
+}
+
+// AddSupplierAdminAdjustment adds v to the "supplier_admin_adjustment" field.
+func (u *GroupUpsertOne) AddSupplierAdminAdjustment(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSupplierAdminAdjustment(v)
+	})
+}
+
+// UpdateSupplierAdminAdjustment sets the "supplier_admin_adjustment" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSupplierAdminAdjustment() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSupplierAdminAdjustment()
+	})
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (u *GroupUpsertOne) ClearSupplierAdminAdjustment() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSupplierAdminAdjustment()
+	})
+}
+
+// SetSupplierForcedOffline sets the "supplier_forced_offline" field.
+func (u *GroupUpsertOne) SetSupplierForcedOffline(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSupplierForcedOffline(v)
+	})
+}
+
+// UpdateSupplierForcedOffline sets the "supplier_forced_offline" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSupplierForcedOffline() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSupplierForcedOffline()
 	})
 }
 
@@ -3844,6 +4041,69 @@ func (u *GroupUpsertBulk) AddRateMultiplier(v float64) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateRateMultiplier() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *GroupUpsertBulk) SetSupplierID(v int64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSupplierID() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *GroupUpsertBulk) ClearSupplierID() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSupplierID()
+	})
+}
+
+// SetSupplierAdminAdjustment sets the "supplier_admin_adjustment" field.
+func (u *GroupUpsertBulk) SetSupplierAdminAdjustment(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSupplierAdminAdjustment(v)
+	})
+}
+
+// AddSupplierAdminAdjustment adds v to the "supplier_admin_adjustment" field.
+func (u *GroupUpsertBulk) AddSupplierAdminAdjustment(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddSupplierAdminAdjustment(v)
+	})
+}
+
+// UpdateSupplierAdminAdjustment sets the "supplier_admin_adjustment" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSupplierAdminAdjustment() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSupplierAdminAdjustment()
+	})
+}
+
+// ClearSupplierAdminAdjustment clears the value of the "supplier_admin_adjustment" field.
+func (u *GroupUpsertBulk) ClearSupplierAdminAdjustment() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSupplierAdminAdjustment()
+	})
+}
+
+// SetSupplierForcedOffline sets the "supplier_forced_offline" field.
+func (u *GroupUpsertBulk) SetSupplierForcedOffline(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSupplierForcedOffline(v)
+	})
+}
+
+// UpdateSupplierForcedOffline sets the "supplier_forced_offline" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSupplierForcedOffline() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSupplierForcedOffline()
 	})
 }
 

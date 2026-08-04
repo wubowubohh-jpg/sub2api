@@ -49,6 +49,18 @@ type UsageLog struct {
 	GroupID *int64 `json:"group_id,omitempty"`
 	// SubscriptionID holds the value of the "subscription_id" field.
 	SubscriptionID *int64 `json:"subscription_id,omitempty"`
+	// SupplierID holds the value of the "supplier_id" field.
+	SupplierID *int64 `json:"supplier_id,omitempty"`
+	// SupplierBaseRate holds the value of the "supplier_base_rate" field.
+	SupplierBaseRate *float64 `json:"supplier_base_rate,omitempty"`
+	// SupplierAdminAdjustment holds the value of the "supplier_admin_adjustment" field.
+	SupplierAdminAdjustment *float64 `json:"supplier_admin_adjustment,omitempty"`
+	// SupplierModelCostUsd holds the value of the "supplier_model_cost_usd" field.
+	SupplierModelCostUsd *float64 `json:"supplier_model_cost_usd,omitempty"`
+	// SupplierRechargeRatio holds the value of the "supplier_recharge_ratio" field.
+	SupplierRechargeRatio *float64 `json:"supplier_recharge_ratio,omitempty"`
+	// SupplierEarningCny holds the value of the "supplier_earning_cny" field.
+	SupplierEarningCny *float64 `json:"supplier_earning_cny,omitempty"`
 	// InputTokens holds the value of the "input_tokens" field.
 	InputTokens int `json:"input_tokens,omitempty"`
 	// OutputTokens holds the value of the "output_tokens" field.
@@ -200,9 +212,9 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case usagelog.FieldLongContextBillingApplied, usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
 			values[i] = new(sql.NullBool)
-		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
+		case usagelog.FieldSupplierBaseRate, usagelog.FieldSupplierAdminAdjustment, usagelog.FieldSupplierModelCostUsd, usagelog.FieldSupplierRechargeRatio, usagelog.FieldSupplierEarningCny, usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
+		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldSupplierID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
 			values[i] = new(sql.NullInt64)
 		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
 			values[i] = new(sql.NullString)
@@ -314,6 +326,48 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.SubscriptionID = new(int64)
 				*_m.SubscriptionID = value.Int64
+			}
+		case usagelog.FieldSupplierID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_id", values[i])
+			} else if value.Valid {
+				_m.SupplierID = new(int64)
+				*_m.SupplierID = value.Int64
+			}
+		case usagelog.FieldSupplierBaseRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_base_rate", values[i])
+			} else if value.Valid {
+				_m.SupplierBaseRate = new(float64)
+				*_m.SupplierBaseRate = value.Float64
+			}
+		case usagelog.FieldSupplierAdminAdjustment:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_admin_adjustment", values[i])
+			} else if value.Valid {
+				_m.SupplierAdminAdjustment = new(float64)
+				*_m.SupplierAdminAdjustment = value.Float64
+			}
+		case usagelog.FieldSupplierModelCostUsd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_model_cost_usd", values[i])
+			} else if value.Valid {
+				_m.SupplierModelCostUsd = new(float64)
+				*_m.SupplierModelCostUsd = value.Float64
+			}
+		case usagelog.FieldSupplierRechargeRatio:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_recharge_ratio", values[i])
+			} else if value.Valid {
+				_m.SupplierRechargeRatio = new(float64)
+				*_m.SupplierRechargeRatio = value.Float64
+			}
+		case usagelog.FieldSupplierEarningCny:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_earning_cny", values[i])
+			} else if value.Valid {
+				_m.SupplierEarningCny = new(float64)
+				*_m.SupplierEarningCny = value.Float64
 			}
 		case usagelog.FieldInputTokens:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -633,6 +687,36 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	if v := _m.SubscriptionID; v != nil {
 		builder.WriteString("subscription_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SupplierID; v != nil {
+		builder.WriteString("supplier_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SupplierBaseRate; v != nil {
+		builder.WriteString("supplier_base_rate=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SupplierAdminAdjustment; v != nil {
+		builder.WriteString("supplier_admin_adjustment=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SupplierModelCostUsd; v != nil {
+		builder.WriteString("supplier_model_cost_usd=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SupplierRechargeRatio; v != nil {
+		builder.WriteString("supplier_recharge_ratio=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SupplierEarningCny; v != nil {
+		builder.WriteString("supplier_earning_cny=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

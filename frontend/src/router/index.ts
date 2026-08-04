@@ -216,6 +216,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/supplier-hall', name: 'SupplierHall', component: () => import('@/views/user/SupplierHallView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Supplier Hall' }
+  },
+  {
+    path: '/supplier', name: 'SupplierWorkspace', component: () => import('@/views/user/SupplierWorkspaceView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Supplier Workspace' }
+  },
+  {
     path: '/batch-image',
     name: 'BatchImageGuide',
     alias: '/docs/batch-image',
@@ -448,6 +456,10 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'admin.users.title',
       descriptionKey: 'admin.users.description'
     }
+  },
+  {
+    path: '/admin/suppliers', name: 'AdminSuppliers', component: () => import('@/views/admin/SuppliersView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Supplier Management' }
   },
   {
     path: '/admin/groups',

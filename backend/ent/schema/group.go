@@ -45,6 +45,10 @@ func (Group) Fields() []ent.Field {
 		field.Float("rate_multiplier").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0),
+		field.Int64("supplier_id").Optional().Nillable(),
+		field.Float("supplier_admin_adjustment").Optional().Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),
+		field.Bool("supplier_forced_offline").Default(false),
 		// 高峰时段倍率（added by migration 158）
 		field.Bool("peak_rate_enabled").
 			Default(false).
@@ -263,6 +267,7 @@ func (Group) Edges() []ent.Edge {
 		edge.From("allowed_users", User.Type).
 			Ref("allowed_groups").
 			Through("user_allowed_groups", UserAllowedGroup.Type),
+		edge.From("supplier", Supplier.Type).Ref("groups").Field("supplier_id").Unique(),
 		// 注意：fallback_group_id 直接作为字段使用，不定义 edge
 		// 这样允许多个分组指向同一个降级分组（M2O 关系）
 	}
@@ -277,6 +282,7 @@ func (Group) Indexes() []ent.Index {
 		index.Fields("is_exclusive"),
 		index.Fields("deleted_at"),
 		index.Fields("sort_order"),
+		index.Fields("supplier_id", "status", "supplier_forced_offline"),
 		index.Fields("duplicate_operation_id").
 			Unique().
 			StorageKey("idx_groups_duplicate_operation_id_active").
