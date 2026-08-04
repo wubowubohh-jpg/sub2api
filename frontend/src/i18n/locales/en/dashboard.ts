@@ -480,7 +480,7 @@ export default {
     },
     columns: {
       group: 'Group',
-      rate: 'Final Rate',
+      rate: 'Rate',
       models: 'Models & Monitor',
       status: 'Status',
       history: 'Recent Status Records',

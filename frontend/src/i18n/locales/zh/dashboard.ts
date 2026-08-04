@@ -485,7 +485,7 @@ export default {
     },
     columns: {
       group: '分组',
-      rate: '最终倍率',
+      rate: '倍率',
       models: '模型与监控',
       status: '状态',
       history: '近期状态记录',
