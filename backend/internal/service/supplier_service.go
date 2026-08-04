@@ -1334,7 +1334,12 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 	// are matched by the exact group name.
 	if g, groupErr := s.db.Group.Get(ctx, groupID); groupErr == nil {
 		monitors, _ := s.db.ChannelMonitor.Query().Where(channelmonitor.Enabled(true), channelmonitor.Or(channelmonitor.GroupID(groupID), channelmonitor.GroupNameEQ(g.Name))).All(ctx)
-		var checks, healthy, latencySum, latencyCount, probeFirstSum, probeFirstCount int64
+		type availabilityCounts struct {
+			checks  int64
+			healthy int64
+		}
+		availabilityByModel := make(map[string]availabilityCounts)
+		var latencySum, latencyCount, probeFirstSum, probeFirstCount int64
 		for _, monitor := range monitors {
 			history, _ := s.db.ChannelMonitorHistory.Query().Where(channelmonitorhistory.MonitorID(monitor.ID), channelmonitorhistory.CheckedAtGTE(since)).All(ctx)
 			for _, point := range history {
@@ -1342,10 +1347,12 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 					checkedAt := point.CheckedAt
 					out.LatestProbeAt = &checkedAt
 				}
-				checks++
+				counts := availabilityByModel[point.Model]
+				counts.checks++
 				if point.Status == channelmonitorhistory.StatusOperational || point.Status == channelmonitorhistory.StatusDegraded {
-					healthy++
+					counts.healthy++
 				}
+				availabilityByModel[point.Model] = counts
 				if point.LatencyMs != nil {
 					latencySum += int64(*point.LatencyMs)
 					latencyCount++
@@ -1356,9 +1363,18 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 				}
 			}
 		}
-		if checks > 0 {
-			v := float64(healthy) / float64(checks) * 100
-			out.Availability = &v
+		maxAvailability := -1.0
+		for _, counts := range availabilityByModel {
+			if counts.checks == 0 {
+				continue
+			}
+			availability := float64(counts.healthy) / float64(counts.checks) * 100
+			if availability > maxAvailability {
+				maxAvailability = availability
+			}
+		}
+		if maxAvailability >= 0 {
+			out.Availability = &maxAvailability
 		}
 		if latencyCount > 0 {
 			v := float64(latencySum) / float64(latencyCount)

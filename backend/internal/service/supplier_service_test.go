@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/stretchr/testify/require"
@@ -91,6 +93,56 @@ func TestSupplierEffectiveRateLocalOverridesGlobal(t *testing.T) {
 	require.NoError(t, err)
 	require.InDelta(t, 0.05, rate, 0.000001)
 	require.InDelta(t, 0.01, adjustment, 0.000001)
+}
+
+func TestSupplierGroupMetricsUsesBestModelAvailability(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	group := svc.db.Group.Create().
+		SetName("availability-max").
+		SetPlatform(PlatformOpenAI).
+		SaveX(ctx)
+	monitor := svc.db.ChannelMonitor.Create().
+		SetName("availability-monitor").
+		SetProvider("openai").
+		SetEndpoint("https://example.com").
+		SetAPIKeyEncrypted("encrypted").
+		SetPrimaryModel("gpt-primary").
+		SetExtraModels([]string{"gpt-secondary"}).
+		SetGroupID(group.ID).
+		SetIntervalSeconds(60).
+		SetCreatedBy(1).
+		SaveX(ctx)
+
+	checkedAt := time.Now().Add(-time.Minute)
+	statuses := map[string][]channelmonitorhistory.Status{
+		"gpt-primary": {
+			channelmonitorhistory.StatusOperational,
+			channelmonitorhistory.StatusFailed,
+			channelmonitorhistory.StatusFailed,
+			channelmonitorhistory.StatusFailed,
+		},
+		"gpt-secondary": {
+			channelmonitorhistory.StatusOperational,
+			channelmonitorhistory.StatusOperational,
+			channelmonitorhistory.StatusDegraded,
+			channelmonitorhistory.StatusFailed,
+		},
+	}
+	for model, modelStatuses := range statuses {
+		for index, status := range modelStatuses {
+			svc.db.ChannelMonitorHistory.Create().
+				SetMonitorID(monitor.ID).
+				SetModel(model).
+				SetStatus(status).
+				SetCheckedAt(checkedAt.Add(time.Duration(index) * time.Second)).
+				SaveX(ctx)
+		}
+	}
+
+	metrics, err := svc.GroupMetrics(ctx, group.ID, time.Now().Add(-time.Hour))
+	require.NoError(t, err)
+	require.NotNil(t, metrics.Availability)
+	require.InDelta(t, 75, *metrics.Availability, 0.000001)
 }
 
 func TestSupplierSettlementSettingsRemoveMinimumAndConfigureDelay(t *testing.T) {
