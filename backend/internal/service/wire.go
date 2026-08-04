@@ -780,7 +780,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPricingResolver,
 	NewContentModerationService,
 	NewAffiliateService,
-	NewSupplierService,
+	ProvideSupplierService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
@@ -802,6 +802,19 @@ func ProvideUserPlatformQuotaUsageFlusher(cfg *config.Config, cache BillingCache
 // payment.EncryptionKey type instead of raw []byte, avoiding Wire ambiguity.
 func ProvidePaymentConfigService(entClient *dbent.Client, settingRepo SettingRepository, key payment.EncryptionKey) *PaymentConfigService {
 	return NewPaymentConfigService(entClient, settingRepo, []byte(key))
+}
+
+// ProvideSupplierService attaches the live scheduler after constructing the
+// service, while keeping the core constructor usable by focused unit tests.
+func ProvideSupplierService(
+	db *dbent.Client,
+	encryptor SecretEncryptor,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	schedulerSnapshot *SchedulerSnapshotService,
+) *SupplierService {
+	svc := NewSupplierService(db, encryptor, authCacheInvalidator)
+	svc.SetSchedulerSnapshot(schedulerSnapshot)
+	return svc
 }
 
 // ProvideBalanceNotifyService creates BalanceNotifyService

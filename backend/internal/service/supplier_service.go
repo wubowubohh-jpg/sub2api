@@ -29,6 +29,7 @@ type SupplierService struct {
 	db                   *dbent.Client
 	encryptor            SecretEncryptor
 	authCacheInvalidator APIKeyAuthCacheInvalidator
+	schedulerSnapshot    *SchedulerSnapshotService
 	stop                 chan struct{}
 	stopOnce             sync.Once
 }
@@ -42,6 +43,12 @@ func NewSupplierService(db *dbent.Client, encryptor SecretEncryptor, authCacheIn
 	}
 	go s.runSettlementWorker()
 	return s
+}
+
+// SetSchedulerSnapshot connects supplier resource changes to the live account
+// scheduler after the database transaction has committed.
+func (s *SupplierService) SetSchedulerSnapshot(snapshot *SchedulerSnapshotService) {
+	s.schedulerSnapshot = snapshot
 }
 
 type SupplierResourceApplication struct {
@@ -460,6 +467,97 @@ func (s *SupplierService) UpdateResourceRequestAPIKey(ctx context.Context, suppl
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
+	}
+	return s.resourceRequestView(ctx, supplierID, requestID)
+}
+
+// UpdateResourceRequestModels updates an owning supplier's model routing and
+// monitor configuration without changing the resource review status.
+func (s *SupplierService) UpdateResourceRequestModels(
+	ctx context.Context,
+	supplierID, requestID int64,
+	supportedModels []string,
+	monitorModel string,
+) (*SupplierResourceRequestView, error) {
+	models, monitorModel, err := normalizeSupplierResourceModels(supportedModels, monitorModel)
+	if err != nil {
+		return nil, err
+	}
+	req, err := s.db.SupplierResourceRequest.Query().Where(
+		supplierresourcerequest.ID(requestID),
+		supplierresourcerequest.SupplierID(supplierID),
+	).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resource application not found")
+	}
+	if req.Status != supplierresourcerequest.StatusApproved {
+		if _, err = req.Update().SetModel(monitorModel).SetSupportedModels(models).Save(ctx); err != nil {
+			return nil, err
+		}
+		return s.resourceRequestView(ctx, supplierID, requestID)
+	}
+	if req.GroupID == nil || req.AccountID == nil || req.MonitorID == nil {
+		return nil, fmt.Errorf("approved resource is missing its runtime resources")
+	}
+
+	modelMapping := make(map[string]any, len(models))
+	extraModels := make([]string, 0, len(models)-1)
+	for _, model := range models {
+		modelMapping[model] = model
+		if model != monitorModel {
+			extraModels = append(extraModels, model)
+		}
+	}
+
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Group.Query().Where(group.ID(*req.GroupID), group.SupplierID(supplierID)).Only(ctx); err != nil {
+		return nil, fmt.Errorf("supplier group not found")
+	}
+	a, err := tx.Account.Query().Where(account.ID(*req.AccountID), account.SupplierID(supplierID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier account not found")
+	}
+	monitor, err := tx.ChannelMonitor.Query().Where(
+		channelmonitor.ID(*req.MonitorID),
+		channelmonitor.GroupID(*req.GroupID),
+	).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier monitor not found")
+	}
+	credentials := shallowCopyMap(a.Credentials)
+	if credentials == nil {
+		credentials = make(map[string]any)
+	}
+	credentials["model_mapping"] = modelMapping
+	if _, err = tx.SupplierResourceRequest.UpdateOneID(req.ID).
+		SetModel(monitorModel).
+		SetSupportedModels(models).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+	if _, err = tx.Account.UpdateOne(a).SetCredentials(credentials).Save(ctx); err != nil {
+		return nil, err
+	}
+	if _, err = tx.ChannelMonitor.UpdateOne(monitor).
+		SetPrimaryModel(monitorModel).
+		SetExtraModels(extraModels).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, *req.GroupID)
+	}
+	if s.schedulerSnapshot != nil {
+		if err = s.schedulerSnapshot.RefreshAccount(ctx, *req.AccountID); err != nil {
+			return nil, fmt.Errorf("refresh supplier account scheduler: %w", err)
+		}
 	}
 	return s.resourceRequestView(ctx, supplierID, requestID)
 }

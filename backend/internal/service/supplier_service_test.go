@@ -359,6 +359,67 @@ func TestSupplierResourceProbeAndCredentialUpdatesAreOwnerScoped(t *testing.T) {
 	require.Equal(t, "enc:v1:encrypted:sk-owner-rotated", storedRequest.APIKeyEncrypted)
 }
 
+func TestSupplierResourceModelUpdatesAreImmediateAndOwnerScoped(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	svc.encryptor = supplierTestEncryptor{}
+	invalidator := &authCacheInvalidatorStub{}
+	svc.authCacheInvalidator = invalidator
+	ownerUser := svc.db.User.Create().SetEmail("models-owner@example.com").SetPasswordHash("x").SaveX(ctx)
+	otherUser := svc.db.User.Create().SetEmail("models-other@example.com").SetPasswordHash("x").SaveX(ctx)
+	owner := svc.db.Supplier.Create().SetUserID(ownerUser.ID).SetName("Model Owner").SetRelayURL("https://owner.example.com").SetStatus("approved").SaveX(ctx)
+	other := svc.db.Supplier.Create().SetUserID(otherUser.ID).SetName("Model Other").SetRelayURL("https://other.example.com").SetStatus("approved").SaveX(ctx)
+	req := svc.db.SupplierResourceRequest.Create().
+		SetSupplierID(owner.ID).
+		SetGroupName("Model Resource").
+		SetRelayName("Model Relay").
+		SetRelayURL("https://relay.example.com/v1").
+		SetAPIKeyEncrypted("encrypted:sk-model-secret").
+		SetModel("gpt-5.5").
+		SetSupportedModels([]string{"gpt-5.5"}).
+		SaveX(ctx)
+	approved, err := svc.ReviewResourceRequest(ctx, req.ID, ownerUser.ID, true, "approved")
+	require.NoError(t, err)
+
+	_, err = svc.UpdateResourceRequestModels(ctx, other.ID, approved.ID, []string{"gpt-5.6"}, "gpt-5.6")
+	require.Error(t, err)
+	_, err = svc.UpdateResourceRequestModels(ctx, owner.ID, approved.ID, []string{"gpt-5.6"}, "gpt-5.4")
+	require.Error(t, err)
+
+	view, err := svc.UpdateResourceRequestModels(
+		ctx,
+		owner.ID,
+		approved.ID,
+		[]string{"gpt-5.6", "gpt-5.4", "gpt-5.6"},
+		"gpt-5.4",
+	)
+	require.NoError(t, err)
+	require.Equal(t, supplierresourcerequest.StatusApproved, view.Status)
+	require.Equal(t, "approved", view.ReviewNote)
+	require.Equal(t, "gpt-5.4", view.Model)
+	require.Equal(t, []string{"gpt-5.6", "gpt-5.4"}, view.SupportedModels)
+	require.Equal(t, map[string]any{"gpt-5.6": "gpt-5.6", "gpt-5.4": "gpt-5.4"}, svc.db.Account.GetX(ctx, *approved.AccountID).Credentials["model_mapping"])
+	monitor := svc.db.ChannelMonitor.GetX(ctx, *approved.MonitorID)
+	require.Equal(t, "gpt-5.4", monitor.PrimaryModel)
+	require.Equal(t, []string{"gpt-5.6"}, monitor.ExtraModels)
+	require.Equal(t, []int64{*approved.GroupID}, invalidator.groupIDs)
+
+	pending := svc.db.SupplierResourceRequest.Create().
+		SetSupplierID(owner.ID).
+		SetGroupName("Pending Model Resource").
+		SetRelayName("Pending Model Relay").
+		SetRelayURL("https://pending.example.com/v1").
+		SetAPIKeyEncrypted("encrypted:sk-pending-model").
+		SetModel("gpt-5.5").
+		SetSupportedModels([]string{"gpt-5.5"}).
+		SaveX(ctx)
+	pendingView, err := svc.UpdateResourceRequestModels(ctx, owner.ID, pending.ID, []string{"gpt-5.6"}, "gpt-5.6")
+	require.NoError(t, err)
+	require.Equal(t, supplierresourcerequest.StatusPending, pendingView.Status)
+	require.Equal(t, "gpt-5.6", pendingView.Model)
+	require.Equal(t, []string{"gpt-5.6"}, pendingView.SupportedModels)
+	require.Equal(t, []int64{*approved.GroupID}, invalidator.groupIDs)
+}
+
 func TestSupplierResourceRateUpdatesConfiguredRateImmediately(t *testing.T) {
 	svc, ctx := newSupplierTestService(t)
 	svc.encryptor = supplierTestEncryptor{}

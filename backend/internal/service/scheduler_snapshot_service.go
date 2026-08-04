@@ -307,6 +307,15 @@ func (s *SchedulerSnapshotService) UpdateAccountInCache(ctx context.Context, acc
 	return s.cache.SetAccount(ctx, account)
 }
 
+// RefreshAccount reloads one account from persistent storage and rebuilds its
+// affected scheduling buckets immediately.
+func (s *SchedulerSnapshotService) RefreshAccount(ctx context.Context, accountID int64) error {
+	if accountID <= 0 {
+		return nil
+	}
+	return s.handleAccountEvent(ctx, &accountID, nil, make(map[batchSeenKey]struct{}))
+}
+
 func (s *SchedulerSnapshotService) runInitialRebuild() {
 	if s.cache == nil {
 		return

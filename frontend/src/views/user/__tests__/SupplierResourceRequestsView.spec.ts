@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SupplierResourceRequestsView from '../SupplierResourceRequestsView.vue'
 
-const { resourceRequests, updateResourceRate, showError, showSuccess } = vi.hoisted(() => ({
+const { resourceRequests, updateResourceRate, updateResourceModels, showError, showSuccess } = vi.hoisted(() => ({
   resourceRequests: vi.fn(),
   updateResourceRate: vi.fn(),
+  updateResourceModels: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -15,6 +16,7 @@ vi.mock('@/api/suppliers', () => ({
   supplierAPI: {
     resourceRequests,
     updateResourceRate,
+    updateResourceModels,
     updateResourceProbe: vi.fn(),
     updateResourceRequestAPIKey: vi.fn(),
   },
@@ -52,6 +54,11 @@ describe('SupplierResourceRequestsView', () => {
       rate_multiplier: 0.08,
       applied_rate_multiplier: 0.08,
       effective_rate_multiplier: 0.09,
+    })
+    updateResourceModels.mockResolvedValue({
+      ...request,
+      model: 'gpt-custom',
+      supported_models: ['gpt-5.5', 'gpt-custom'],
     })
   })
 
@@ -96,6 +103,49 @@ describe('SupplierResourceRequestsView', () => {
 
     expect(updateResourceRate).toHaveBeenCalledWith(11, 0.08)
     expect(showSuccess).toHaveBeenCalledWith('供应商倍率已更新并实时生效')
+    wrapper.unmount()
+  })
+
+  it('updates supported and monitor models without creating another review', async () => {
+    const wrapper = mount(SupplierResourceRequestsView, {
+      attachTo: document.body,
+      props: { supplier: {} },
+      global: {
+        stubs: {
+          Icon: true,
+          LoadingSpinner: true,
+          RouterLink: true,
+          Toggle: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-edit-models]').trigger('click')
+    await nextTick()
+    const customModel = document.querySelector<HTMLInputElement>('.modal-content [data-custom-model]')
+    expect(customModel).not.toBeNull()
+    customModel!.value = 'gpt-custom'
+    customModel!.dispatchEvent(new Event('input', { bubbles: true }))
+    customModel!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await nextTick()
+
+    const monitorModel = document.querySelector<HTMLSelectElement>('.modal-content [data-monitor-model]')
+    expect(monitorModel).not.toBeNull()
+    monitorModel!.value = 'gpt-custom'
+    monitorModel!.dispatchEvent(new Event('change', { bubbles: true }))
+    await nextTick()
+    const saveButton = document.querySelector<HTMLButtonElement>('.modal-content [data-save-models]')
+    expect(saveButton?.disabled).toBe(false)
+    saveButton!.click()
+    await flushPromises()
+
+    expect(updateResourceModels).toHaveBeenCalledWith(11, {
+      monitor_model: 'gpt-custom',
+      supported_models: ['gpt-5.5', 'gpt-custom'],
+    })
+    expect(showSuccess).toHaveBeenCalledWith('模型配置已更新并实时生效')
+    expect(resourceRequests).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 })

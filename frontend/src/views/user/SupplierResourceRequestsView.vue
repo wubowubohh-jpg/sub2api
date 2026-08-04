@@ -107,23 +107,34 @@
                   {{ formatDate(request.created_at) }}
                 </td>
                 <td class="px-4 py-4 text-right align-top">
-                  <button
-                    v-if="canUpdateAPIKey(request)"
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    @click="openKeyDialog(request)"
-                  >
-                    <Icon name="key" size="xs" />
-                    更新 API Key
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm ml-2"
-                    @click="openRateDialog(request)"
-                  >
-                    <Icon name="edit" size="xs" />
-                    修改倍率
-                  </button>
+                  <div class="flex flex-wrap justify-end gap-2">
+                    <button
+                      v-if="canUpdateAPIKey(request)"
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      @click="openKeyDialog(request)"
+                    >
+                      <Icon name="key" size="xs" />
+                      更新 API Key
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      data-edit-models
+                      @click="openModelsDialog(request)"
+                    >
+                      <Icon name="cube" size="xs" />
+                      修改模型
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm"
+                      @click="openRateDialog(request)"
+                    >
+                      <Icon name="edit" size="xs" />
+                      修改倍率
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -166,7 +177,7 @@
                 <dd class="mt-1 font-mono font-semibold text-emerald-600 dark:text-emerald-400">{{ formatRate(effectiveRate(request)) }}</dd>
               </div>
             </dl>
-            <div class="flex items-center justify-between border-t border-gray-100 pt-3 dark:border-dark-700">
+            <div class="flex items-start justify-between gap-3 border-t border-gray-100 pt-3 dark:border-dark-700">
               <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-dark-400">
                 <Toggle
                   :model-value="probeEnabled(request)"
@@ -175,19 +186,25 @@
                 />
                 倍率探测
               </div>
-              <button
-                v-if="canUpdateAPIKey(request)"
-                type="button"
-                class="btn btn-secondary btn-sm"
-                @click="openKeyDialog(request)"
-              >
-                <Icon name="key" size="xs" />
-                更新 Key
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" @click="openRateDialog(request)">
-                <Icon name="edit" size="xs" />
-                修改倍率
-              </button>
+              <div class="flex flex-wrap justify-end gap-2">
+                <button
+                  v-if="canUpdateAPIKey(request)"
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  @click="openKeyDialog(request)"
+                >
+                  <Icon name="key" size="xs" />
+                  更新 Key
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-edit-models @click="openModelsDialog(request)">
+                  <Icon name="cube" size="xs" />
+                  修改模型
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" @click="openRateDialog(request)">
+                  <Icon name="edit" size="xs" />
+                  修改倍率
+                </button>
+              </div>
             </div>
           </article>
         </div>
@@ -244,6 +261,69 @@
           <LoadingSpinner v-if="keySaving" size="sm" color="white" />
           <Icon v-else name="check" size="sm" />
           保存
+        </button>
+      </template>
+    </BaseDialog>
+
+    <BaseDialog :show="Boolean(editingModelsRequest)" title="修改模型配置" width="wide" @close="closeModelsDialog">
+      <form class="space-y-6" @submit.prevent="updateModels">
+        <div>
+          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ editingModelsRequest?.group_name }}</p>
+          <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+            保存后立即同步账号路由与模型监听，资源审核状态保持不变。
+          </p>
+        </div>
+
+        <fieldset>
+          <legend class="text-sm font-medium text-gray-700 dark:text-dark-200">支持模型</legend>
+          <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">至少选择一个模型。</p>
+          <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <label
+              v-for="model in editingModelCatalog"
+              :key="model"
+              class="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors"
+              :class="editingSupportedModels.includes(model)
+                ? 'border-primary-300 bg-primary-50 text-primary-800 dark:border-primary-700 dark:bg-primary-900/20 dark:text-primary-200'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-dark-600 dark:text-dark-300 dark:hover:border-dark-500'"
+            >
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                :checked="editingSupportedModels.includes(model)"
+                @change="toggleEditingModel(model)"
+              />
+              <span class="min-w-0 truncate">{{ model }}</span>
+            </label>
+          </div>
+          <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              v-model.trim="customEditingModel"
+              class="input min-w-0 flex-1"
+              placeholder="添加其他模型 ID"
+              data-custom-model
+              @keydown.enter.prevent="addEditingModel"
+            />
+            <button type="button" class="btn btn-secondary flex-shrink-0" @click="addEditingModel">
+              <Icon name="plus" size="sm" />
+              添加模型
+            </button>
+          </div>
+        </fieldset>
+
+        <label class="block border-t border-gray-100 pt-5 dark:border-dark-700">
+          <span class="input-label">默认监听模型</span>
+          <select v-model="editingMonitorModel" class="input w-full" data-monitor-model :disabled="editingSupportedModels.length === 0">
+            <option v-for="model in editingSupportedModels" :key="model" :value="model">{{ model }}</option>
+          </select>
+          <span class="input-hint">监听模型必须包含在支持模型中。</span>
+        </label>
+      </form>
+      <template #footer>
+        <button type="button" class="btn btn-secondary" :disabled="modelsSaving" @click="closeModelsDialog">取消</button>
+        <button type="button" class="btn btn-primary" :disabled="modelsSaving || !validModelsConfig" data-save-models @click="updateModels">
+          <LoadingSpinner v-if="modelsSaving" size="sm" color="white" />
+          <Icon v-else name="check" size="sm" />
+          保存模型配置
         </button>
       </template>
     </BaseDialog>
@@ -306,6 +386,21 @@ const probeSavingId = ref<number | null>(null)
 const editingRateRequest = ref<SupplierResourceRequest | null>(null)
 const newRateMultiplier = ref<number | string>(0)
 const rateSaving = ref(false)
+const editingModelsRequest = ref<SupplierResourceRequest | null>(null)
+const editingSupportedModels = ref<string[]>([])
+const editingMonitorModel = ref('')
+const customEditingModel = ref('')
+const modelsSaving = ref(false)
+const builtInResourceModels = [
+  'gpt-5.4',
+  'gpt-5.4-mini',
+  'gpt-5.5',
+  'gpt-5.6',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+  'gpt-5.3-codex-spark'
+]
 
 const StatusBadge = defineComponent({
   props: { status: { type: String, required: true } },
@@ -328,6 +423,12 @@ const validNewRate = computed(() => {
   const value = Number(newRateMultiplier.value)
   return Number.isFinite(value) && value >= 0
 })
+const editingModelCatalog = computed(() => [...new Set([...builtInResourceModels, ...editingSupportedModels.value])])
+const validModelsConfig = computed(() => (
+  editingSupportedModels.value.length > 0 &&
+  editingSupportedModels.value.includes(editingMonitorModel.value) &&
+  editingSupportedModels.value.every(model => Boolean(model) && model.length <= 200 && !/\s/.test(model))
+))
 
 function supportedModels(request: SupplierResourceRequest) {
   return request.supported_models?.length ? request.supported_models : [request.model].filter(Boolean)
@@ -481,6 +582,70 @@ function openRateDialog(request: SupplierResourceRequest) {
 function closeRateDialog() {
   if (rateSaving.value) return
   editingRateRequest.value = null
+}
+
+function openModelsDialog(request: SupplierResourceRequest) {
+  const models = [...new Set(supportedModels(request))]
+  const primary = monitorModel(request)
+  if (primary !== '--' && !models.includes(primary)) models.unshift(primary)
+  editingModelsRequest.value = request
+  editingSupportedModels.value = models
+  editingMonitorModel.value = models.includes(primary) ? primary : (models[0] || '')
+  customEditingModel.value = ''
+}
+
+function closeModelsDialog() {
+  if (modelsSaving.value) return
+  editingModelsRequest.value = null
+  editingSupportedModels.value = []
+  editingMonitorModel.value = ''
+  customEditingModel.value = ''
+}
+
+function toggleEditingModel(model: string) {
+  const index = editingSupportedModels.value.indexOf(model)
+  if (index >= 0) {
+    editingSupportedModels.value.splice(index, 1)
+    if (editingMonitorModel.value === model) {
+      editingMonitorModel.value = editingSupportedModels.value[0] || ''
+    }
+    return
+  }
+  editingSupportedModels.value.push(model)
+  if (!editingMonitorModel.value) editingMonitorModel.value = model
+}
+
+function addEditingModel() {
+  const model = customEditingModel.value.trim()
+  if (!model || model.length > 200 || /\s/.test(model)) {
+    if (model) appStore.showError('模型 ID 不能包含空格且长度不能超过 200 个字符')
+    return
+  }
+  if (!editingSupportedModels.value.includes(model)) editingSupportedModels.value.push(model)
+  if (!editingMonitorModel.value) editingMonitorModel.value = model
+  customEditingModel.value = ''
+}
+
+async function updateModels() {
+  if (!editingModelsRequest.value || !validModelsConfig.value) return
+  modelsSaving.value = true
+  try {
+    const updated = await supplierAPI.updateResourceModels(editingModelsRequest.value.id, {
+      monitor_model: editingMonitorModel.value,
+      supported_models: [...editingSupportedModels.value],
+    })
+    const index = requests.value.findIndex(item => item.id === updated.id)
+    if (index >= 0) requests.value[index] = updated
+    appStore.showSuccess('模型配置已更新并实时生效')
+    editingModelsRequest.value = null
+    editingSupportedModels.value = []
+    editingMonitorModel.value = ''
+    customEditingModel.value = ''
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, '更新模型配置失败'))
+  } finally {
+    modelsSaving.value = false
+  }
 }
 
 async function updateRate() {

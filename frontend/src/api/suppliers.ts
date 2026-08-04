@@ -93,6 +93,10 @@ export interface CreateSupplierResourceRequest {
   upstream_billing_probe_enabled: boolean
   rate_multiplier: number
 }
+export interface UpdateSupplierResourceModelsRequest {
+  monitor_model: string
+  supported_models: string[]
+}
 export interface SupplierBill { id:number; group_id:number; group_name:string; model:string; input_tokens:number; output_tokens:number; cache_read_tokens:number; base_rate:number; effective_rate:number; amount_cny:number; status:'pending'|'available'|'frozen'; available_at?:string; created_at:string }
 
 export const supplierAPI = {
@@ -105,6 +109,7 @@ export const supplierAPI = {
   async resourceRequests() { return (await apiClient.get<{items:SupplierResourceRequest[]}>('/suppliers/resource-requests')).data },
   async createResourceRequest(payload:CreateSupplierResourceRequest) { return (await apiClient.post<SupplierResourceRequest>('/suppliers/resource-requests',payload)).data },
   async updateResourceRequestAPIKey(id:number,api_key:string) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/api-key`,{api_key})).data },
+  async updateResourceModels(id:number,payload:UpdateSupplierResourceModelsRequest) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/models`,payload)).data },
   async updateResourceProbe(id:number,enabled:boolean) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/probe`,{enabled})).data },
   async updateResourceRate(id:number,rate_multiplier:number) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/rate`,{rate_multiplier})).data },
   async bills(status='') { return (await apiClient.get<{items:SupplierBill[]}>('/suppliers/bills',{params:{status}})).data },
