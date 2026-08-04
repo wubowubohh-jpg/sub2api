@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-[1800px] space-y-4">
+    <div class="mx-auto w-full max-w-none space-y-4">
       <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex min-w-0 items-center gap-3">
           <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -75,38 +75,50 @@
         </div>
 
         <template v-else>
-          <div class="hidden overflow-x-auto lg:block">
-            <table class="w-full min-w-[1810px] table-fixed text-left text-sm">
+          <div class="hidden w-full lg:block">
+            <table class="w-full table-fixed text-left text-sm">
               <thead class="border-b border-gray-200 bg-gray-50 text-xs font-medium text-gray-500 dark:border-dark-700 dark:bg-dark-800/60 dark:text-dark-400">
                 <tr>
-                  <th class="w-[240px] px-4 py-3">{{ t('channelStatus.columns.group') }}</th>
-                  <th class="w-[110px] px-4 py-3" :aria-sort="sortAria('rate')">
+                  <th class="w-[200px] px-3 py-3">{{ t('channelStatus.columns.group') }}</th>
+                  <th class="w-[90px] px-3 py-3" :aria-sort="sortAria('rate')">
                     <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="rate" @click="toggleSort('rate')">
                       {{ t('channelStatus.columns.rate') }}
                       <Icon :name="sortIcon('rate')" size="xs" />
                     </button>
                   </th>
-                  <th class="w-[250px] px-4 py-3">{{ t('channelStatus.columns.models') }}</th>
-                  <th class="w-[150px] px-4 py-3">{{ t('channelStatus.columns.status') }}</th>
-                  <th class="w-[105px] px-4 py-3">{{ t('channelStatus.dialogLatency') }}</th>
-                  <th class="w-[105px] px-4 py-3">{{ t('channelStatus.endpointPing') }}</th>
-                  <th class="w-[115px] px-4 py-3" :aria-sort="sortAria('availability')">
+                  <th class="w-[250px] px-3 py-3">{{ t('channelStatus.columns.models') }}</th>
+                  <th class="w-[115px] px-3 py-3" :aria-sort="sortAria('status')">
+                    <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="status" @click="toggleSort('status')">
+                      {{ t('channelStatus.columns.status') }}
+                      <Icon :name="sortIcon('status')" size="xs" />
+                    </button>
+                  </th>
+                  <th class="w-[95px] px-3 py-3" :aria-sort="sortAria('dialog_latency')">
+                    <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="dialog_latency" @click="toggleSort('dialog_latency')">
+                      {{ t('channelStatus.dialogLatency') }}
+                      <Icon :name="sortIcon('dialog_latency')" size="xs" />
+                    </button>
+                  </th>
+                  <th class="w-[95px] px-3 py-3" :aria-sort="sortAria('endpoint_ping')">
+                    <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="endpoint_ping" @click="toggleSort('endpoint_ping')">
+                      {{ t('channelStatus.endpointPing') }}
+                      <Icon :name="sortIcon('endpoint_ping')" size="xs" />
+                    </button>
+                  </th>
+                  <th class="w-[100px] px-3 py-3" :aria-sort="sortAria('availability')">
                     <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="availability" @click="toggleSort('availability')">
                       {{ t('channelStatus.availability') }}
                       <Icon :name="sortIcon('availability')" size="xs" />
                     </button>
                   </th>
-                  <th class="w-[105px] px-4 py-3">{{ t('channelStatus.firstToken') }}</th>
-                  <th class="w-[115px] px-4 py-3">{{ t('channelStatus.userAverage') }}</th>
-                  <th class="w-[125px] px-4 py-3" :aria-sort="sortAria('cache_hit_rate')">
+                  <th class="w-[110px] px-3 py-3" :aria-sort="sortAria('cache_hit_rate')">
                     <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="cache_hit_rate" @click="toggleSort('cache_hit_rate')">
                       {{ t('channelStatus.cacheHit') }}
                       <Icon :name="sortIcon('cache_hit_rate')" size="xs" />
                     </button>
                   </th>
-                  <th class="w-[85px] px-4 py-3">TPS</th>
-                  <th class="w-[330px] px-4 py-3">{{ t('channelStatus.columns.history') }}</th>
-                  <th class="w-[150px] px-4 py-3 text-right">{{ t('channelStatus.columns.actions') }}</th>
+                  <th class="w-[300px] px-3 py-3">{{ t('channelStatus.columns.history') }}</th>
+                  <th class="w-[145px] px-3 py-3 text-right">{{ t('channelStatus.columns.actions') }}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
@@ -174,26 +186,11 @@
                     <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.availability, '%', 1) }}</span>
                   </td>
 
-                  <td class="px-4 py-4">
-                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_first_token_ms, 'ms') }}</span>
-                  </td>
-
-                  <td class="px-4 py-4">
-                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_latency_ms, 'ms') }}</span>
-                    <div class="mt-1 text-[11px] text-gray-400">
-                      {{ t('channelStatus.requestCount', { count: row.group.metrics.request_count || 0 }) }}
-                    </div>
-                  </td>
-
-                  <td class="px-4 py-4">
+                  <td class="px-3 py-4">
                     <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.cache_hit_rate, '%', 1) }}</span>
                   </td>
 
-                  <td class="px-4 py-4">
-                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.tps, '', 1) }}</span>
-                  </td>
-
-                  <td class="px-4 py-3">
+                  <td class="px-3 py-3">
                     <MonitorTimeline
                       v-if="row.monitor?.timeline.length"
                       :buckets="row.monitor.timeline"
@@ -207,7 +204,7 @@
                     </div>
                   </td>
 
-                  <td class="px-4 py-4 text-right">
+                  <td class="px-3 py-4 text-right">
                     <div class="flex flex-col items-end gap-2">
                       <button
                         v-if="row.monitor"
@@ -230,7 +227,7 @@
                 </tr>
 
                 <tr v-if="rows.length === 0">
-                  <td colspan="7" class="px-5 py-20 text-center text-sm text-gray-400">
+                  <td colspan="10" class="px-5 py-20 text-center text-sm text-gray-400">
                     {{ t('channelStatus.empty.title') }}
                   </td>
                 </tr>
@@ -272,14 +269,11 @@
                 </span>
               </div>
 
-              <dl class="grid grid-cols-3 gap-x-3 gap-y-4 border-y border-gray-100 py-4 text-xs dark:border-dark-700">
+              <dl class="grid grid-cols-2 gap-x-3 gap-y-4 border-y border-gray-100 py-4 text-xs dark:border-dark-700 sm:grid-cols-4">
                 <div><dt class="text-gray-400">{{ t('channelStatus.dialogLatency') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_latency_ms, 'ms') }}</dd></div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.endpointPing') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_ping_latency_ms, 'ms') }}</dd></div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.availability') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.availability, '%', 1) }}</dd></div>
-                <div><dt class="text-gray-400">{{ t('channelStatus.firstToken') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_first_token_ms, 'ms') }}</dd></div>
-                <div><dt class="text-gray-400">{{ t('channelStatus.userAverage') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_latency_ms, 'ms') }}</dd><span class="mt-1 block text-[10px] text-gray-400">{{ t('channelStatus.requestCount', { count: row.group.metrics.request_count || 0 }) }}</span></div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.cacheHit') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.cache_hit_rate, '%', 1) }}</dd></div>
-                <div><dt class="text-gray-400">TPS</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.tps, '', 1) }}</dd></div>
               </dl>
 
               <MonitorTimeline
@@ -374,7 +368,7 @@ const windows: Array<{ value: HallWindow; label: string }> = [
 ]
 
 const selectedWindow = ref<HallWindow>('6h')
-type SortKey = 'rate' | 'cache_hit_rate' | 'availability'
+type SortKey = 'rate' | 'status' | 'dialog_latency' | 'endpoint_ping' | 'cache_hit_rate' | 'availability'
 const sortKey = ref<SortKey | null>(null)
 const sortDirection = ref<'asc' | 'desc'>('desc')
 const groups = ref<HallGroup[]>([])
@@ -459,6 +453,15 @@ function selectWindow(value: HallWindow) {
 
 function sortValue(row: HallRow, key: SortKey) {
   if (key === 'rate') return finiteNumber(row.group.effective_rate)
+  if (key === 'status') {
+    const status = groupMonitorStatus(row.monitor)
+    if (status === 'operational') return 3
+    if (status === 'failed') return 2
+    if (status === 'error') return 1
+    return null
+  }
+  if (key === 'dialog_latency') return finiteNumber(row.monitor?.primary_latency_ms)
+  if (key === 'endpoint_ping') return finiteNumber(row.monitor?.primary_ping_latency_ms)
   if (key === 'cache_hit_rate') return finiteNumber(row.group.metrics.cache_hit_rate)
   return finiteNumber(row.group.metrics.availability)
 }
