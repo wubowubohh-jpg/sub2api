@@ -27,6 +27,7 @@ export const adminSupplierAPI = {
   async list(status='') { return (await apiClient.get<{items:Supplier[]}>('/admin/suppliers',{params:{status}})).data },
   async review(id:number,status:'approved'|'rejected',note:string) { return (await apiClient.put<Supplier>(`/admin/suppliers/${id}/review`,{status,note})).data },
   async freeze(id:number,reason:string) { return (await apiClient.post<Supplier>(`/admin/suppliers/${id}/freeze`,{reason})).data },
+  async unfreeze(id:number) { return (await apiClient.post<Supplier>(`/admin/suppliers/${id}/unfreeze`)).data },
   async settings() { return (await apiClient.get<SupplierSettings>('/admin/suppliers/settings')).data },
   async updateSettings(payload:SupplierSettings) { return (await apiClient.put<SupplierSettings>('/admin/suppliers/settings',payload)).data },
   async withdrawals(status='') { return (await apiClient.get<{items:SupplierWithdrawal[]}>('/admin/supplier-withdrawals',{params:{status}})).data },

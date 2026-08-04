@@ -390,6 +390,17 @@ func (h *SupplierHandler) AdminFreeze(c *gin.Context) {
 	c.JSON(http.StatusOK, sp)
 }
 
+func (h *SupplierHandler) AdminUnfreeze(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	uid, _ := subject(c)
+	sp, err := h.svc.Unfreeze(c, id, uid)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, sp)
+}
+
 func (h *SupplierHandler) AdminModerateGroup(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("group_id"), 10, 64)
 	var in struct {

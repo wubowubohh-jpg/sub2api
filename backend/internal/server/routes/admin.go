@@ -126,6 +126,7 @@ func RegisterAdminRoutes(
 			suppliers.GET("", h.Supplier.AdminList)
 			suppliers.PUT("/:id/review", h.Supplier.AdminReview)
 			suppliers.POST("/:id/freeze", h.Supplier.AdminFreeze)
+			suppliers.POST("/:id/unfreeze", h.Supplier.AdminUnfreeze)
 			suppliers.PUT("/groups/:group_id/moderation", h.Supplier.AdminModerateGroup)
 			suppliers.GET("/settings", h.Supplier.AdminSettings)
 			suppliers.PUT("/settings", h.Supplier.AdminUpdateSettings)

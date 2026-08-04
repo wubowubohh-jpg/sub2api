@@ -425,6 +425,32 @@ func (s *SupplierService) Freeze(ctx context.Context, id int64, reviewer int64, 
 	return sp, nil
 }
 
+func (s *SupplierService) Unfreeze(ctx context.Context, id int64, reviewer int64) (*dbent.Supplier, error) {
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	sp, err := tx.Supplier.Get(ctx, id)
+	if err != nil || sp.Status != supplier.StatusFrozen {
+		return nil, fmt.Errorf("frozen supplier not found")
+	}
+	sp, err = tx.Supplier.UpdateOne(sp).SetStatus(supplier.StatusApproved).SetReviewedBy(reviewer).SetReviewedAt(time.Now()).SetFreezeReason("").Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Group.Update().Where(group.SupplierID(id)).SetSupplierForcedOffline(false).Exec(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Account.Update().Where(account.SupplierID(id), account.StatusEQ("active")).SetSchedulable(true).Exec(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return sp, nil
+}
+
 func (s *SupplierService) SetGroupModeration(ctx context.Context, groupID int64, adjustment *float64, clearAdjustment bool, forcedOffline *bool) (*dbent.Group, error) {
 	g, err := s.db.Group.Get(ctx, groupID)
 	if err != nil || g.SupplierID == nil {
