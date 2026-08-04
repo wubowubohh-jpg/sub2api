@@ -214,6 +214,41 @@ func (h *SupplierHandler) UpdateResourceRequestProbe(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
+func (h *SupplierHandler) UpdateResourceRequestRate(c *gin.Context) {
+	uid, ok := subject(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	sp, err := h.svc.UserIsSupplier(c, uid)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
+		return
+	}
+	id, parseErr := strconv.ParseInt(c.Param("id"), 10, 64)
+	if parseErr != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application id"})
+		return
+	}
+	var in struct {
+		RateMultiplier *float64 `json:"rate_multiplier"`
+	}
+	if c.ShouldBindJSON(&in) != nil || in.RateMultiplier == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "rate_multiplier is required"})
+		return
+	}
+	if _, err = h.svc.UpdateResourceRequestRate(c, sp.ID, id, *in.RateMultiplier); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.svc.ResourceRequestForSupplier(c, sp.ID, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
 func (h *SupplierHandler) MyBills(c *gin.Context) {
 	uid, ok := subject(c)
 	if !ok {
@@ -606,6 +641,30 @@ func (h *SupplierHandler) AdminReviewResourceRequest(c *gin.Context) {
 		return
 	}
 	item, err := h.svc.ReviewResourceRequest(c, id, uid, in.Approved, in.Note)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *SupplierHandler) AdminUpdateResourceRequestRate(c *gin.Context) {
+	id, parseErr := strconv.ParseInt(c.Param("request_id"), 10, 64)
+	if parseErr != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application id"})
+		return
+	}
+	var in struct {
+		RateMultiplier      *float64 `json:"rate_multiplier"`
+		AdminRateAdjustment *float64 `json:"admin_rate_adjustment"`
+	}
+	if c.ShouldBindJSON(&in) != nil || (in.RateMultiplier == nil && in.AdminRateAdjustment == nil) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "rate update is required"})
+		return
+	}
+	item, err := h.svc.AdminUpdateResourceRequestRate(
+		c, id, in.RateMultiplier, in.AdminRateAdjustment,
+	)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

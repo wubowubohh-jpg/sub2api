@@ -56,7 +56,7 @@
           <table class="w-full min-w-[980px] text-sm">
             <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-gray-950"><tr><th class="p-4">分组</th><th>中转站</th><th>地址</th><th>模型</th><th>状态</th><th class="pr-4 text-right">操作</th></tr></thead>
             <tbody>
-              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4"><div class="font-medium">{{ r.group_name }}</div><div class="mt-1 text-xs text-gray-400">基础倍率 {{ Number(r.rate_multiplier ?? 1).toFixed(4) }}</div></td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td><div class="flex max-w-64 flex-wrap gap-1"><span v-for="model in resourceModels(r)" :key="model" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">{{ model }}</span></div><div class="mt-1 text-xs text-gray-400">监听 {{ r.monitor_model || r.probe_model || r.model }}</div></td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td><td class="space-x-3 pr-4 text-right"><button v-if="r.status === 'pending'" class="text-sky-700 hover:text-sky-800" @click="openResourceTest(r)">模型测试</button><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button><span v-else class="text-xs text-gray-400">已处理</span></td></tr>
+              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4"><div class="font-medium">{{ r.group_name }}</div><div class="mt-1 text-xs text-gray-500">供应商提交 {{ formatRate(r.rate_multiplier) }}</div><div class="mt-1 text-xs font-medium text-emerald-700">有效倍率 {{ formatRate(resourceEffectiveRate(r)) }}</div><div class="mt-1 max-w-64 text-xs text-gray-400">{{ resourceRateFormula(r) }}</div></td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td><div class="flex max-w-64 flex-wrap gap-1"><span v-for="model in resourceModels(r)" :key="model" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">{{ model }}</span></div><div class="mt-1 text-xs text-gray-400">监听 {{ r.monitor_model || r.probe_model || r.model }}</div></td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td><td class="space-x-3 pr-4 text-right"><button class="text-sky-700 hover:text-sky-800" @click="openResourceRate(r)">修改倍率</button><button v-if="r.status === 'pending'" class="text-sky-700 hover:text-sky-800" @click="openResourceTest(r)">模型测试</button><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button></td></tr>
               <tr v-if="!resourcePage.length"><td colspan="6" class="p-16 text-center text-gray-400">暂无资源审核记录</td></tr>
             </tbody>
           </table>
@@ -86,12 +86,36 @@
       :test-endpoint="testingResourceEndpoint"
       @close="closeResourceTest"
     />
+    <BaseDialog :show="editingRateResource !== null" title="修改资源倍率" width="narrow" @close="closeResourceRate">
+      <div v-if="editingRateResource" class="space-y-4">
+        <p class="text-sm text-gray-500">{{ editingRateResource.group_name }} · {{ editingRateResource.relay_name }}</p>
+        <label class="block text-sm">
+          <span class="input-label">供应商提交倍率</span>
+          <input v-model.number="adminRateForm.rate_multiplier" type="number" min="0" step="0.0001" class="input mt-1 w-full" />
+        </label>
+        <label class="block text-sm">
+          <span class="input-label">管理员增加倍率</span>
+          <input v-model.number="adminRateForm.admin_rate_adjustment" type="number" min="0" step="0.0001" class="input mt-1 w-full" :disabled="!editingRateResource.group_id" />
+          <span v-if="!editingRateResource.group_id" class="mt-1 block text-xs text-amber-600">审核通过并创建分组后可设置。</span>
+        </label>
+        <div class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          {{ editingRatePreview }}
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn btn-secondary" :disabled="rateSaving" @click="closeResourceRate">取消</button>
+        <button class="btn btn-primary" :disabled="rateSaving || !adminRateValid" @click="saveResourceRate">
+          {{ rateSaving ? '保存中' : '保存倍率' }}
+        </button>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { adminSupplierAPI, type Supplier, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
 import type { ClaudeModel } from '@/types'
@@ -107,6 +131,9 @@ const items = ref<Supplier[]>([])
 const resourceRequests = ref<SupplierResourceRequest[]>([])
 const withdrawals = ref<SupplierWithdrawal[]>([])
 const testingResource = ref<SupplierResourceRequest | null>(null)
+const editingRateResource = ref<SupplierResourceRequest | null>(null)
+const rateSaving = ref(false)
+const adminRateForm = reactive({ rate_multiplier: 0, admin_rate_adjustment: 0 })
 const error = ref('')
 const settings = reactive({ global_rate_adjustment: 0, minimum_withdrawal_usd: 100, platform_supply_enabled: true, platform_supplier_name: '平台自营' })
 
@@ -147,9 +174,63 @@ const testingResourceModels = computed<ClaudeModel[]>(() => {
 const testingResourceEndpoint = computed(() => testingResource.value
   ? `/admin/suppliers/resource-requests/${testingResource.value.id}/test`
   : '')
+const adminRateValid = computed(() => {
+  const rate = Number(adminRateForm.rate_multiplier)
+  const adjustment = Number(adminRateForm.admin_rate_adjustment)
+  return Number.isFinite(rate) && rate >= 0 && Number.isFinite(adjustment) && adjustment >= 0
+})
+const editingRatePreview = computed(() => {
+  if (!editingRateResource.value) return ''
+  const detected = resourceDetectedRate(editingRateResource.value)
+  const usesProbe = editingRateResource.value.rate_source === 'probe' || (
+    editingRateResource.value.upstream_billing_probe_enabled === true && detected !== null
+  )
+  const applied = usesProbe ? Number(detected) : Number(adminRateForm.rate_multiplier)
+  const adjustment = editingRateResource.value.group_id
+    ? Number(adminRateForm.admin_rate_adjustment)
+    : resourceAdjustment(editingRateResource.value)
+  return `${usesProbe ? '探测倍率' : '设置倍率'} ${formatRate(applied)} + 管理员增加 ${formatRate(adjustment)} = 有效倍率 ${formatRate(applied + adjustment)}`
+})
 
 function resourceModels(resource: SupplierResourceRequest) {
   return resource.supported_models?.length ? resource.supported_models : [resource.model].filter(Boolean)
+}
+
+function formatRate(value: unknown) {
+  const rate = Number(value)
+  return Number.isFinite(rate) ? rate.toFixed(4) : '--'
+}
+
+function resourceDetectedRate(resource: SupplierResourceRequest): number | null {
+  const snapshotRate = resource.upstream_billing_probe?.snapshot?.data?.effective_rate_multiplier
+    ?? resource.upstream_billing_probe?.snapshot?.data?.resolved_rate_multiplier
+    ?? resource.upstream_rate
+  const rate = Number(snapshotRate)
+  return snapshotRate !== null && snapshotRate !== undefined && Number.isFinite(rate) ? rate : null
+}
+
+function resourceAppliedRate(resource: SupplierResourceRequest) {
+  const serverRate = Number(resource.applied_rate_multiplier)
+  if (Number.isFinite(serverRate)) return serverRate
+  const detected = resourceDetectedRate(resource)
+  return resource.upstream_billing_probe_enabled === true && detected !== null
+    ? detected
+    : Number(resource.rate_multiplier || 0)
+}
+
+function resourceAdjustment(resource: SupplierResourceRequest) {
+  const adjustment = Number(resource.admin_rate_adjustment ?? 0)
+  return Number.isFinite(adjustment) ? adjustment : 0
+}
+
+function resourceEffectiveRate(resource: SupplierResourceRequest) {
+  const serverRate = Number(resource.effective_rate_multiplier)
+  return Number.isFinite(serverRate) ? serverRate : resourceAppliedRate(resource) + resourceAdjustment(resource)
+}
+
+function resourceRateFormula(resource: SupplierResourceRequest) {
+  const source = resource.rate_source === 'probe' ? '探测倍率' : '设置倍率'
+  return `${source} ${formatRate(resourceAppliedRate(resource))} + 管理员增加 ${formatRate(resourceAdjustment(resource))}`
 }
 
 function statusClass(status: string) { return ['approved', 'available', 'paid', 'active'].includes(status) ? 'bg-emerald-50 text-emerald-700' : ['rejected', 'frozen'].includes(status) ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700' }
@@ -188,6 +269,35 @@ async function reviewResource(id: number, approved: boolean) {
 }
 function openResourceTest(resource: SupplierResourceRequest) { testingResource.value = resource }
 function closeResourceTest() { testingResource.value = null }
+function openResourceRate(resource: SupplierResourceRequest) {
+  editingRateResource.value = resource
+  adminRateForm.rate_multiplier = Number(resource.rate_multiplier || 0)
+  adminRateForm.admin_rate_adjustment = resourceAdjustment(resource)
+}
+function closeResourceRate() {
+  if (rateSaving.value) return
+  editingRateResource.value = null
+}
+async function saveResourceRate() {
+  if (!editingRateResource.value || !adminRateValid.value) return
+  rateSaving.value = true
+  error.value = ''
+  try {
+    const resource = editingRateResource.value
+    const updated = await adminSupplierAPI.updateResourceRate(
+      resource.id,
+      Number(adminRateForm.rate_multiplier),
+      resource.group_id ? Number(adminRateForm.admin_rate_adjustment) : undefined,
+    )
+    const index = resourceRequests.value.findIndex(item => item.id === updated.id)
+    if (index >= 0) resourceRequests.value[index] = updated
+    editingRateResource.value = null
+  } catch (e) {
+    error.value = extractApiErrorMessage(e, '倍率更新失败')
+  } finally {
+    rateSaving.value = false
+  }
+}
 async function updateWithdrawal(id: number, status: 'approved' | 'rejected') { const note = status === 'rejected' ? (prompt('驳回原因') || '') : ''; await adminSupplierAPI.reviewWithdrawal(id, status, note); await loadTab('withdrawals', true) }
 async function pay(id: number) { const proof = prompt('打款凭证存储键'); if (!proof) return; await adminSupplierAPI.reviewWithdrawal(id, 'paid', '', proof); await loadTab('withdrawals', true) }
 

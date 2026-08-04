@@ -186,7 +186,16 @@ const appStore = useAppStore()
 const submitting = ref(false)
 const showAPIKey = ref(false)
 const customModel = ref('')
-const builtInModels = ['gpt-5.5', 'gpt-5.2', 'gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o', 'o3', 'o4-mini']
+const builtInModels = [
+  'gpt-5.4',
+  'gpt-5.4-mini',
+  'gpt-5.5',
+  'gpt-5.6',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+  'gpt-5.3-codex-spark'
+]
 const extraModels = ref<string[]>([])
 const resourceForm = reactive({
   group_name_suffix: '',
@@ -195,7 +204,7 @@ const resourceForm = reactive({
   api_key: '',
   rate_multiplier: 0.04,
   monitor_model: 'gpt-5.5',
-  supported_models: ['gpt-5.5'] as string[],
+  supported_models: [...builtInModels] as string[],
   upstream_billing_probe_enabled: true
 })
 

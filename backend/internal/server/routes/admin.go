@@ -134,6 +134,7 @@ func RegisterAdminRoutes(
 			suppliers.GET("/resource-requests", h.Supplier.AdminResourceRequests)
 			suppliers.POST("/resource-requests/:request_id/test", h.Supplier.AdminTestResourceRequest)
 			suppliers.PUT("/resource-requests/:request_id", h.Supplier.AdminReviewResourceRequest)
+			suppliers.PUT("/resource-requests/:request_id/rate", h.Supplier.AdminUpdateResourceRequestRate)
 		}
 		admin.GET("/supplier-withdrawals", h.Supplier.AdminWithdrawals)
 		admin.PUT("/supplier-withdrawals/:withdrawal_id", h.Supplier.AdminReviewWithdrawal)

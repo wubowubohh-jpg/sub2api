@@ -34,8 +34,12 @@
                 <td class="px-4 py-4 align-top">
                   <div class="font-medium text-gray-900 dark:text-white">{{ request.group_name }}</div>
                   <div class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ request.relay_name }}</div>
-                  <div class="mt-1 font-mono text-xs text-gray-500 dark:text-dark-400">
-                    基础倍率 {{ formatRate(request.rate_multiplier) }}
+                  <div class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                    供应商提交倍率 <span class="font-mono font-medium text-gray-700 dark:text-dark-200">{{ formatRate(request.rate_multiplier) }}</span>
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+                    当前有效倍率 <span class="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{{ formatRate(effectiveRate(request)) }}</span>
+                    <span class="ml-1 text-gray-400">（{{ rateFormula(request) }}）</span>
                   </div>
                   <a
                     :href="request.relay_url"
@@ -112,7 +116,14 @@
                     <Icon name="key" size="xs" />
                     更新 API Key
                   </button>
-                  <span v-else class="text-xs text-gray-400">--</span>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm ml-2"
+                    @click="openRateDialog(request)"
+                  >
+                    <Icon name="edit" size="xs" />
+                    修改倍率
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -141,7 +152,7 @@
                 <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ monitorModel(request) }}</dd>
               </div>
               <div>
-                <dt class="text-gray-400">基础倍率</dt>
+                <dt class="text-gray-400">供应商提交倍率</dt>
                 <dd class="mt-1 font-mono font-medium text-gray-700 dark:text-dark-200">{{ formatRate(request.rate_multiplier) }}</dd>
               </div>
               <div>
@@ -149,6 +160,10 @@
                 <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">
                   {{ upstreamRate(request) === null ? probeStatusLabel(request) : formatRate(upstreamRate(request)) }}
                 </dd>
+              </div>
+              <div>
+                <dt class="text-gray-400">当前有效倍率</dt>
+                <dd class="mt-1 font-mono font-semibold text-emerald-600 dark:text-emerald-400">{{ formatRate(effectiveRate(request)) }}</dd>
               </div>
             </dl>
             <div class="flex items-center justify-between border-t border-gray-100 pt-3 dark:border-dark-700">
@@ -168,6 +183,10 @@
               >
                 <Icon name="key" size="xs" />
                 更新 Key
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" @click="openRateDialog(request)">
+                <Icon name="edit" size="xs" />
+                修改倍率
               </button>
             </div>
           </article>
@@ -228,6 +247,37 @@
         </button>
       </template>
     </BaseDialog>
+
+    <BaseDialog :show="Boolean(editingRateRequest)" title="修改供应商提交倍率" width="narrow" @close="closeRateDialog">
+      <form @submit.prevent="updateRate">
+        <p class="text-sm text-gray-500 dark:text-dark-400">
+          {{ editingRateRequest?.group_name }} · {{ editingRateRequest?.relay_name }}
+        </p>
+        <label class="mt-5 block">
+          <span class="input-label">供应商提交倍率</span>
+          <input
+            v-model.number="newRateMultiplier"
+            type="number"
+            required
+            min="0"
+            step="0.0001"
+            class="input w-full"
+          />
+        </label>
+        <div v-if="editingRateRequest" class="mt-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:bg-dark-800 dark:text-dark-300">
+          探测开启且取得倍率时采用探测结果；其余情况采用本次设置。管理员增加倍率为
+          {{ signedRate(adminRateAdjustment(editingRateRequest)) }}。
+        </div>
+      </form>
+      <template #footer>
+        <button type="button" class="btn btn-secondary" :disabled="rateSaving" @click="closeRateDialog">取消</button>
+        <button type="button" class="btn btn-primary" :disabled="rateSaving || !validNewRate" @click="updateRate">
+          <LoadingSpinner v-if="rateSaving" size="sm" color="white" />
+          <Icon v-else name="check" size="sm" />
+          保存倍率
+        </button>
+      </template>
+    </BaseDialog>
   </section>
 </template>
 
@@ -253,6 +303,9 @@ const newAPIKey = ref('')
 const apiKeyInput = ref<HTMLInputElement | null>(null)
 const keySaving = ref(false)
 const probeSavingId = ref<number | null>(null)
+const editingRateRequest = ref<SupplierResourceRequest | null>(null)
+const newRateMultiplier = ref<number | string>(0)
+const rateSaving = ref(false)
 
 const StatusBadge = defineComponent({
   props: { status: { type: String, required: true } },
@@ -271,6 +324,10 @@ const StatusBadge = defineComponent({
 
 const pageCount = computed(() => Math.max(1, Math.ceil(requests.value.length / pageSize)))
 const pagedRequests = computed(() => requests.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+const validNewRate = computed(() => {
+  const value = Number(newRateMultiplier.value)
+  return Number.isFinite(value) && value >= 0
+})
 
 function supportedModels(request: SupplierResourceRequest) {
   return request.supported_models?.length ? request.supported_models : [request.model].filter(Boolean)
@@ -323,6 +380,34 @@ function upstreamRate(request: SupplierResourceRequest): number | null {
   if (typeof dataRate === 'number' && Number.isFinite(dataRate)) return dataRate
   if (typeof request.upstream_rate === 'number') return request.upstream_rate
   return null
+}
+
+function adminRateAdjustment(request: SupplierResourceRequest) {
+  const value = Number(request.admin_rate_adjustment ?? 0)
+  return Number.isFinite(value) ? value : 0
+}
+
+function appliedRate(request: SupplierResourceRequest) {
+  const serverValue = Number(request.applied_rate_multiplier)
+  if (Number.isFinite(serverValue)) return serverValue
+  const detected = upstreamRate(request)
+  return probeEnabled(request) && detected !== null ? detected : Number(request.rate_multiplier || 0)
+}
+
+function effectiveRate(request: SupplierResourceRequest) {
+  const serverValue = Number(request.effective_rate_multiplier)
+  return Number.isFinite(serverValue) ? serverValue : appliedRate(request) + adminRateAdjustment(request)
+}
+
+function signedRate(value: number) {
+  return `${value >= 0 ? '+' : ''}${formatRate(value)}`
+}
+
+function rateFormula(request: SupplierResourceRequest) {
+  const source = request.rate_source === 'probe' || (probeEnabled(request) && upstreamRate(request) !== null)
+    ? '探测倍率'
+    : '设置倍率'
+  return `${source} ${formatRate(appliedRate(request))} + 管理员增加 ${formatRate(adminRateAdjustment(request))}`
 }
 
 function probeUpdatedAt(request: SupplierResourceRequest) {
@@ -390,6 +475,35 @@ function closeKeyDialog() {
   if (keySaving.value) return
   editingRequest.value = null
   newAPIKey.value = ''
+}
+
+function openRateDialog(request: SupplierResourceRequest) {
+  editingRateRequest.value = request
+  newRateMultiplier.value = request.rate_multiplier
+}
+
+function closeRateDialog() {
+  if (rateSaving.value) return
+  editingRateRequest.value = null
+}
+
+async function updateRate() {
+  if (!editingRateRequest.value || !validNewRate.value) return
+  rateSaving.value = true
+  try {
+    const updated = await supplierAPI.updateResourceRate(
+      editingRateRequest.value.id,
+      Number(newRateMultiplier.value),
+    )
+    const index = requests.value.findIndex(item => item.id === updated.id)
+    if (index >= 0) requests.value[index] = updated
+    appStore.showSuccess('供应商提交倍率已更新')
+    editingRateRequest.value = null
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, '更新倍率失败'))
+  } finally {
+    rateSaving.value = false
+  }
 }
 
 async function updateAPIKey() {

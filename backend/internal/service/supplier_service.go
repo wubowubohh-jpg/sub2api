@@ -71,6 +71,10 @@ type SupplierResourceRequestView struct {
 	*dbent.SupplierResourceRequest
 	GroupNameSuffix             string                     `json:"group_name_suffix,omitempty"`
 	MonitorModel                string                     `json:"monitor_model,omitempty"`
+	RateSource                  string                     `json:"rate_source"`
+	AppliedRateMultiplier       float64                    `json:"applied_rate_multiplier"`
+	AdminRateAdjustment         float64                    `json:"admin_rate_adjustment"`
+	EffectiveRateMultiplier     float64                    `json:"effective_rate_multiplier"`
 	UpstreamBillingProbeEnabled bool                       `json:"upstream_billing_probe_enabled"`
 	UpstreamProbeStatus         string                     `json:"upstream_probe_status,omitempty"`
 	UpstreamRate                *float64                   `json:"upstream_rate,omitempty"`
@@ -94,6 +98,10 @@ type SupplierResourceRequestSupplierView struct {
 	SupportedModels             []string                           `json:"supported_models,omitempty"`
 	ProbeEnabled                bool                               `json:"probe_enabled"`
 	RateMultiplier              float64                            `json:"rate_multiplier"`
+	RateSource                  string                             `json:"rate_source"`
+	AppliedRateMultiplier       float64                            `json:"applied_rate_multiplier"`
+	AdminRateAdjustment         float64                            `json:"admin_rate_adjustment"`
+	EffectiveRateMultiplier     float64                            `json:"effective_rate_multiplier"`
 	Status                      string                             `json:"status"`
 	ReviewNote                  string                             `json:"review_note,omitempty"`
 	ReviewedAt                  *time.Time                         `json:"reviewed_at,omitempty"`
@@ -120,6 +128,10 @@ func supplierResourceRequestForSupplier(view SupplierResourceRequestView) Suppli
 		SupportedModels:             append([]string(nil), view.SupportedModels...),
 		ProbeEnabled:                view.ProbeEnabled,
 		RateMultiplier:              view.RateMultiplier,
+		RateSource:                  view.RateSource,
+		AppliedRateMultiplier:       view.AppliedRateMultiplier,
+		AdminRateAdjustment:         view.AdminRateAdjustment,
+		EffectiveRateMultiplier:     view.EffectiveRateMultiplier,
 		Status:                      string(view.Status),
 		ReviewNote:                  view.ReviewNote,
 		ReviewedAt:                  view.ReviewedAt,
@@ -263,11 +275,26 @@ func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int6
 		return nil, err
 	}
 	accountIDs := make([]int64, 0, len(requests))
+	groupIDs := make([]int64, 0, len(requests))
 	for _, request := range requests {
 		if request.AccountID != nil {
 			accountIDs = append(accountIDs, *request.AccountID)
 		}
+		if request.GroupID != nil {
+			groupIDs = append(groupIDs, *request.GroupID)
+		}
 	}
+	groupsByID := make(map[int64]*dbent.Group, len(groupIDs))
+	if len(groupIDs) > 0 {
+		groups, groupErr := s.db.Group.Query().Where(group.IDIn(groupIDs...)).All(ctx)
+		if groupErr != nil {
+			return nil, groupErr
+		}
+		for _, item := range groups {
+			groupsByID[item.ID] = item
+		}
+	}
+	globalAdjustment := s.supplierGlobalRateAdjustment(ctx)
 	accountsByID := make(map[int64]*dbent.Account, len(accountIDs))
 	if len(accountIDs) > 0 {
 		accounts, accountErr := s.db.Account.Query().Where(account.IDIn(accountIDs...)).All(ctx)
@@ -285,6 +312,8 @@ func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int6
 			SupplierResourceRequest:     request,
 			GroupNameSuffix:             supplierGroupNameSuffix(request.SupplierID, request.GroupName),
 			MonitorModel:                request.Model,
+			RateSource:                  "configured",
+			AppliedRateMultiplier:       request.RateMultiplier,
 			UpstreamBillingProbeEnabled: request.ProbeEnabled,
 		}
 		if request.AccountID == nil && request.ProbeEnabled {
@@ -306,6 +335,17 @@ func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int6
 		} else {
 			view.UpstreamProbeStatus = "no_data"
 		}
+		view.AdminRateAdjustment = globalAdjustment
+		if request.GroupID != nil {
+			if item := groupsByID[*request.GroupID]; item != nil && item.SupplierID != nil && *item.SupplierID == request.SupplierID && item.SupplierAdminAdjustment != nil {
+				view.AdminRateAdjustment = *item.SupplierAdminAdjustment
+			}
+		}
+		if view.UpstreamBillingProbeEnabled && view.UpstreamRate != nil {
+			view.RateSource = "probe"
+			view.AppliedRateMultiplier = *view.UpstreamRate
+		}
+		view.EffectiveRateMultiplier = view.AppliedRateMultiplier + view.AdminRateAdjustment
 		out = append(out, view)
 	}
 	return out, nil
@@ -424,6 +464,80 @@ func (s *SupplierService) UpdateResourceRequestProbe(ctx context.Context, suppli
 		return nil, err
 	}
 	return s.resourceRequestView(ctx, supplierID, requestID)
+}
+
+func validSupplierRate(value float64) bool {
+	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+// UpdateResourceRequestRate updates the supplier-controlled fallback rate. For
+// approved resources the linked group keeps the same fallback, while a live
+// probe result remains the displayed source until probing is disabled.
+func (s *SupplierService) UpdateResourceRequestRate(ctx context.Context, supplierID, requestID int64, rate float64) (*SupplierResourceRequestView, error) {
+	return s.updateResourceRequestRate(ctx, &supplierID, requestID, &rate, nil)
+}
+
+// AdminUpdateResourceRequestRate updates the supplier rate and the per-group
+// administrator increment in one transaction.
+func (s *SupplierService) AdminUpdateResourceRequestRate(ctx context.Context, requestID int64, rate, adjustment *float64) (*SupplierResourceRequestView, error) {
+	return s.updateResourceRequestRate(ctx, nil, requestID, rate, adjustment)
+}
+
+func (s *SupplierService) updateResourceRequestRate(ctx context.Context, supplierID *int64, requestID int64, rate, adjustment *float64) (*SupplierResourceRequestView, error) {
+	if rate == nil && adjustment == nil {
+		return nil, fmt.Errorf("rate update is required")
+	}
+	if rate != nil && !validSupplierRate(*rate) {
+		return nil, fmt.Errorf("invalid supplier rate")
+	}
+	if adjustment != nil && !validSupplierRate(*adjustment) {
+		return nil, fmt.Errorf("invalid administrator rate increment")
+	}
+	query := s.db.SupplierResourceRequest.Query().Where(supplierresourcerequest.ID(requestID))
+	if supplierID != nil {
+		query.Where(supplierresourcerequest.SupplierID(*supplierID))
+	}
+	req, err := query.Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resource application not found")
+	}
+	if adjustment != nil && req.GroupID == nil {
+		return nil, fmt.Errorf("administrator rate increment requires an approved resource")
+	}
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	requestUpdate := tx.SupplierResourceRequest.UpdateOneID(req.ID)
+	if rate != nil {
+		requestUpdate.SetRateMultiplier(*rate)
+	}
+	if _, err = requestUpdate.Save(ctx); err != nil {
+		return nil, err
+	}
+	if req.GroupID != nil {
+		g, groupErr := tx.Group.Query().Where(
+			group.ID(*req.GroupID), group.SupplierID(req.SupplierID),
+		).Only(ctx)
+		if groupErr != nil {
+			return nil, fmt.Errorf("supplier group not found")
+		}
+		groupUpdate := tx.Group.UpdateOne(g)
+		if rate != nil {
+			groupUpdate.SetRateMultiplier(*rate)
+		}
+		if adjustment != nil {
+			groupUpdate.SetSupplierAdminAdjustment(*adjustment)
+		}
+		if _, err = groupUpdate.Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.resourceRequestView(ctx, req.SupplierID, req.ID)
 }
 
 func supplierMarketplaceGroupName(supplierID int64, suffix string) (string, error) {
@@ -1254,13 +1368,22 @@ func (s *SupplierService) EffectiveRate(ctx context.Context, g *dbent.Group) (fl
 	if g.SupplierID == nil {
 		return g.RateMultiplier, 0, nil
 	}
-	adjust := 0.0
+	adjust := s.supplierGlobalRateAdjustment(ctx)
 	if g.SupplierAdminAdjustment != nil {
 		adjust = *g.SupplierAdminAdjustment
-	} else if settingRow, err := s.db.Setting.Query().Where(setting.KeyEQ("supplier_global_rate_adjustment")).Only(ctx); err == nil {
-		_, _ = fmt.Sscanf(settingRow.Value, "%f", &adjust)
 	}
 	return g.RateMultiplier + adjust, adjust, nil
+}
+
+func (s *SupplierService) supplierGlobalRateAdjustment(ctx context.Context) float64 {
+	adjust := 0.0
+	if settingRow, err := s.db.Setting.Query().Where(setting.KeyEQ("supplier_global_rate_adjustment")).Only(ctx); err == nil {
+		_, _ = fmt.Sscanf(settingRow.Value, "%f", &adjust)
+	}
+	if math.IsNaN(adjust) || math.IsInf(adjust, 0) {
+		return 0
+	}
+	return adjust
 }
 
 // RecordEarning is idempotent and snapshots all mutable billing inputs.

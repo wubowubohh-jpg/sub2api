@@ -274,3 +274,58 @@ func TestSupplierResourceProbeAndCredentialUpdatesAreOwnerScoped(t *testing.T) {
 	storedRequest := svc.db.SupplierResourceRequest.GetX(ctx, approved.ID)
 	require.Equal(t, "enc:v1:encrypted:sk-owner-rotated", storedRequest.APIKeyEncrypted)
 }
+
+func TestSupplierResourceRateUsesProbeOrConfiguredRateWithAdminIncrement(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	svc.encryptor = supplierTestEncryptor{}
+	ownerUser := svc.db.User.Create().SetEmail("rate-owner@example.com").SetPasswordHash("x").SaveX(ctx)
+	otherUser := svc.db.User.Create().SetEmail("rate-other@example.com").SetPasswordHash("x").SaveX(ctx)
+	owner := svc.db.Supplier.Create().SetUserID(ownerUser.ID).SetName("Rate Owner").SetRelayURL("https://owner.example.com").SetStatus("approved").SaveX(ctx)
+	other := svc.db.Supplier.Create().SetUserID(otherUser.ID).SetName("Rate Other").SetRelayURL("https://other.example.com").SetStatus("approved").SaveX(ctx)
+	req := svc.db.SupplierResourceRequest.Create().
+		SetSupplierID(owner.ID).
+		SetGroupName("Rate Resource").
+		SetRelayName("Rate Relay").
+		SetRelayURL("https://relay.example.com/v1").
+		SetAPIKeyEncrypted("encrypted:sk-rate-secret").
+		SetModel("gpt-5.5").
+		SetRateMultiplier(0.04).
+		SaveX(ctx)
+	approved, err := svc.ReviewResourceRequest(ctx, req.ID, ownerUser.ID, true, "approved")
+	require.NoError(t, err)
+
+	_, err = svc.UpdateResourceRequestRate(ctx, other.ID, approved.ID, 0.05)
+	require.Error(t, err)
+	view, err := svc.UpdateResourceRequestRate(ctx, owner.ID, approved.ID, 0.05)
+	require.NoError(t, err)
+	require.InDelta(t, 0.05, view.RateMultiplier, 0.000001)
+	require.InDelta(t, 0.05, svc.db.Group.GetX(ctx, *approved.GroupID).RateMultiplier, 0.000001)
+
+	configuredRate, adminIncrement := 0.06, 0.02
+	view, err = svc.AdminUpdateResourceRequestRate(
+		ctx, approved.ID, &configuredRate, &adminIncrement,
+	)
+	require.NoError(t, err)
+	require.InDelta(t, 0.06, view.RateMultiplier, 0.000001)
+	require.InDelta(t, 0.02, view.AdminRateAdjustment, 0.000001)
+
+	account := svc.db.Account.GetX(ctx, *approved.AccountID)
+	extra := shallowCopyMap(account.Extra)
+	extra[UpstreamBillingProbeEnabledExtraKey] = true
+	extra[UpstreamBillingProbeExtraKey] = map[string]any{
+		"status": "ok",
+		"data": map[string]any{"effective_rate_multiplier": 0.07},
+	}
+	svc.db.Account.UpdateOne(account).SetExtra(extra).ExecX(ctx)
+	view, err = svc.resourceRequestView(ctx, owner.ID, approved.ID)
+	require.NoError(t, err)
+	require.Equal(t, "probe", view.RateSource)
+	require.InDelta(t, 0.07, view.AppliedRateMultiplier, 0.000001)
+	require.InDelta(t, 0.09, view.EffectiveRateMultiplier, 0.000001)
+
+	view, err = svc.UpdateResourceRequestProbe(ctx, owner.ID, approved.ID, false)
+	require.NoError(t, err)
+	require.Equal(t, "configured", view.RateSource)
+	require.InDelta(t, 0.06, view.AppliedRateMultiplier, 0.000001)
+	require.InDelta(t, 0.08, view.EffectiveRateMultiplier, 0.000001)
+}

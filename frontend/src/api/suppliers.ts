@@ -50,6 +50,10 @@ export interface SupplierResourceRequest {
   monitor_model?: string
   supported_models?: string[]
   rate_multiplier: number
+  rate_source?: 'configured' | 'probe'
+  applied_rate_multiplier?: number
+  admin_rate_adjustment?: number
+  effective_rate_multiplier?: number
   status: 'pending' | 'approved' | 'rejected'
   review_note: string
   group_id?: number
@@ -89,6 +93,7 @@ export const supplierAPI = {
   async createResourceRequest(payload:CreateSupplierResourceRequest) { return (await apiClient.post<SupplierResourceRequest>('/suppliers/resource-requests',payload)).data },
   async updateResourceRequestAPIKey(id:number,api_key:string) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/api-key`,{api_key})).data },
   async updateResourceProbe(id:number,enabled:boolean) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/probe`,{enabled})).data },
+  async updateResourceRate(id:number,rate_multiplier:number) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/rate`,{rate_multiplier})).data },
   async bills(status='') { return (await apiClient.get<{items:SupplierBill[]}>('/suppliers/bills',{params:{status}})).data },
   async hall(window='6h') { return (await apiClient.get<{groups:HallGroup[]}>('/supplier-hall',{params:{window}})).data },
   async withdraw(payload:{amount_cny:number;method:string;profile:Record<string,unknown>}) { return (await apiClient.post('/suppliers/withdrawals',payload)).data },
@@ -104,4 +109,5 @@ export const adminSupplierAPI = {
   async reviewWithdrawal(id:number,status:'approved'|'rejected'|'paid',note='',payment_proof_key='') { return (await apiClient.put<SupplierWithdrawal>(`/admin/supplier-withdrawals/${id}`,{status,note,payment_proof_key})).data },
   async resourceRequests(status='') { return (await apiClient.get<{items:SupplierResourceRequest[]}>('/admin/suppliers/resource-requests',{params:{status}})).data },
   async reviewResourceRequest(id:number,approved:boolean,note='') { return (await apiClient.put<SupplierResourceRequest>(`/admin/suppliers/resource-requests/${id}`,{approved,note})).data },
+  async updateResourceRate(id:number,rate_multiplier:number,admin_rate_adjustment?:number) { return (await apiClient.put<SupplierResourceRequest>(`/admin/suppliers/resource-requests/${id}/rate`,{rate_multiplier,admin_rate_adjustment})).data },
 }
