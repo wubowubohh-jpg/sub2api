@@ -444,16 +444,35 @@ export default {
     relativeDaysAgo: '{n} 天前'
   },
 
-  // Channel Status (user-facing read-only view)
+  // Supplier Hall (user-facing read-only view)
   channelStatus: {
-    title: '渠道状态',
-    description: '查看渠道可用性、延迟和近期状态',
-    searchPlaceholder: '搜索渠道...',
-    allProviders: '全部供应商',
-    loadError: '加载渠道状态失败',
-    detailLoadError: '加载渠道详情失败',
-    detailTitle: '渠道详情',
+    title: '供应商大厅',
+    description: '启用分组的倍率、质量指标与近期探测记录',
+    searchPlaceholder: '搜索分组...',
+    allProviders: '全部平台',
+    loadError: '加载供应商大厅失败',
+    detailLoadError: '加载监控详情失败',
+    detailTitle: '监控详情',
     closeDetail: '关闭',
+    monitoring: '监测中',
+    refreshing: '刷新中',
+    refresh: '刷新',
+    updatedAt: '更新于 {time}',
+    timeWindow: '指标时间范围',
+    public: '公开分组',
+    exclusive: '专属分组',
+    noData: '暂无数据',
+    noRecord: '暂无记录',
+    noMonitor: '等待监控配置',
+    dialogLatency: '对话延迟',
+    endpointPing: '端点 PING',
+    availability: '可用率',
+    firstToken: '首 Token',
+    userAverage: '用户平均',
+    cacheHit: '缓存命中',
+    requestCount: '窗口内 {count} 次调用',
+    monitorDetail: '监控详情',
+    useGroup: '使用此分组',
     windowTab: {
       '7d': '7 天',
       '15d': '15 天',
@@ -465,12 +484,13 @@ export default {
       unavailable: 'UNAVAILABLE'
     },
     columns: {
-      name: '名称',
-      provider: '供应商',
-      groupName: '分组',
-      primaryModel: '主模型',
-      availability7d: '7 天可用率',
-      latency: '延迟 (ms)'
+      group: '分组',
+      rate: '最终倍率',
+      models: '模型与监控',
+      probe: '当前探测',
+      traffic: '真实流量',
+      history: '近期状态记录',
+      actions: '操作'
     },
     detailColumns: {
       model: '模型',
@@ -482,8 +502,8 @@ export default {
       avgLatency7d: '7 天平均延迟 (ms)'
     },
     empty: {
-      title: '暂无可显示的渠道',
-      description: '管理员尚未配置可监控的渠道。'
+      title: '暂无启用分组',
+      description: '当前没有可展示的分组。'
     }
   },
 

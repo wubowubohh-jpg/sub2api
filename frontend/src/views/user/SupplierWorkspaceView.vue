@@ -20,7 +20,7 @@
         </div>
         <RouterLink
           v-if="profile?.status === 'approved'"
-          to="/supplier-hall"
+          to="/monitor"
           class="btn btn-secondary inline-flex items-center gap-2 self-start"
         >
           <Icon name="globe" size="sm" />

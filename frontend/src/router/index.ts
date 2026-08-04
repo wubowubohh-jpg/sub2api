@@ -216,8 +216,9 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/supplier-hall', name: 'SupplierHall', component: () => import('@/views/user/SupplierHallView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: false, title: '供应商大厅' }
+    path: '/supplier-hall',
+    redirect: { name: 'SupplierHall' },
+    meta: { requiresAuth: true, requiresAdmin: false }
   },
   {
     path: '/supplier',
@@ -526,13 +527,13 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/monitor',
-    name: 'ChannelStatus',
+    name: 'SupplierHall',
     component: () => import('@/views/user/ChannelStatusView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Channel Status',
-      titleKey: 'nav.channelStatus'
+      title: 'Supplier Hall',
+      titleKey: 'nav.supplierHall'
     }
   },
   {

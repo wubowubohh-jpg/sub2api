@@ -439,16 +439,35 @@ export default {
     relativeDaysAgo: '{n}d ago'
   },
 
-  // Channel Status (user-facing read-only view)
+  // Supplier Hall (user-facing read-only view)
   channelStatus: {
-    title: 'Channel Status',
-    description: 'Inspect channel availability, latency and recent status',
-    searchPlaceholder: 'Search channels...',
-    allProviders: 'All Providers',
-    loadError: 'Failed to load channel status',
-    detailLoadError: 'Failed to load channel detail',
-    detailTitle: 'Channel Detail',
+    title: 'Supplier Hall',
+    description: 'Rates, quality metrics and recent checks for enabled groups',
+    searchPlaceholder: 'Search groups...',
+    allProviders: 'All Platforms',
+    loadError: 'Failed to load supplier hall',
+    detailLoadError: 'Failed to load monitor details',
+    detailTitle: 'Monitor Details',
     closeDetail: 'Close',
+    monitoring: 'Monitoring',
+    refreshing: 'Refreshing',
+    refresh: 'Refresh',
+    updatedAt: 'Updated {time}',
+    timeWindow: 'Metric time range',
+    public: 'Public Group',
+    exclusive: 'Exclusive Group',
+    noData: 'No data',
+    noRecord: 'No records',
+    noMonitor: 'Awaiting monitor setup',
+    dialogLatency: 'Dialog Latency',
+    endpointPing: 'Endpoint PING',
+    availability: 'Availability',
+    firstToken: 'First Token',
+    userAverage: 'User Average',
+    cacheHit: 'Cache Hit',
+    requestCount: '{count} requests in window',
+    monitorDetail: 'Monitor Details',
+    useGroup: 'Use Group',
     windowTab: {
       '7d': '7 days',
       '15d': '15 days',
@@ -460,12 +479,13 @@ export default {
       unavailable: 'UNAVAILABLE'
     },
     columns: {
-      name: 'Name',
-      provider: 'Provider',
-      groupName: 'Group',
-      primaryModel: 'Primary Model',
-      availability7d: '7d Availability',
-      latency: 'Latency (ms)'
+      group: 'Group',
+      rate: 'Final Rate',
+      models: 'Models & Monitor',
+      probe: 'Current Probe',
+      traffic: 'Live Traffic',
+      history: 'Recent Status Records',
+      actions: 'Actions'
     },
     detailColumns: {
       model: 'Model',
@@ -477,8 +497,8 @@ export default {
       avgLatency7d: '7d Avg Latency (ms)'
     },
     empty: {
-      title: 'No channels available',
-      description: 'No monitored channels have been configured yet.'
+      title: 'No enabled groups',
+      description: 'There are no groups to display.'
     }
   },
 
