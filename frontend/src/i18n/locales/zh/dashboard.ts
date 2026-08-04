@@ -326,7 +326,7 @@ export default {
     unknown: '未知',
     in: '输入',
     out: '输出',
-    cacheHit: '缓存命中',
+    cacheHit: '缓存命中率',
     cacheCreate: '缓存创建',
     cacheHitRate: '缓存命中率',
     inputTokenPrice: '输入单价',
@@ -487,8 +487,7 @@ export default {
       group: '分组',
       rate: '最终倍率',
       models: '模型与监控',
-      probe: '当前探测',
-      traffic: '真实流量',
+      status: '状态',
       history: '近期状态记录',
       actions: '操作'
     },

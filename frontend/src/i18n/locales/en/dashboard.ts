@@ -464,7 +464,7 @@ export default {
     availability: 'Availability',
     firstToken: 'First Token',
     userAverage: 'User Average',
-    cacheHit: 'Cache Hit',
+    cacheHit: 'Cache Hit Rate',
     requestCount: '{count} requests in window',
     monitorDetail: 'Monitor Details',
     useGroup: 'Use Group',
@@ -482,8 +482,7 @@ export default {
       group: 'Group',
       rate: 'Final Rate',
       models: 'Models & Monitor',
-      probe: 'Current Probe',
-      traffic: 'Live Traffic',
+      status: 'Status',
       history: 'Recent Status Records',
       actions: 'Actions'
     },

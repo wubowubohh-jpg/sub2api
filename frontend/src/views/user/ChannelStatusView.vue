@@ -76,14 +76,35 @@
 
         <template v-else>
           <div class="hidden overflow-x-auto lg:block">
-            <table class="w-full min-w-[1580px] table-fixed text-left text-sm">
+            <table class="w-full min-w-[1810px] table-fixed text-left text-sm">
               <thead class="border-b border-gray-200 bg-gray-50 text-xs font-medium text-gray-500 dark:border-dark-700 dark:bg-dark-800/60 dark:text-dark-400">
                 <tr>
-                  <th class="w-[250px] px-4 py-3">{{ t('channelStatus.columns.group') }}</th>
-                  <th class="w-[105px] px-4 py-3">{{ t('channelStatus.columns.rate') }}</th>
+                  <th class="w-[240px] px-4 py-3">{{ t('channelStatus.columns.group') }}</th>
+                  <th class="w-[110px] px-4 py-3" :aria-sort="sortAria('rate')">
+                    <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="rate" @click="toggleSort('rate')">
+                      {{ t('channelStatus.columns.rate') }}
+                      <Icon :name="sortIcon('rate')" size="xs" />
+                    </button>
+                  </th>
                   <th class="w-[250px] px-4 py-3">{{ t('channelStatus.columns.models') }}</th>
-                  <th class="w-[250px] px-4 py-3">{{ t('channelStatus.columns.probe') }}</th>
-                  <th class="w-[245px] px-4 py-3">{{ t('channelStatus.columns.traffic') }}</th>
+                  <th class="w-[150px] px-4 py-3">{{ t('channelStatus.columns.status') }}</th>
+                  <th class="w-[105px] px-4 py-3">{{ t('channelStatus.dialogLatency') }}</th>
+                  <th class="w-[105px] px-4 py-3">{{ t('channelStatus.endpointPing') }}</th>
+                  <th class="w-[115px] px-4 py-3" :aria-sort="sortAria('availability')">
+                    <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="availability" @click="toggleSort('availability')">
+                      {{ t('channelStatus.availability') }}
+                      <Icon :name="sortIcon('availability')" size="xs" />
+                    </button>
+                  </th>
+                  <th class="w-[105px] px-4 py-3">{{ t('channelStatus.firstToken') }}</th>
+                  <th class="w-[115px] px-4 py-3">{{ t('channelStatus.userAverage') }}</th>
+                  <th class="w-[125px] px-4 py-3" :aria-sort="sortAria('cache_hit_rate')">
+                    <button type="button" class="inline-flex items-center gap-1.5 font-medium hover:text-gray-900 dark:hover:text-white" data-sort="cache_hit_rate" @click="toggleSort('cache_hit_rate')">
+                      {{ t('channelStatus.cacheHit') }}
+                      <Icon :name="sortIcon('cache_hit_rate')" size="xs" />
+                    </button>
+                  </th>
+                  <th class="w-[85px] px-4 py-3">TPS</th>
                   <th class="w-[330px] px-4 py-3">{{ t('channelStatus.columns.history') }}</th>
                   <th class="w-[150px] px-4 py-3 text-right">{{ t('channelStatus.columns.actions') }}</th>
                 </tr>
@@ -92,6 +113,7 @@
                 <tr
                   v-for="row in rows"
                   :key="row.group.id"
+                  :data-group-id="row.group.id"
                   class="align-top transition-colors hover:bg-gray-50/70 dark:hover:bg-dark-800/40"
                 >
                   <td class="px-4 py-4">
@@ -136,50 +158,43 @@
                   </td>
 
                   <td class="px-4 py-4">
-                    <div class="flex items-center justify-between gap-3">
+                    <div class="flex flex-col items-start gap-2">
                       <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="statusBadgeClass(row.monitor?.primary_status || '')">
                         {{ row.monitor ? statusLabel(row.monitor.primary_status) : t('channelStatus.noRecord') }}
                       </span>
                       <span class="text-xs text-gray-400">{{ latestProbeText(row) }}</span>
                     </div>
-                    <dl class="mt-3 grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <dt class="text-gray-400">{{ t('channelStatus.dialogLatency') }}</dt>
-                        <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_latency_ms, 'ms') }}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-gray-400">{{ t('channelStatus.endpointPing') }}</dt>
-                        <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_ping_latency_ms, 'ms') }}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-gray-400">{{ t('channelStatus.availability') }}</dt>
-                        <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.availability, '%', 1) }}</dd>
-                      </div>
-                    </dl>
                   </td>
 
                   <td class="px-4 py-4">
-                    <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
-                      <div>
-                        <dt class="text-gray-400">{{ t('channelStatus.firstToken') }}</dt>
-                        <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_first_token_ms, 'ms') }}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-gray-400">{{ t('channelStatus.userAverage') }}</dt>
-                        <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_latency_ms, 'ms') }}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-gray-400">{{ t('channelStatus.cacheHit') }}</dt>
-                        <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.cache_hit_rate, '%', 1) }}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-gray-400">TPS</dt>
-                        <dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.tps, '', 1) }}</dd>
-                      </div>
-                    </dl>
-                    <div class="mt-3 text-[11px] text-gray-400">
+                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_latency_ms, 'ms') }}</span>
+                  </td>
+
+                  <td class="px-4 py-4">
+                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_ping_latency_ms, 'ms') }}</span>
+                  </td>
+
+                  <td class="px-4 py-4">
+                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.availability, '%', 1) }}</span>
+                  </td>
+
+                  <td class="px-4 py-4">
+                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_first_token_ms, 'ms') }}</span>
+                  </td>
+
+                  <td class="px-4 py-4">
+                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_latency_ms, 'ms') }}</span>
+                    <div class="mt-1 text-[11px] text-gray-400">
                       {{ t('channelStatus.requestCount', { count: row.group.metrics.request_count || 0 }) }}
                     </div>
+                  </td>
+
+                  <td class="px-4 py-4">
+                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.cache_hit_rate, '%', 1) }}</span>
+                  </td>
+
+                  <td class="px-4 py-4">
+                    <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.tps, '', 1) }}</span>
                   </td>
 
                   <td class="px-4 py-3">
@@ -260,6 +275,7 @@
                 <div><dt class="text-gray-400">{{ t('channelStatus.endpointPing') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.monitor?.primary_ping_latency_ms, 'ms') }}</dd></div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.availability') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.availability, '%', 1) }}</dd></div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.firstToken') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_first_token_ms, 'ms') }}</dd></div>
+                <div><dt class="text-gray-400">{{ t('channelStatus.userAverage') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.avg_latency_ms, 'ms') }}</dd><span class="mt-1 block text-[10px] text-gray-400">{{ t('channelStatus.requestCount', { count: row.group.metrics.request_count || 0 }) }}</span></div>
                 <div><dt class="text-gray-400">{{ t('channelStatus.cacheHit') }}</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.cache_hit_rate, '%', 1) }}</dd></div>
                 <div><dt class="text-gray-400">TPS</dt><dd class="mt-1 font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.tps, '', 1) }}</dd></div>
               </dl>
@@ -350,6 +366,9 @@ const windows: Array<{ value: HallWindow; label: string }> = [
 ]
 
 const selectedWindow = ref<HallWindow>('6h')
+type SortKey = 'rate' | 'cache_hit_rate' | 'availability'
+const sortKey = ref<SortKey | null>(null)
+const sortDirection = ref<'asc' | 'desc'>('desc')
 const groups = ref<HallGroup[]>([])
 const monitors = ref<UserMonitorView[]>([])
 const loading = ref(true)
@@ -367,10 +386,24 @@ const monitorByGroup = computed(() => {
   return indexed
 })
 
-const rows = computed<HallRow[]>(() => groups.value.map(group => ({
-  group,
-  monitor: monitorByGroup.value.get(normalizeGroupName(group.name)) || null,
-})))
+const rows = computed<HallRow[]>(() => {
+  const mapped = groups.value.map(group => ({
+    group,
+    monitor: monitorByGroup.value.get(normalizeGroupName(group.name)) || null,
+  }))
+  if (!sortKey.value) return mapped
+
+  const key = sortKey.value
+  return [...mapped].sort((left, right) => {
+    const leftValue = sortValue(left, key)
+    const rightValue = sortValue(right, key)
+    if (leftValue == null && rightValue == null) return left.group.name.localeCompare(right.group.name)
+    if (leftValue == null) return 1
+    if (rightValue == null) return -1
+    const result = sortDirection.value === 'asc' ? leftValue - rightValue : rightValue - leftValue
+    return result || left.group.name.localeCompare(right.group.name)
+  })
+})
 
 const autoRefresh = useAutoRefresh({
   storageKey: 'supplier-hall-auto-refresh',
@@ -414,6 +447,33 @@ function selectWindow(value: HallWindow) {
   if (selectedWindow.value === value) return
   selectedWindow.value = value
   void load(false)
+}
+
+function sortValue(row: HallRow, key: SortKey) {
+  if (key === 'rate') return finiteNumber(row.group.effective_rate)
+  if (key === 'cache_hit_rate') return finiteNumber(row.group.metrics.cache_hit_rate)
+  return finiteNumber(row.group.metrics.availability)
+}
+
+function finiteNumber(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function toggleSort(key: SortKey) {
+  if (sortKey.value === key) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  else {
+    sortKey.value = key
+    sortDirection.value = 'desc'
+  }
+}
+
+function sortAria(key: SortKey) {
+  return sortKey.value === key ? sortDirection.value === 'asc' ? 'ascending' : 'descending' : 'none'
+}
+
+function sortIcon(key: SortKey) {
+  if (sortKey.value !== key) return 'sort'
+  return sortDirection.value === 'asc' ? 'arrowUp' : 'arrowDown'
 }
 
 function openDetail(monitor: UserMonitorView) {

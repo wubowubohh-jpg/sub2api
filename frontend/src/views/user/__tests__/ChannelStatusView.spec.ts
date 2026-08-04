@@ -76,6 +76,25 @@ describe('ChannelStatusView supplier hall', () => {
           latest_probe_at: '2026-08-05T01:00:00Z',
           timeline: [],
         },
+      }, {
+        id: 8,
+        name: 'A0001-fallback',
+        description: '',
+        platform: 'openai',
+        effective_rate: 0.08,
+        status: 'active',
+        is_exclusive: false,
+        metrics: {
+          request_count: 0,
+          avg_latency_ms: null,
+          avg_first_token_ms: null,
+          probe_latency_ms: null,
+          cache_hit_rate: 40,
+          tps: null,
+          availability: 90,
+          latest_probe_at: null,
+          timeline: [],
+        },
       }],
     })
     listMonitors.mockResolvedValue({
@@ -129,6 +148,14 @@ describe('ChannelStatusView supplier hall', () => {
     expect(text).toContain('窗口内 18 次调用')
     expect(wrapper.get('[data-test="timeline"]').text()).toBe('operational,failed')
     expect(text).toContain('使用此分组')
+
+    const rowIds = () => wrapper.findAll('tbody tr[data-group-id]').map(row => row.attributes('data-group-id'))
+    await wrapper.get('[data-sort="rate"]').trigger('click')
+    expect(rowIds()).toEqual(['8', '7'])
+    await wrapper.get('[data-sort="cache_hit_rate"]').trigger('click')
+    expect(rowIds()).toEqual(['7', '8'])
+    await wrapper.get('[data-sort="availability"]').trigger('click')
+    expect(rowIds()).toEqual(['7', '8'])
 
     wrapper.unmount()
   })
