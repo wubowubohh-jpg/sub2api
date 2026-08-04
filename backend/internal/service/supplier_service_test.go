@@ -122,10 +122,10 @@ func TestSupplierGroupMetricsUsesBestModelAvailability(t *testing.T) {
 			channelmonitorhistory.StatusFailed,
 		},
 		"gpt-secondary": {
-			channelmonitorhistory.StatusOperational,
+			channelmonitorhistory.StatusFailed,
 			channelmonitorhistory.StatusOperational,
 			channelmonitorhistory.StatusDegraded,
-			channelmonitorhistory.StatusFailed,
+			channelmonitorhistory.StatusOperational,
 		},
 	}
 	for model, modelStatuses := range statuses {
@@ -143,6 +143,7 @@ func TestSupplierGroupMetricsUsesBestModelAvailability(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, metrics.Availability)
 	require.InDelta(t, 75, *metrics.Availability, 0.000001)
+	require.Equal(t, string(channelmonitorhistory.StatusOperational), metrics.MonitorStatus)
 }
 
 func TestSupplierSettlementSettingsRemoveMinimumAndConfigureDelay(t *testing.T) {

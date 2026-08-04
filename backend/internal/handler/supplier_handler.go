@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -443,7 +444,23 @@ func (h *SupplierHandler) Hall(c *gin.Context) {
 			Metrics:       metrics,
 		})
 	}
+	sortSupplierHallItems(out)
 	c.JSON(http.StatusOK, gin.H{"groups": out})
+}
+
+func sortSupplierHallItems(items []supplierHallItem) {
+	sort.SliceStable(items, func(i, j int) bool {
+		return supplierHallStatusRank(items[i].Metrics.MonitorStatus) > supplierHallStatusRank(items[j].Metrics.MonitorStatus)
+	})
+}
+
+func supplierHallStatusRank(status string) int {
+	switch status {
+	case "operational", "degraded":
+		return 1
+	default:
+		return 0
+	}
 }
 func (h *SupplierHandler) Withdraw(c *gin.Context) {
 	uid, ok := subject(c)

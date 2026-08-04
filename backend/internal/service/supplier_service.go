@@ -1137,6 +1137,12 @@ type SupplierMetricPoint struct {
 	CacheHitRate    *float64  `json:"cache_hit_rate"`
 	TPS             *float64  `json:"tps"`
 }
+
+type supplierLatestModelStatus struct {
+	status    channelmonitorhistory.Status
+	checkedAt time.Time
+}
+
 type SupplierGroupMetrics struct {
 	RequestCount    int64                 `json:"request_count"`
 	AvgLatencyMs    *float64              `json:"avg_latency_ms"`
@@ -1147,6 +1153,7 @@ type SupplierGroupMetrics struct {
 	Availability    *float64              `json:"availability"`
 	LatestProbeAt   *time.Time            `json:"latest_probe_at"`
 	Timeline        []SupplierMetricPoint `json:"timeline"`
+	MonitorStatus   string                `json:"-"`
 }
 
 type SupplierSettings struct {
@@ -1339,6 +1346,7 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 			healthy int64
 		}
 		availabilityByModel := make(map[string]availabilityCounts)
+		latestStatusByModel := make(map[string]supplierLatestModelStatus)
 		var latencySum, latencyCount, probeFirstSum, probeFirstCount int64
 		for _, monitor := range monitors {
 			history, _ := s.db.ChannelMonitorHistory.Query().Where(channelmonitorhistory.MonitorID(monitor.ID), channelmonitorhistory.CheckedAtGTE(since)).All(ctx)
@@ -1353,6 +1361,10 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 					counts.healthy++
 				}
 				availabilityByModel[point.Model] = counts
+				latest, exists := latestStatusByModel[point.Model]
+				if !exists || point.CheckedAt.After(latest.checkedAt) {
+					latestStatusByModel[point.Model] = supplierLatestModelStatus{status: point.Status, checkedAt: point.CheckedAt}
+				}
 				if point.LatencyMs != nil {
 					latencySum += int64(*point.LatencyMs)
 					latencyCount++
@@ -1363,6 +1375,7 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 				}
 			}
 		}
+		out.MonitorStatus = aggregateSupplierMonitorStatus(latestStatusByModel)
 		maxAvailability := -1.0
 		for _, counts := range availabilityByModel {
 			if counts.checks == 0 {
@@ -1386,6 +1399,28 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 		}
 	}
 	return out, nil
+}
+
+func aggregateSupplierMonitorStatus(latest map[string]supplierLatestModelStatus) string {
+	hasFailed := false
+	hasError := false
+	for _, model := range latest {
+		switch string(model.status) {
+		case string(channelmonitorhistory.StatusOperational), string(channelmonitorhistory.StatusDegraded):
+			return string(channelmonitorhistory.StatusOperational)
+		case string(channelmonitorhistory.StatusFailed):
+			hasFailed = true
+		case string(channelmonitorhistory.StatusError):
+			hasError = true
+		}
+	}
+	if hasFailed {
+		return string(channelmonitorhistory.StatusFailed)
+	}
+	if hasError {
+		return string(channelmonitorhistory.StatusError)
+	}
+	return ""
 }
 
 func (s *SupplierService) addMetricBucket(ctx context.Context, log *dbent.UsageLog) error {
