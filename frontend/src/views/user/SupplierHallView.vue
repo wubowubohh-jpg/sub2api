@@ -1,4 +1,5 @@
 <template>
+  <AppLayout>
   <div class="min-h-full bg-gray-50 p-4 dark:bg-gray-950 md:p-6">
     <div class="mx-auto max-w-[1600px]">
       <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -16,8 +17,10 @@
       </div>
     </div>
   </div>
+  </AppLayout>
 </template>
 <script setup lang="ts">
+import AppLayout from '@/components/layout/AppLayout.vue'
 import { onMounted,ref } from 'vue'; import { supplierAPI,type HallGroup } from '@/api/suppliers'
 const windows=['6h','24h','7d','30d'];const window=ref('6h');const groups=ref<HallGroup[]>([]);const loading=ref(false)
 async function load(){loading.value=true;try{groups.value=(await supplierAPI.hall(window.value)).groups}finally{loading.value=false}}onMounted(load)

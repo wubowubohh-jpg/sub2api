@@ -1,4 +1,5 @@
 <template>
+  <AppLayout>
   <div class="p-4 md:p-6 space-y-8">
     <header><h1 class="text-xl font-semibold">供应商管理</h1><p class="mt-1 text-sm text-gray-500">审核入驻、调整倍率、冻结供应商与处理提现。</p></header>
     <div v-if="error" class="border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</div>
@@ -7,8 +8,10 @@
 	    <section><h2 class="mb-3 font-medium">资源创建审核</h2><div class="overflow-x-auto border-y"><table class="w-full text-sm"><thead><tr class="text-left text-gray-500"><th class="p-3">分组</th><th>中转站</th><th>地址</th><th>模型</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="r in resourceRequests" :key="r.id" class="border-t"><td class="p-3">{{r.group_name}}</td><td>{{r.relay_name}}</td><td>{{r.relay_url}}</td><td>{{r.model}}</td><td>{{r.status}}</td><td class="space-x-2"><button v-if="r.status==='pending'" class="text-emerald-700" @click="reviewResource(r.id,true)">通过并创建</button><button v-if="r.status==='pending'" class="text-rose-700" @click="reviewResource(r.id,false)">驳回</button></td></tr></tbody></table></div></section>
     <section><h2 class="mb-3 font-medium">提现审核</h2><div class="overflow-x-auto border-y"><table class="w-full text-sm"><thead><tr class="text-left text-gray-500"><th class="p-3">申请号</th><th>供应商</th><th>金额</th><th>方式</th><th>状态</th><th>操作</th></tr></thead><tbody><tr v-for="w in withdrawals" :key="w.id" class="border-t"><td class="p-3 font-mono text-xs">{{w.request_no}}</td><td>{{w.supplier_id}}</td><td>¥{{money(w.amount_cny)}}</td><td>{{w.method}}</td><td>{{w.status}}</td><td class="space-x-2"><button v-if="w.status==='pending'" class="text-emerald-700" @click="updateWithdrawal(w.id,'approved')">通过</button><button v-if="w.status==='pending'" class="text-rose-700" @click="updateWithdrawal(w.id,'rejected')">驳回</button><button v-if="w.status==='approved'" class="text-sky-700" @click="pay(w.id)">标记已打款</button></td></tr></tbody></table></div></section>
   </div>
+  </AppLayout>
 </template>
 <script setup lang="ts">
+import AppLayout from '@/components/layout/AppLayout.vue'
 import { onMounted, reactive, ref } from 'vue'
 import { adminSupplierAPI, type Supplier, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
 const items = ref<Supplier[]>([]); const withdrawals = ref<SupplierWithdrawal[]>([]); const resourceRequests = ref<SupplierResourceRequest[]>([]); const error = ref('')
