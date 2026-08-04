@@ -15,6 +15,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,8 @@ import (
 	dbgroup "github.com/Wei-Shaw/sub2api/ent/group"
 	dbpredicate "github.com/Wei-Shaw/sub2api/ent/predicate"
 	dbproxy "github.com/Wei-Shaw/sub2api/ent/proxy"
+	dbsetting "github.com/Wei-Shaw/sub2api/ent/setting"
+	dbsupplierresourcerequest "github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -2711,7 +2714,86 @@ func (r *accountRepository) updateUpstreamBillingProbeSnapshotInTx(
 	if affected == 0 {
 		return service.ErrUpstreamBillingProbeIdentityChanged
 	}
-	return enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, nil)
+	supplierGroupID, err := r.syncSupplierResourceProbeRate(ctx, account, rateMultiplier)
+	if err != nil {
+		return err
+	}
+	if err = enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, nil); err != nil {
+		return err
+	}
+	if supplierGroupID != nil {
+		return enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventGroupChanged, nil, supplierGroupID, nil)
+	}
+	return nil
+}
+
+func (r *accountRepository) syncSupplierResourceProbeRate(
+	ctx context.Context,
+	account *service.Account,
+	baseRate *float64,
+) (*int64, error) {
+	if account == nil || account.SupplierID == nil || baseRate == nil ||
+		!accountExtraBool(account.Extra, service.UpstreamBillingProbeEnabledExtraKey) ||
+		!accountExtraBool(account.Extra, service.UpstreamBillingRateSyncEnabledExtraKey) {
+		return nil, nil
+	}
+	client := clientFromContext(ctx, r.client)
+	request, err := client.SupplierResourceRequest.Query().Where(
+		dbsupplierresourcerequest.SupplierID(*account.SupplierID),
+		dbsupplierresourcerequest.AccountID(account.ID),
+		dbsupplierresourcerequest.StatusEQ(dbsupplierresourcerequest.StatusApproved),
+	).Order(dbent.Asc(dbsupplierresourcerequest.FieldID)).First(ctx)
+	if dbent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if request.GroupID == nil {
+		return nil, nil
+	}
+	groupRow, err := client.Group.Query().Where(
+		dbgroup.ID(*request.GroupID),
+		dbgroup.SupplierID(*account.SupplierID),
+	).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	adjustment := 0.0
+	if groupRow.SupplierAdminAdjustment != nil {
+		adjustment = *groupRow.SupplierAdminAdjustment
+	} else {
+		settingRow, settingErr := client.Setting.Query().Where(
+			dbsetting.KeyEQ(service.SettingKeySupplierGlobalRateAdjustment),
+		).Only(ctx)
+		if settingErr == nil {
+			if parsed, parseErr := strconv.ParseFloat(strings.TrimSpace(settingRow.Value), 64); parseErr == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
+				adjustment = parsed
+			}
+		} else if !dbent.IsNotFound(settingErr) {
+			return nil, settingErr
+		}
+	}
+	effectiveRate := *baseRate + adjustment
+	if math.IsNaN(effectiveRate) || math.IsInf(effectiveRate, 0) {
+		return nil, errors.New("invalid supplier effective rate")
+	}
+	if _, err = client.SupplierResourceRequest.UpdateOne(request).SetRateMultiplier(*baseRate).Save(ctx); err != nil {
+		return nil, err
+	}
+	if _, err = client.Group.UpdateOne(groupRow).SetRateMultiplier(effectiveRate).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = client.Account.UpdateOneID(account.ID).SetRateMultiplier(effectiveRate).Exec(ctx); err != nil {
+		return nil, err
+	}
+	groupID := groupRow.ID
+	return &groupID, nil
+}
+
+func accountExtraBool(extra map[string]any, key string) bool {
+	value, ok := extra[key].(bool)
+	return ok && value
 }
 
 func lockAndMatchProbeProxyIdentity(ctx context.Context, client *dbent.Client, account *service.Account) (bool, error) {

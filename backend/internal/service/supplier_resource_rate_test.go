@@ -21,9 +21,14 @@ func TestSupplierResourceRateDetails(t *testing.T) {
 		wantEffective   float64
 	}{
 		{
-			name:           "probe rate remains informational",
+			name:           "unsynchronized probe rate keeps configured source",
 			configuredRate: 0.04, probeEnabled: true, upstreamRate: &probeRate,
 			adminAdjustment: 0.01, wantSource: "configured", wantApplied: 0.04, wantEffective: 0.05,
+		},
+		{
+			name:           "synchronized probe rate becomes live base rate",
+			configuredRate: 0.06, probeEnabled: true, upstreamRate: &probeRate,
+			adminAdjustment: 0.01, wantSource: "probe", wantApplied: 0.06, wantEffective: 0.07,
 		},
 		{
 			name:           "configured rate when probe is disabled",

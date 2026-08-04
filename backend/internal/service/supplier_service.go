@@ -464,8 +464,8 @@ func (s *SupplierService) UpdateResourceRequestAPIKey(ctx context.Context, suppl
 	return s.resourceRequestView(ctx, supplierID, requestID)
 }
 
-// UpdateResourceRequestProbe changes only the owning supplier account's
-// upstream billing probe switch. Enabling it never enables rate write-back.
+// UpdateResourceRequestProbe keeps probing and live supplier-rate synchronization
+// on the same owner-scoped switch.
 func (s *SupplierService) UpdateResourceRequestProbe(ctx context.Context, supplierID, requestID int64, enabled bool) (*SupplierResourceRequestView, error) {
 	req, err := s.db.SupplierResourceRequest.Query().Where(supplierresourcerequest.ID(requestID), supplierresourcerequest.SupplierID(supplierID)).Only(ctx)
 	if err != nil || req.Status != supplierresourcerequest.StatusApproved || req.AccountID == nil {
@@ -480,9 +480,7 @@ func (s *SupplierService) UpdateResourceRequestProbe(ctx context.Context, suppli
 		extra = make(map[string]any)
 	}
 	extra[UpstreamBillingProbeEnabledExtraKey] = enabled
-	if !enabled {
-		extra[UpstreamBillingRateSyncEnabledExtraKey] = false
-	}
+	extra[UpstreamBillingRateSyncEnabledExtraKey] = enabled
 	if _, err = a.Update().SetExtra(extra).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -653,9 +651,7 @@ func (s *SupplierService) AdminUpdateResourceRequest(ctx context.Context, reques
 			extra = make(map[string]any)
 		}
 		extra[UpstreamBillingProbeEnabledExtraKey] = in.ProbeEnabled
-		if !in.ProbeEnabled {
-			extra[UpstreamBillingRateSyncEnabledExtraKey] = false
-		}
+		extra[UpstreamBillingRateSyncEnabledExtraKey] = in.ProbeEnabled
 		if _, err = tx.Account.UpdateOne(a).SetName(relayName).SetCredentials(credentials).SetExtra(extra).SetRateMultiplier(finalRate).Save(ctx); err != nil {
 			return nil, err
 		}
@@ -812,8 +808,14 @@ func supplierProbeFields(probe *SupplierResourceProbeView) (status string, rate 
 			updatedAt = &parsed
 		}
 	}
+	if value, ok := supplierProbeNumber(snapshot["synced_rate_multiplier"]); ok {
+		rate = &value
+	}
 	if data, ok := snapshot["data"].(map[string]any); ok {
-		for _, key := range []string{"effective_rate_multiplier", "resolved_rate_multiplier"} {
+		for _, key := range []string{"resolved_rate_multiplier", "effective_rate_multiplier"} {
+			if rate != nil {
+				break
+			}
 			if value, ok := supplierProbeNumber(data[key]); ok {
 				rate = &value
 				break
@@ -846,10 +848,12 @@ func supplierProbeNumber(value any) (float64, bool) {
 	}
 }
 
-// Probe results are informational. Billing always uses the supplier-controlled
-// configured rate plus the administrator adjustment.
-func supplierResourceRateDetails(configuredRate float64, _ bool, _ *float64, adminAdjustment float64) (string, float64, float64) {
-	return "configured", configuredRate, configuredRate + adminAdjustment
+func supplierResourceRateDetails(configuredRate float64, probeEnabled bool, upstreamRate *float64, adminAdjustment float64) (string, float64, float64) {
+	source := "configured"
+	if probeEnabled && upstreamRate != nil && equalBillingMultiplier(configuredRate, *upstreamRate) {
+		source = "probe"
+	}
+	return source, configuredRate, configuredRate + adminAdjustment
 }
 
 func normalizeSupplierResourceModels(models []string, probeModel string) ([]string, string, error) {
@@ -1052,7 +1056,7 @@ func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, 
 	if err != nil {
 		return nil, err
 	}
-	a, err := tx.Account.Create().SetSupplierID(req.SupplierID).SetName(req.RelayName).SetPlatform(PlatformOpenAI).SetType(AccountTypeAPIKey).SetCredentials(map[string]any{"api_key": key, "base_url": req.RelayURL, "model_mapping": modelMapping}).SetExtra(map[string]any{openai_compat.ExtraKeyResponsesSupported: false, UpstreamBillingProbeEnabledExtraKey: req.ProbeEnabled, UpstreamBillingRateSyncEnabledExtraKey: false}).SetRateMultiplier(finalRate).SetStatus(StatusActive).SetSchedulable(true).AddGroupIDs(g.ID).Save(ctx)
+	a, err := tx.Account.Create().SetSupplierID(req.SupplierID).SetName(req.RelayName).SetPlatform(PlatformOpenAI).SetType(AccountTypeAPIKey).SetCredentials(map[string]any{"api_key": key, "base_url": req.RelayURL, "model_mapping": modelMapping}).SetExtra(map[string]any{openai_compat.ExtraKeyResponsesSupported: false, UpstreamBillingProbeEnabledExtraKey: req.ProbeEnabled, UpstreamBillingRateSyncEnabledExtraKey: req.ProbeEnabled}).SetRateMultiplier(finalRate).SetStatus(StatusActive).SetSchedulable(true).AddGroupIDs(g.ID).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
