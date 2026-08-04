@@ -8,6 +8,7 @@ export interface HallGroup { id:number; name:string; description:string; platfor
 export interface SupplierSettings { global_rate_adjustment:number; minimum_withdrawal_usd:number }
 export interface SupplierWithdrawal { id:number; supplier_id:number; request_no:string; amount_cny:number; method:string; status:'pending'|'approved'|'rejected'|'paid'; review_note:string; payment_proof_key?:string; created_at:string }
 export interface SupplierResourceRequest { id:number; supplier_id:number; group_name:string; relay_name:string; relay_url:string; model:string; status:'pending'|'approved'|'rejected'; review_note:string; group_id?:number; account_id?:number; monitor_id?:number; created_at:string }
+export interface SupplierBill { id:number; group_id:number; group_name:string; model:string; input_tokens:number; output_tokens:number; cache_read_tokens:number; base_rate:number; effective_rate:number; amount_cny:number; status:'pending'|'available'|'frozen'; available_at?:string; created_at:string }
 
 export const supplierAPI = {
   async me() { return (await apiClient.get<Supplier>('/suppliers/me')).data },
@@ -18,6 +19,7 @@ export const supplierAPI = {
   async accounts() { return (await apiClient.get<any[]>('/suppliers/accounts')).data },
   async resourceRequests() { return (await apiClient.get<{items:SupplierResourceRequest[]}>('/suppliers/resource-requests')).data },
   async createResourceRequest(payload:{group_name:string;relay_name:string;relay_url:string;api_key:string;model:string}) { return (await apiClient.post<SupplierResourceRequest>('/suppliers/resource-requests',payload)).data },
+  async bills(status='') { return (await apiClient.get<{items:SupplierBill[]}>('/suppliers/bills',{params:{status}})).data },
   async hall(window='6h') { return (await apiClient.get<{groups:HallGroup[]}>('/supplier-hall',{params:{window}})).data },
   async withdraw(payload:{amount_cny:number;method:string;profile:Record<string,unknown>}) { return (await apiClient.post('/suppliers/withdrawals',payload)).data },
 }

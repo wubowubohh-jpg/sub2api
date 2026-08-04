@@ -118,6 +118,25 @@ func (h *SupplierHandler) MyResourceRequests(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
+
+func (h *SupplierHandler) MyBills(c *gin.Context) {
+	uid, ok := subject(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	sp, err := h.svc.UserIsSupplier(c, uid)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
+		return
+	}
+	items, err := h.svc.Bills(c, sp.ID, c.Query("status"), 100)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
 func (h *SupplierHandler) UploadDocument(c *gin.Context) {
 	uid, ok := subject(c)
 	if !ok {

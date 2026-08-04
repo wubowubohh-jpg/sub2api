@@ -189,6 +189,56 @@ type SupplierSettings struct {
 	MinimumWithdrawalUSD float64 `json:"minimum_withdrawal_usd"`
 }
 
+type SupplierBillItem struct {
+	ID              int64      `json:"id"`
+	GroupID         int64      `json:"group_id"`
+	GroupName       string     `json:"group_name"`
+	Model           string     `json:"model"`
+	InputTokens     int        `json:"input_tokens"`
+	OutputTokens    int        `json:"output_tokens"`
+	CacheReadTokens int        `json:"cache_read_tokens"`
+	BaseRate        float64    `json:"base_rate"`
+	EffectiveRate   float64    `json:"effective_rate"`
+	AmountCNY       float64    `json:"amount_cny"`
+	Status          string     `json:"status"`
+	AvailableAt     *time.Time `json:"available_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
+func (s *SupplierService) Bills(ctx context.Context, supplierID int64, bucket string, limit int) ([]SupplierBillItem, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	q := s.db.SupplierLedger.Query().Where(supplierledger.SupplierID(supplierID)).Order(dbent.Desc(supplierledger.FieldCreatedAt)).Limit(limit)
+	if bucket != "" {
+		if bucket != "pending" && bucket != "available" && bucket != "frozen" {
+			return nil, fmt.Errorf("invalid bill status")
+		}
+		q.Where(supplierledger.BucketEQ(supplierledger.Bucket(bucket)))
+	}
+	entries, err := q.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SupplierBillItem, 0, len(entries))
+	for _, entry := range entries {
+		item := SupplierBillItem{ID: entry.ID, GroupID: entry.GroupID, BaseRate: entry.BaseRate, EffectiveRate: entry.EffectiveRate, AmountCNY: entry.AmountCny, Status: string(entry.Bucket), AvailableAt: entry.AvailableAt, CreatedAt: entry.CreatedAt}
+		if g, err := s.db.Group.Get(ctx, entry.GroupID); err == nil && g.SupplierID != nil && *g.SupplierID == supplierID {
+			item.GroupName = g.Name
+		}
+		if entry.UsageLogID != nil {
+			if log, err := s.db.UsageLog.Get(ctx, *entry.UsageLogID); err == nil && log.SupplierID != nil && *log.SupplierID == supplierID {
+				item.Model = log.Model
+				item.InputTokens = log.InputTokens
+				item.OutputTokens = log.OutputTokens
+				item.CacheReadTokens = log.CacheReadTokens
+			}
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
 func (s *SupplierService) GetSettings(ctx context.Context) (SupplierSettings, error) {
 	out := SupplierSettings{MinimumWithdrawalUSD: 100}
 	rows, err := s.db.Setting.Query().Where(setting.KeyIn("supplier_global_rate_adjustment", "supplier_min_withdrawal_usd")).All(ctx)
