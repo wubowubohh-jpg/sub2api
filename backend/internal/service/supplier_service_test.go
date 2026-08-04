@@ -314,7 +314,7 @@ func TestSupplierResourceRateUsesProbeOrConfiguredRateWithAdminIncrement(t *test
 	extra[UpstreamBillingProbeEnabledExtraKey] = true
 	extra[UpstreamBillingProbeExtraKey] = map[string]any{
 		"status": "ok",
-		"data": map[string]any{"effective_rate_multiplier": 0.07},
+		"data":   map[string]any{"effective_rate_multiplier": 0.07},
 	}
 	svc.db.Account.UpdateOne(account).SetExtra(extra).ExecX(ctx)
 	view, err = svc.resourceRequestView(ctx, owner.ID, approved.ID)
