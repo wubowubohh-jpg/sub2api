@@ -123,9 +123,6 @@
                       <span aria-hidden="true">·</span>
                       <span>{{ row.group.is_exclusive ? t('channelStatus.exclusive') : t('channelStatus.public') }}</span>
                     </div>
-                    <p v-if="row.group.description" class="mt-2 line-clamp-2 text-xs leading-5 text-gray-400">
-                      {{ row.group.description }}
-                    </p>
                   </td>
 
                   <td class="px-4 py-4">
@@ -136,8 +133,7 @@
 
                   <td class="px-4 py-4">
                     <template v-if="row.monitor">
-                      <div class="text-xs text-gray-400">{{ row.monitor.name }}</div>
-                      <div class="mt-2 flex items-center gap-2">
+                      <div class="flex items-center gap-2">
                         <span class="font-mono text-xs font-medium text-gray-800 dark:text-dark-100">{{ row.monitor.primary_model }}</span>
                         <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" :class="statusBadgeClass(row.monitor.primary_status)">
                           {{ statusLabel(row.monitor.primary_status) }}
@@ -321,7 +317,7 @@
     <MonitorDetailDialog
       :show="showDetail"
       :monitor-id="detailTarget?.id ?? null"
-      :title="detailTarget?.name || t('channelStatus.detailTitle')"
+      :title="detailTarget?.group_name || t('channelStatus.detailTitle')"
       @close="closeDetail"
     />
   </AppLayout>

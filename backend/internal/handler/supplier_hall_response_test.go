@@ -21,7 +21,7 @@ func TestSupplierHallItemDoesNotExposeSupplierOrRateBreakdown(t *testing.T) {
 	if err = json.Unmarshal(payload, &fields); err != nil {
 		t.Fatalf("unmarshal supplier hall item: %v", err)
 	}
-	for _, hidden := range []string{"supplier_id", "supplier_name", "base_rate", "admin_adjustment"} {
+	for _, hidden := range []string{"supplier_id", "supplier_name", "base_rate", "admin_adjustment", "description"} {
 		if _, exists := fields[hidden]; exists {
 			t.Fatalf("public supplier hall response exposed %q", hidden)
 		}

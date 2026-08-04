@@ -60,7 +60,7 @@ describe('ChannelStatusView supplier hall', () => {
       groups: [{
         id: 7,
         name: 'A0001-codex-plus',
-        description: '稳定的 Codex 中转分组',
+        description: '不应展示的中转描述',
         platform: 'openai',
         effective_rate: 0.05,
         status: 'active',
@@ -79,7 +79,6 @@ describe('ChannelStatusView supplier hall', () => {
       }, {
         id: 8,
         name: 'A0001-fallback',
-        description: '',
         platform: 'openai',
         effective_rate: 0.08,
         status: 'active',
@@ -100,7 +99,7 @@ describe('ChannelStatusView supplier hall', () => {
     listMonitors.mockResolvedValue({
       items: [{
         id: 21,
-        name: 'A0001-codex-plus monitor',
+        name: '不应展示的供应商中转站名称',
         provider: 'openai',
         group_name: 'A0001-codex-plus',
         primary_model: 'gpt-5.5',
@@ -139,6 +138,8 @@ describe('ChannelStatusView supplier hall', () => {
     expect(listMonitors).toHaveBeenCalledOnce()
     expect(text).toContain('供应商大厅')
     expect(text).toContain('A0001-codex-plus')
+    expect(text).not.toContain('不应展示的中转描述')
+    expect(text).not.toContain('不应展示的供应商中转站名称')
     expect(text).toContain('0.05x')
     expect(text).toContain('gpt-5.5')
     expect(text).toContain('gpt-5.4')

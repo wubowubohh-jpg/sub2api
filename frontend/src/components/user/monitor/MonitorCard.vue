@@ -14,7 +14,7 @@
       </span>
       <div class="flex-1 min-w-0">
         <div class="text-base font-semibold truncate text-gray-900 dark:text-gray-100">
-          {{ item.name }}
+          {{ item.group_name }}
         </div>
         <div class="mt-0.5 flex items-center gap-1.5 min-w-0">
           <span

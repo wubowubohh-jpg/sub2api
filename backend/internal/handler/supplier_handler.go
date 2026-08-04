@@ -22,7 +22,6 @@ type SupplierHandler struct {
 type supplierHallItem struct {
 	ID            int64                        `json:"id"`
 	Name          string                       `json:"name"`
-	Description   string                       `json:"description"`
 	Platform      string                       `json:"platform"`
 	EffectiveRate float64                      `json:"effective_rate"`
 	Status        string                       `json:"status"`
@@ -434,15 +433,17 @@ func (h *SupplierHandler) Hall(c *gin.Context) {
 			window = 30 * 24 * time.Hour
 		}
 		metrics, _ := h.svc.GroupMetrics(c, g.ID, time.Now().Add(-window))
-		out = append(out, supplierHallItem{g.ID, g.Name, ptrString(g.Description), g.Platform, rate, g.Status, g.IsExclusive, metrics})
+		out = append(out, supplierHallItem{
+			ID:            g.ID,
+			Name:          g.Name,
+			Platform:      g.Platform,
+			EffectiveRate: rate,
+			Status:        g.Status,
+			IsExclusive:   g.IsExclusive,
+			Metrics:       metrics,
+		})
 	}
 	c.JSON(http.StatusOK, gin.H{"groups": out})
-}
-func ptrString(v *string) string {
-	if v == nil {
-		return ""
-	}
-	return *v
 }
 func (h *SupplierHandler) Withdraw(c *gin.Context) {
 	uid, ok := subject(c)
