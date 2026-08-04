@@ -1,9 +1,10 @@
 <template>
-  <div class="mt-4 pt-3 border-t border-gray-100 dark:border-dark-700/60">
+  <div :class="compact ? '' : 'mt-4 border-t border-gray-100 pt-3 dark:border-dark-700/60'">
     <div
-      class="flex justify-between text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2"
+      class="flex text-[10px] font-semibold uppercase tracking-widest text-gray-400"
+      :class="compact ? 'mb-1 justify-end' : 'mb-2 justify-between'"
     >
-      <span>{{ t('monitorCommon.history60pts', { n: length }) }}</span>
+      <span v-if="!compact">{{ t('monitorCommon.history60pts', { n: length }) }}</span>
       <span class="tabular-nums">{{ t('monitorCommon.nextUpdateIn', { n: countdownSeconds }) }}</span>
     </div>
 
@@ -13,7 +14,7 @@
     >
       {{ t('monitorCommon.maintenancePaused') }}
     </div>
-    <div v-else class="flex items-end gap-[2px] h-5 w-full">
+    <div v-else class="flex w-full items-end gap-[2px]" :class="compact ? 'h-4' : 'h-5'">
       <div
         v-for="(bar, idx) in displayBars"
         :key="idx"
@@ -25,7 +26,8 @@
     </div>
 
     <div
-      class="mt-1 flex justify-between text-[9px] uppercase tracking-widest text-gray-400"
+      class="flex justify-between text-[9px] uppercase tracking-widest text-gray-400"
+      :class="compact ? 'mt-0.5' : 'mt-1'"
     >
       <span>{{ t('monitorCommon.past') }}</span>
       <span>{{ t('monitorCommon.now') }}</span>
@@ -44,10 +46,12 @@ const props = withDefaults(defineProps<{
   countdownSeconds: number
   length?: number
   maintenance?: boolean
+  compact?: boolean
 }>(), {
   buckets: () => [],
   length: 60,
   maintenance: false,
+  compact: false,
 })
 
 const { t } = useI18n()

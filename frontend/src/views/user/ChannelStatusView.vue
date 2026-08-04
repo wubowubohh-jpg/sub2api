@@ -117,7 +117,14 @@
                       <Icon :name="sortIcon('cache_hit_rate')" size="xs" />
                     </button>
                   </th>
-                  <th class="w-[300px] px-3 py-3">{{ t('channelStatus.columns.history') }}</th>
+                  <th class="w-[300px] px-3 py-3">
+                    <span class="inline-flex items-center gap-2">
+                      <span>{{ t('channelStatus.columns.history') }}</span>
+                      <span class="text-[10px] font-normal text-gray-400 dark:text-dark-500">
+                        {{ t('monitorCommon.history60pts', { n: 60 }) }}
+                      </span>
+                    </span>
+                  </th>
                   <th class="w-[145px] px-3 py-3 text-right">{{ t('channelStatus.columns.actions') }}</th>
                 </tr>
               </thead>
@@ -190,16 +197,17 @@
                     <span class="font-medium text-gray-700 dark:text-dark-200">{{ formatMetric(row.group.metrics.cache_hit_rate, '%', 1) }}</span>
                   </td>
 
-                  <td class="px-3 py-3">
+                  <td class="px-3 py-2.5">
                     <MonitorTimeline
                       v-if="row.monitor?.timeline.length"
                       :buckets="row.monitor.timeline"
                       :countdown-seconds="countdown"
+                      compact
                     />
-                    <div v-else class="flex h-[72px] items-center justify-center border-b border-dashed border-gray-200 text-xs text-gray-400 dark:border-dark-600">
+                    <div v-else class="flex h-14 items-center justify-center border-b border-dashed border-gray-200 text-xs text-gray-400 dark:border-dark-600">
                       {{ t('channelStatus.noRecord') }}
                     </div>
-                    <div v-if="latestRecord(row.monitor)" class="mt-1 truncate text-[11px] text-gray-400">
+                    <div v-if="latestRecord(row.monitor)" class="mt-0.5 truncate text-[11px] text-gray-400">
                       {{ latestRecordText(row.monitor) }}
                     </div>
                   </td>
