@@ -75,6 +75,21 @@ func TestEnsureBootstrapSecretsLoadExistingJWTSecret(t *testing.T) {
 	require.Equal(t, "existing-jwt-secret-32bytes-long!!!!", cfg.JWT.Secret)
 }
 
+func TestEnsureBootstrapSecretsPersistTOTPEncryptionKeyAcrossInstances(t *testing.T) {
+	client := newSecuritySecretTestClient(t)
+	first := &config.Config{Totp: config.TotpConfig{EncryptionKey: strings.Repeat("11", 32)}}
+	second := &config.Config{Totp: config.TotpConfig{EncryptionKey: strings.Repeat("22", 32)}}
+
+	require.NoError(t, ensureBootstrapSecrets(context.Background(), client, first))
+	require.NoError(t, ensureBootstrapSecrets(context.Background(), client, second))
+	require.Equal(t, strings.Repeat("11", 32), first.Totp.EncryptionKey)
+	require.Equal(t, first.Totp.EncryptionKey, second.Totp.EncryptionKey)
+
+	stored, err := client.SecuritySecret.Query().Where(securitysecret.KeyEQ(securitySecretKeyTOTP)).Only(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, first.Totp.EncryptionKey, stored.Value)
+}
+
 func TestEnsureBootstrapSecretsRejectInvalidStoredSecret(t *testing.T) {
 	client := newSecuritySecretTestClient(t)
 	_, err := client.SecuritySecret.Create().SetKey(securitySecretKeyJWT).SetValue("too-short").Save(context.Background())

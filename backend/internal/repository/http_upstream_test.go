@@ -50,6 +50,27 @@ func TestHTTPUpstreamDoCanDisableRedirectsPerRequest(t *testing.T) {
 	require.Zero(t, redirectedCalls.Load())
 }
 
+func TestHTTPUpstreamStrictValidationBlocksLoopbackWithAllowlistDisabled(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(target.Close)
+
+	upstream := NewHTTPUpstream(&config.Config{Security: config.SecurityConfig{
+		URLAllowlist: config.URLAllowlistConfig{Enabled: false, AllowPrivateHosts: true},
+	}})
+	req, err := http.NewRequestWithContext(
+		service.WithStrictUpstreamHostValidation(t.Context()),
+		http.MethodGet,
+		target.URL,
+		nil,
+	)
+	require.NoError(t, err)
+
+	_, err = upstream.Do(req, "", -1, 1)
+	require.ErrorContains(t, err, "not allowed")
+}
+
 func TestHTTPUpstreamDoWithTLSPlainHTTPUsesConfiguredHTTPProxy(t *testing.T) {
 	var upstreamCalls atomic.Int64
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

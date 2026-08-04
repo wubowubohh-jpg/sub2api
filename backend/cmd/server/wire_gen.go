@@ -292,7 +292,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	modelPlazaHandler := handler.NewModelPlazaHandler(channelService, apiKeyService, settingService)
 	supplierService := service.NewSupplierService(client, secretEncryptor)
-	supplierHandler := handler.NewSupplierHandler(supplierService)
+	supplierHandler := handler.NewSupplierHandler(supplierService, accountTestService)
 	imageTaskStore := repository.NewImageTaskStore(redisClient)
 	imageTaskService := service.ProvideImageTaskService(imageTaskStore, imageStorageSettingService)
 	asyncImageHandler := handler.NewAsyncImageHandler(imageTaskService, openAIGatewayHandler)

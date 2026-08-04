@@ -14,10 +14,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type SupplierHandler struct{ svc *service.SupplierService }
+type SupplierHandler struct {
+	svc                *service.SupplierService
+	accountTestService *service.AccountTestService
+}
 
-func NewSupplierHandler(svc *service.SupplierService) *SupplierHandler {
-	return &SupplierHandler{svc: svc}
+func NewSupplierHandler(svc *service.SupplierService, accountTestService *service.AccountTestService) *SupplierHandler {
+	return &SupplierHandler{svc: svc, accountTestService: accountTestService}
 }
 func subject(c *gin.Context) (int64, bool) {
 	s, ok := middleware.GetAuthSubjectFromContext(c)
@@ -55,7 +58,22 @@ func (h *SupplierHandler) Me(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "supplier profile not found"})
 		return
 	}
-	c.JSON(http.StatusOK, sp)
+	c.JSON(http.StatusOK, gin.H{
+		"id":                    sp.ID,
+		"user_id":               sp.UserID,
+		"name":                  sp.Name,
+		"relay_url":             sp.RelayURL,
+		"application_note":      sp.ApplicationNote,
+		"status":                sp.Status,
+		"review_note":           sp.ReviewNote,
+		"freeze_reason":         sp.FreezeReason,
+		"pending_balance_cny":   sp.PendingBalanceCny,
+		"available_balance_cny": sp.AvailableBalanceCny,
+		"frozen_balance_cny":    sp.FrozenBalanceCny,
+		"group_name_prefix":     fmt.Sprintf("A%04d-", sp.ID),
+		"supplier_code":         fmt.Sprintf("A%04d", sp.ID),
+		"created_at":            sp.CreatedAt,
+	})
 }
 func (h *SupplierHandler) MyGroups(c *gin.Context) {
 	uid, ok := subject(c)
@@ -92,9 +110,14 @@ func (h *SupplierHandler) CreateResourceRequest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application"})
 		return
 	}
-	item, err := h.svc.CreateResourceRequest(c, sp.ID, in)
+	created, err := h.svc.CreateResourceRequest(c, sp.ID, in)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.svc.ResourceRequestForSupplier(c, sp.ID, created.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, item)
@@ -111,12 +134,84 @@ func (h *SupplierHandler) MyResourceRequests(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
 		return
 	}
-	items, err := h.svc.ResourceRequests(c, &sp.ID, "")
+	items, err := h.svc.ResourceRequestsForSupplier(c, sp.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func (h *SupplierHandler) UpdateResourceRequestAPIKey(c *gin.Context) {
+	uid, ok := subject(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	sp, err := h.svc.UserIsSupplier(c, uid)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
+		return
+	}
+	id, parseErr := strconv.ParseInt(c.Param("id"), 10, 64)
+	if parseErr != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application id"})
+		return
+	}
+	var in struct {
+		APIKey string `json:"api_key"`
+	}
+	if c.ShouldBindJSON(&in) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid api key payload"})
+		return
+	}
+	_, err = h.svc.UpdateResourceRequestAPIKey(c, sp.ID, id, in.APIKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.svc.ResourceRequestForSupplier(c, sp.ID, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
+func (h *SupplierHandler) UpdateResourceRequestProbe(c *gin.Context) {
+	uid, ok := subject(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	sp, err := h.svc.UserIsSupplier(c, uid)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
+		return
+	}
+	id, parseErr := strconv.ParseInt(c.Param("id"), 10, 64)
+	if parseErr != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application id"})
+		return
+	}
+	var in struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if c.ShouldBindJSON(&in) != nil || in.Enabled == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enabled is required"})
+		return
+	}
+	_, err = h.svc.UpdateResourceRequestProbe(c, sp.ID, id, *in.Enabled)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.svc.ResourceRequestForSupplier(c, sp.ID, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
 }
 
 func (h *SupplierHandler) MyBills(c *gin.Context) {
@@ -465,6 +560,38 @@ func (h *SupplierHandler) AdminResourceRequests(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+// AdminTestResourceRequest tests a supplier resource application without creating
+// an account or returning the decrypted credential to the client.
+func (h *SupplierHandler) AdminTestResourceRequest(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("request_id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application id"})
+		return
+	}
+	if h.accountTestService == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "account test service unavailable"})
+		return
+	}
+
+	var in struct {
+		ModelID string `json:"model_id"`
+		Prompt  string `json:"prompt"`
+		Mode    string `json:"mode"`
+	}
+	// Keep parity with the account test endpoint: an empty body is valid.
+	_ = c.ShouldBindJSON(&in)
+
+	account, defaultModel, err := h.svc.BuildResourceRequestTestAccount(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(in.ModelID) == "" {
+		in.ModelID = defaultModel
+	}
+	_ = h.accountTestService.TestTransientAccountConnection(c, account, in.ModelID, in.Prompt, in.Mode)
 }
 
 func (h *SupplierHandler) AdminReviewResourceRequest(c *gin.Context) {

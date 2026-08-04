@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,6 +21,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/Wei-Shaw/sub2api/ent/supplierwithdrawal"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai_compat"
+	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 )
 
 type SupplierService struct {
@@ -38,34 +39,218 @@ func NewSupplierService(db *dbent.Client, encryptor SecretEncryptor) *SupplierSe
 }
 
 type SupplierResourceApplication struct {
-	GroupName string `json:"group_name"`
-	RelayName string `json:"relay_name"`
-	RelayURL  string `json:"relay_url"`
-	APIKey    string `json:"api_key"`
-	Model     string `json:"model"`
+	GroupName       string   `json:"group_name"`
+	GroupNameSuffix string   `json:"group_name_suffix"`
+	RelayName       string   `json:"relay_name"`
+	RelayURL        string   `json:"relay_url"`
+	APIKey          string   `json:"api_key"`
+	Model           string   `json:"model"`
+	ProbeModel      string   `json:"probe_model"`
+	MonitorModel    string   `json:"monitor_model"`
+	SupportedModels []string `json:"supported_models"`
+	ProbeEnabled    *bool    `json:"upstream_billing_probe_enabled"`
+	RateMultiplier  *float64 `json:"rate_multiplier"`
+}
+
+const supplierCredentialCipherPrefix = "enc:v1:"
+
+type SupplierResourceProbeView struct {
+	AccountID             int64   `json:"account_id"`
+	Enabled               bool    `json:"enabled"`
+	RateSyncEnabled       bool    `json:"rate_sync_enabled"`
+	AccountRateMultiplier float64 `json:"account_rate_multiplier"`
+	Snapshot              any     `json:"snapshot,omitempty"`
+}
+
+type SupplierResourceProbeSupplierView struct {
+	Enabled  bool `json:"enabled"`
+	Snapshot any  `json:"snapshot,omitempty"`
+}
+
+type SupplierResourceRequestView struct {
+	*dbent.SupplierResourceRequest
+	GroupNameSuffix             string                     `json:"group_name_suffix,omitempty"`
+	MonitorModel                string                     `json:"monitor_model,omitempty"`
+	UpstreamBillingProbeEnabled bool                       `json:"upstream_billing_probe_enabled"`
+	UpstreamProbeStatus         string                     `json:"upstream_probe_status,omitempty"`
+	UpstreamRate                *float64                   `json:"upstream_rate,omitempty"`
+	UpstreamRateUpdatedAt       *time.Time                 `json:"upstream_rate_updated_at,omitempty"`
+	UpstreamProbeError          string                     `json:"upstream_probe_error,omitempty"`
+	CredentialsNeedUpdate       bool                       `json:"credentials_need_update"`
+	CredentialsValid            *bool                      `json:"credentials_valid,omitempty"`
+	UpstreamBillingProbe        *SupplierResourceProbeView `json:"upstream_billing_probe,omitempty"`
+}
+
+// SupplierResourceRequestSupplierView is the intentionally limited resource
+// application shape returned to suppliers. Internal ownership and reviewer
+// identifiers are kept in the admin view only.
+type SupplierResourceRequestSupplierView struct {
+	ID                          int64                              `json:"id"`
+	GroupName                   string                             `json:"group_name"`
+	GroupNameSuffix             string                             `json:"group_name_suffix,omitempty"`
+	RelayName                   string                             `json:"relay_name"`
+	RelayURL                    string                             `json:"relay_url"`
+	Model                       string                             `json:"model"`
+	SupportedModels             []string                           `json:"supported_models,omitempty"`
+	ProbeEnabled                bool                               `json:"probe_enabled"`
+	RateMultiplier              float64                            `json:"rate_multiplier"`
+	Status                      string                             `json:"status"`
+	ReviewNote                  string                             `json:"review_note,omitempty"`
+	ReviewedAt                  *time.Time                         `json:"reviewed_at,omitempty"`
+	UpstreamBillingProbeEnabled bool                               `json:"upstream_billing_probe_enabled"`
+	UpstreamProbeStatus         string                             `json:"upstream_probe_status,omitempty"`
+	UpstreamRate                *float64                           `json:"upstream_rate,omitempty"`
+	UpstreamRateUpdatedAt       *time.Time                         `json:"upstream_rate_updated_at,omitempty"`
+	UpstreamProbeError          string                             `json:"upstream_probe_error,omitempty"`
+	CredentialsNeedUpdate       bool                               `json:"credentials_need_update"`
+	CredentialsValid            *bool                              `json:"credentials_valid,omitempty"`
+	UpstreamBillingProbe        *SupplierResourceProbeSupplierView `json:"upstream_billing_probe,omitempty"`
+	CreatedAt                   time.Time                          `json:"created_at"`
+}
+
+func supplierResourceRequestForSupplier(view SupplierResourceRequestView) SupplierResourceRequestSupplierView {
+	request := view.SupplierResourceRequest
+	result := SupplierResourceRequestSupplierView{
+		ID:                          view.ID,
+		GroupName:                   view.GroupName,
+		GroupNameSuffix:             view.GroupNameSuffix,
+		RelayName:                   view.RelayName,
+		RelayURL:                    view.RelayURL,
+		Model:                       view.Model,
+		SupportedModels:             append([]string(nil), view.SupportedModels...),
+		ProbeEnabled:                view.ProbeEnabled,
+		RateMultiplier:              view.RateMultiplier,
+		Status:                      string(view.Status),
+		ReviewNote:                  view.ReviewNote,
+		ReviewedAt:                  view.ReviewedAt,
+		UpstreamBillingProbeEnabled: view.UpstreamBillingProbeEnabled,
+		UpstreamProbeStatus:         view.UpstreamProbeStatus,
+		UpstreamRate:                view.UpstreamRate,
+		UpstreamRateUpdatedAt:       view.UpstreamRateUpdatedAt,
+		UpstreamProbeError:          view.UpstreamProbeError,
+		CredentialsNeedUpdate:       view.CredentialsNeedUpdate,
+		CredentialsValid:            view.CredentialsValid,
+	}
+	if request != nil {
+		result.CreatedAt = request.CreatedAt
+	}
+	if view.UpstreamBillingProbe != nil {
+		result.UpstreamBillingProbe = &SupplierResourceProbeSupplierView{
+			Enabled:  view.UpstreamBillingProbe.Enabled,
+			Snapshot: view.UpstreamBillingProbe.Snapshot,
+		}
+	}
+	return result
+}
+
+func (s *SupplierService) ResourceRequestsForSupplier(ctx context.Context, supplierID int64) ([]SupplierResourceRequestSupplierView, error) {
+	views, err := s.ResourceRequests(ctx, &supplierID, "")
+	if err != nil {
+		return nil, err
+	}
+	result := make([]SupplierResourceRequestSupplierView, 0, len(views))
+	for _, view := range views {
+		result = append(result, supplierResourceRequestForSupplier(view))
+	}
+	return result, nil
+}
+
+func (s *SupplierService) ResourceRequestForSupplier(ctx context.Context, supplierID, requestID int64) (*SupplierResourceRequestSupplierView, error) {
+	view, err := s.resourceRequestView(ctx, supplierID, requestID)
+	if err != nil {
+		return nil, err
+	}
+	result := supplierResourceRequestForSupplier(*view)
+	return &result, nil
 }
 
 func (s *SupplierService) CreateResourceRequest(ctx context.Context, supplierID int64, in SupplierResourceApplication) (*dbent.SupplierResourceRequest, error) {
+	if strings.TrimSpace(in.GroupNameSuffix) != "" {
+		in.GroupName = in.GroupNameSuffix
+	}
 	in.GroupName, in.RelayName, in.RelayURL, in.APIKey = strings.TrimSpace(in.GroupName), strings.TrimSpace(in.RelayName), strings.TrimSpace(in.RelayURL), strings.TrimSpace(in.APIKey)
-	parsed, err := url.Parse(in.RelayURL)
-	if in.GroupName == "" || in.RelayName == "" || in.APIKey == "" || err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
+	requestedGroupName := in.GroupName
+	normalizedURL, err := urlvalidator.ValidateHTTPSURL(in.RelayURL, urlvalidator.ValidationOptions{AllowPrivate: false})
+	if in.GroupName == "" || in.RelayName == "" || in.APIKey == "" || err != nil {
 		return nil, fmt.Errorf("invalid resource application")
 	}
-	if in.Model == "" {
-		in.Model = "gpt-5.5"
-	}
+	in.RelayURL = normalizedURL
 	sp, err := s.db.Supplier.Get(ctx, supplierID)
 	if err != nil || sp.Status != supplier.StatusApproved {
 		return nil, fmt.Errorf("supplier is not approved")
 	}
-	encrypted, err := s.encryptor.Encrypt(in.APIKey)
+	in.GroupName, err = supplierMarketplaceGroupName(supplierID, in.GroupName)
+	if err != nil {
+		return nil, err
+	}
+	existingPending, queryErr := s.db.SupplierResourceRequest.Query().Where(
+		supplierresourcerequest.SupplierID(supplierID),
+		supplierresourcerequest.GroupNameIn(in.GroupName, requestedGroupName),
+		supplierresourcerequest.StatusEQ(supplierresourcerequest.StatusPending),
+	).Only(ctx)
+	if queryErr != nil && !dbent.IsNotFound(queryErr) {
+		return nil, queryErr
+	}
+	if exists, queryErr := s.db.SupplierResourceRequest.Query().Where(
+		supplierresourcerequest.SupplierID(supplierID),
+		supplierresourcerequest.GroupNameIn(in.GroupName, requestedGroupName),
+		supplierresourcerequest.StatusEQ(supplierresourcerequest.StatusApproved),
+	).Exist(ctx); queryErr != nil {
+		return nil, queryErr
+	} else if exists {
+		return nil, fmt.Errorf("supplier group name already exists")
+	}
+	if exists, queryErr := s.db.Group.Query().Where(group.NameEQ(in.GroupName)).Exist(ctx); queryErr != nil {
+		return nil, queryErr
+	} else if exists {
+		return nil, fmt.Errorf("supplier group name already exists")
+	}
+
+	probeModel := strings.TrimSpace(in.ProbeModel)
+	if probeModel == "" {
+		probeModel = strings.TrimSpace(in.MonitorModel)
+	}
+	if probeModel == "" {
+		probeModel = strings.TrimSpace(in.Model)
+	}
+	models, probeModel, err := normalizeSupplierResourceModels(in.SupportedModels, probeModel)
+	if err != nil {
+		return nil, err
+	}
+	probeEnabled := true
+	if in.ProbeEnabled != nil {
+		probeEnabled = *in.ProbeEnabled
+	}
+	rateMultiplier := 1.0
+	if existingPending != nil {
+		rateMultiplier = existingPending.RateMultiplier
+	}
+	if in.RateMultiplier != nil {
+		rateMultiplier = *in.RateMultiplier
+	}
+	if rateMultiplier < 0 || math.IsNaN(rateMultiplier) || math.IsInf(rateMultiplier, 0) {
+		return nil, fmt.Errorf("invalid rate multiplier")
+	}
+	encrypted, err := s.encryptSupplierAPIKey(in.APIKey)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt api key: %w", err)
 	}
-	return s.db.SupplierResourceRequest.Create().SetSupplierID(supplierID).SetGroupName(in.GroupName).SetRelayName(in.RelayName).SetRelayURL(in.RelayURL).SetAPIKeyEncrypted(encrypted).SetModel(in.Model).Save(ctx)
+	if existingPending != nil {
+		return existingPending.Update().
+			SetGroupName(in.GroupName).
+			SetRelayName(in.RelayName).
+			SetRelayURL(in.RelayURL).
+			SetAPIKeyEncrypted(encrypted).
+			SetModel(probeModel).
+			SetSupportedModels(models).
+			SetProbeEnabled(probeEnabled).
+			SetRateMultiplier(rateMultiplier).
+			Save(ctx)
+	}
+	return s.db.SupplierResourceRequest.Create().SetSupplierID(supplierID).SetGroupName(in.GroupName).SetRelayName(in.RelayName).SetRelayURL(in.RelayURL).SetAPIKeyEncrypted(encrypted).SetModel(probeModel).SetSupportedModels(models).SetProbeEnabled(probeEnabled).SetRateMultiplier(rateMultiplier).Save(ctx)
 }
 
-func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int64, status string) ([]*dbent.SupplierResourceRequest, error) {
+func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int64, status string) ([]SupplierResourceRequestView, error) {
 	q := s.db.SupplierResourceRequest.Query().Order(dbent.Desc(supplierresourcerequest.FieldCreatedAt))
 	if supplierID != nil {
 		q.Where(supplierresourcerequest.SupplierID(*supplierID))
@@ -73,7 +258,403 @@ func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int6
 	if status != "" {
 		q.Where(supplierresourcerequest.StatusEQ(supplierresourcerequest.Status(status)))
 	}
-	return q.All(ctx)
+	requests, err := q.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	accountIDs := make([]int64, 0, len(requests))
+	for _, request := range requests {
+		if request.AccountID != nil {
+			accountIDs = append(accountIDs, *request.AccountID)
+		}
+	}
+	accountsByID := make(map[int64]*dbent.Account, len(accountIDs))
+	if len(accountIDs) > 0 {
+		accounts, accountErr := s.db.Account.Query().Where(account.IDIn(accountIDs...)).All(ctx)
+		if accountErr != nil {
+			return nil, accountErr
+		}
+		for _, item := range accounts {
+			accountsByID[item.ID] = item
+		}
+	}
+
+	out := make([]SupplierResourceRequestView, 0, len(requests))
+	for _, request := range requests {
+		view := SupplierResourceRequestView{
+			SupplierResourceRequest:     request,
+			GroupNameSuffix:             supplierGroupNameSuffix(request.SupplierID, request.GroupName),
+			MonitorModel:                request.Model,
+			UpstreamBillingProbeEnabled: request.ProbeEnabled,
+		}
+		if request.AccountID == nil && request.ProbeEnabled {
+			view.UpstreamProbeStatus = "pending"
+		}
+		if request.AccountID != nil {
+			if item := accountsByID[*request.AccountID]; item != nil && item.SupplierID != nil && *item.SupplierID == request.SupplierID {
+				probe := &SupplierResourceProbeView{AccountID: item.ID, AccountRateMultiplier: item.RateMultiplier}
+				if item.Extra != nil {
+					probe.Enabled, _ = item.Extra[UpstreamBillingProbeEnabledExtraKey].(bool)
+					probe.RateSyncEnabled, _ = item.Extra[UpstreamBillingRateSyncEnabledExtraKey].(bool)
+					probe.Snapshot = item.Extra[UpstreamBillingProbeExtraKey]
+				}
+				view.UpstreamBillingProbeEnabled = probe.Enabled
+				view.UpstreamProbeStatus, view.UpstreamRate, view.UpstreamRateUpdatedAt, view.UpstreamProbeError, view.CredentialsValid = supplierProbeFields(probe)
+				view.CredentialsNeedUpdate = view.CredentialsValid != nil && !*view.CredentialsValid
+				view.UpstreamBillingProbe = probe
+			}
+		} else {
+			view.UpstreamProbeStatus = "no_data"
+		}
+		out = append(out, view)
+	}
+	return out, nil
+}
+
+func (s *SupplierService) resourceRequestView(ctx context.Context, supplierID, requestID int64) (*SupplierResourceRequestView, error) {
+	views, err := s.ResourceRequests(ctx, &supplierID, "")
+	if err != nil {
+		return nil, err
+	}
+	for i := range views {
+		if views[i].ID == requestID {
+			return &views[i], nil
+		}
+	}
+	return nil, fmt.Errorf("resource application not found")
+}
+
+// UpdateResourceRequestAPIKey lets a supplier replace a credential that was
+// entered before a restart or that has become invalid. Pending applications
+// remain pending; an already approved resource updates its own account and
+// monitor atomically without exposing the credential.
+func (s *SupplierService) UpdateResourceRequestAPIKey(ctx context.Context, supplierID, requestID int64, apiKey string) (*SupplierResourceRequestView, error) {
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return nil, fmt.Errorf("api key is required")
+	}
+	req, err := s.db.SupplierResourceRequest.Query().Where(supplierresourcerequest.ID(requestID), supplierresourcerequest.SupplierID(supplierID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resource application not found")
+	}
+	encrypted, err := s.encryptSupplierAPIKey(apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt api key: %w", err)
+	}
+	if req.Status != supplierresourcerequest.StatusApproved {
+		update := req.Update().SetAPIKeyEncrypted(encrypted)
+		if req.Status == supplierresourcerequest.StatusRejected {
+			update.SetStatus(supplierresourcerequest.StatusPending).SetReviewNote("").ClearReviewedBy().ClearReviewedAt()
+		}
+		if _, err = update.Save(ctx); err != nil {
+			return nil, err
+		}
+		return s.resourceRequestView(ctx, supplierID, requestID)
+	}
+	if req.AccountID == nil || req.MonitorID == nil {
+		return nil, fmt.Errorf("approved resource is missing its runtime resources")
+	}
+	models, _, modelErr := normalizeSupplierResourceModels(req.SupportedModels, req.Model)
+	if modelErr != nil {
+		return nil, modelErr
+	}
+	mapping := make(map[string]any, len(models))
+	for _, model := range models {
+		mapping[model] = model
+	}
+	monitorCiphertext, err := s.encryptor.Encrypt(apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt monitor api key: %w", err)
+	}
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	a, err := tx.Account.Query().Where(account.ID(*req.AccountID), account.SupplierID(supplierID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier account not found")
+	}
+	credentials := shallowCopyMap(a.Credentials)
+	if credentials == nil {
+		credentials = make(map[string]any)
+	}
+	credentials["api_key"] = apiKey
+	credentials["base_url"] = req.RelayURL
+	credentials["model_mapping"] = mapping
+	if _, err = tx.Account.UpdateOne(a).SetCredentials(credentials).SetStatus(StatusActive).SetSchedulable(true).Save(ctx); err != nil {
+		return nil, err
+	}
+	monitor, err := tx.ChannelMonitor.Query().Where(channelmonitor.ID(*req.MonitorID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier monitor not found")
+	}
+	if _, err = tx.ChannelMonitor.UpdateOne(monitor).SetAPIKeyEncrypted(monitorCiphertext).SetEnabled(true).Save(ctx); err != nil {
+		return nil, err
+	}
+	if _, err = tx.SupplierResourceRequest.UpdateOneID(requestID).SetAPIKeyEncrypted(encrypted).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.resourceRequestView(ctx, supplierID, requestID)
+}
+
+// UpdateResourceRequestProbe changes only the owning supplier account's
+// upstream billing probe switch. Enabling it never enables rate write-back.
+func (s *SupplierService) UpdateResourceRequestProbe(ctx context.Context, supplierID, requestID int64, enabled bool) (*SupplierResourceRequestView, error) {
+	req, err := s.db.SupplierResourceRequest.Query().Where(supplierresourcerequest.ID(requestID), supplierresourcerequest.SupplierID(supplierID)).Only(ctx)
+	if err != nil || req.Status != supplierresourcerequest.StatusApproved || req.AccountID == nil {
+		return nil, fmt.Errorf("approved resource application not found")
+	}
+	a, err := s.db.Account.Query().Where(account.ID(*req.AccountID), account.SupplierID(supplierID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier account not found")
+	}
+	extra := shallowCopyMap(a.Extra)
+	if extra == nil {
+		extra = make(map[string]any)
+	}
+	extra[UpstreamBillingProbeEnabledExtraKey] = enabled
+	if !enabled {
+		extra[UpstreamBillingRateSyncEnabledExtraKey] = false
+	}
+	if _, err = a.Update().SetExtra(extra).Save(ctx); err != nil {
+		return nil, err
+	}
+	return s.resourceRequestView(ctx, supplierID, requestID)
+}
+
+func supplierMarketplaceGroupName(supplierID int64, suffix string) (string, error) {
+	prefix := fmt.Sprintf("A%04d-", supplierID)
+	suffix = strings.TrimSpace(suffix)
+	if strings.HasPrefix(suffix, prefix) {
+		suffix = strings.TrimSpace(strings.TrimPrefix(suffix, prefix))
+	}
+	suffix = strings.TrimLeft(suffix, "-")
+	if suffix == "" || strings.ContainsAny(suffix, "\r\n\t") {
+		return "", fmt.Errorf("group name suffix is required")
+	}
+	name := prefix + suffix
+	if len([]rune(name)) > 100 {
+		return "", fmt.Errorf("supplier group name must not exceed 100 characters")
+	}
+	return name, nil
+}
+
+func supplierGroupNameSuffix(supplierID int64, name string) string {
+	prefix := fmt.Sprintf("A%04d-", supplierID)
+	if strings.HasPrefix(name, prefix) {
+		return strings.TrimPrefix(name, prefix)
+	}
+	return name
+}
+
+func supplierProbeFields(probe *SupplierResourceProbeView) (status string, rate *float64, updatedAt *time.Time, errText string, credentialsValid *bool) {
+	if probe == nil || !probe.Enabled {
+		return "disabled", nil, nil, "", nil
+	}
+	snapshot, ok := probe.Snapshot.(map[string]any)
+	if !ok || len(snapshot) == 0 {
+		return "pending", nil, nil, "", nil
+	}
+	switch value, _ := snapshot["status"].(string); value {
+	case UpstreamBillingProbeStatusOK:
+		status = "available"
+	case UpstreamBillingProbeStatusUnsupported:
+		status = "no_data"
+	case UpstreamBillingProbeStatusFailed:
+		status = "failed"
+	default:
+		status = "pending"
+	}
+	if value, ok := snapshot["last_error"].(string); ok {
+		errText = value
+	}
+	if value, ok := snapshot["received_at"].(string); ok {
+		if parsed, parseErr := time.Parse(time.RFC3339Nano, value); parseErr == nil {
+			updatedAt = &parsed
+		}
+	}
+	if data, ok := snapshot["data"].(map[string]any); ok {
+		for _, key := range []string{"effective_rate_multiplier", "resolved_rate_multiplier"} {
+			if value, ok := supplierProbeNumber(data[key]); ok {
+				rate = &value
+				break
+			}
+		}
+	}
+	if httpStatus, ok := supplierProbeNumber(snapshot["http_status"]); ok && (httpStatus == 401 || httpStatus == 403) {
+		valid := false
+		credentialsValid = &valid
+		status = "credential_invalid"
+	} else if status == "available" {
+		valid := true
+		credentialsValid = &valid
+	}
+	return status, rate, updatedAt, errText, credentialsValid
+}
+
+func supplierProbeNumber(value any) (float64, bool) {
+	switch number := value.(type) {
+	case float64:
+		return number, true
+	case float32:
+		return float64(number), true
+	case int:
+		return float64(number), true
+	case int64:
+		return float64(number), true
+	default:
+		return 0, false
+	}
+}
+
+func normalizeSupplierResourceModels(models []string, probeModel string) ([]string, string, error) {
+	probeModel = strings.TrimSpace(probeModel)
+	if probeModel == "" {
+		probeModel = "gpt-5.5"
+	}
+	if !validSupplierResourceModel(probeModel) {
+		return nil, "", fmt.Errorf("invalid default probe model")
+	}
+	if len(models) == 0 {
+		models = []string{probeModel}
+	}
+	if len(models) > 100 {
+		return nil, "", fmt.Errorf("too many supported models")
+	}
+	seen := make(map[string]struct{}, len(models)+1)
+	out := make([]string, 0, len(models)+1)
+	for _, model := range models {
+		model = strings.TrimSpace(model)
+		if !validSupplierResourceModel(model) {
+			return nil, "", fmt.Errorf("invalid supported model")
+		}
+		if _, ok := seen[model]; ok {
+			continue
+		}
+		seen[model] = struct{}{}
+		out = append(out, model)
+	}
+	if _, ok := seen[probeModel]; !ok {
+		return nil, "", fmt.Errorf("default probe model must be included in supported models")
+	}
+	return out, probeModel, nil
+}
+
+func validSupplierResourceModel(model string) bool {
+	if model == "" || len([]rune(model)) > 200 {
+		return false
+	}
+	for _, r := range model {
+		if r <= 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *SupplierService) encryptSupplierAPIKey(apiKey string) (string, error) {
+	if s.encryptor == nil {
+		return "", fmt.Errorf("supplier credential encryption is not configured")
+	}
+	ciphertext, err := s.encryptor.Encrypt(strings.TrimSpace(apiKey))
+	if err != nil {
+		return "", err
+	}
+	return supplierCredentialCipherPrefix + ciphertext, nil
+}
+
+func (s *SupplierService) decryptSupplierAPIKey(stored string) (string, error) {
+	if s.encryptor == nil {
+		return "", fmt.Errorf("supplier credential encryption is not configured")
+	}
+	stored = strings.TrimSpace(stored)
+	if stored == "" {
+		return "", fmt.Errorf("resource application api key is empty")
+	}
+	ciphertext := stored
+	versioned := strings.HasPrefix(stored, supplierCredentialCipherPrefix)
+	if versioned {
+		ciphertext = strings.TrimPrefix(stored, supplierCredentialCipherPrefix)
+	}
+	plaintext, err := s.encryptor.Decrypt(ciphertext)
+	if err == nil && strings.TrimSpace(plaintext) != "" {
+		return strings.TrimSpace(plaintext), nil
+	}
+	if !versioned && legacyPlainSupplierAPIKey(stored) {
+		return stored, nil
+	}
+	if err == nil {
+		err = fmt.Errorf("decrypted api key is empty")
+	}
+	return "", err
+}
+
+func legacyPlainSupplierAPIKey(value string) bool {
+	if len(value) < 8 || len(value) > 2048 || (!strings.HasPrefix(value, "sk-") && !strings.HasPrefix(value, "sk_")) {
+		return false
+	}
+	for _, r := range value {
+		if r <= 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// BuildResourceRequestTestAccount resolves an application into an in-memory
+// account for an admin connectivity probe. The decrypted key stays inside the
+// service/handler call chain and is never serialized in an API response.
+func (s *SupplierService) BuildResourceRequestTestAccount(ctx context.Context, requestID int64) (*Account, string, error) {
+	req, err := s.db.SupplierResourceRequest.Get(ctx, requestID)
+	if err != nil {
+		return nil, "", fmt.Errorf("resource application not found")
+	}
+	if req.Status != supplierresourcerequest.StatusPending {
+		return nil, "", fmt.Errorf("resource application is not pending")
+	}
+	if s.encryptor == nil {
+		return nil, "", fmt.Errorf("supplier credential encryption is not configured")
+	}
+	key, err := s.decryptSupplierAPIKey(req.APIKeyEncrypted)
+	if err != nil {
+		return nil, "", fmt.Errorf("API Key 密文已失效，请供应商在资源申请记录中更新 API Key 后重试")
+	}
+	if strings.TrimSpace(key) == "" {
+		return nil, "", fmt.Errorf("resource application api key is empty")
+	}
+
+	models, model, modelErr := normalizeSupplierResourceModels(req.SupportedModels, req.Model)
+	if modelErr != nil {
+		return nil, "", modelErr
+	}
+	modelMapping := make(map[string]any, len(models))
+	for _, supportedModel := range models {
+		modelMapping[supportedModel] = supportedModel
+	}
+	return &Account{
+		// Ent IDs are positive. A request-scoped negative ID prevents failed
+		// probes from updating the runtime state of an unrelated real account.
+		ID:          -req.ID,
+		Name:        req.RelayName,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: false,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":       key,
+			"base_url":      req.RelayURL,
+			"model_mapping": modelMapping,
+		},
+		Extra: map[string]any{
+			openai_compat.ExtraKeyResponsesSupported: false,
+			"transient_account_test":                 true,
+		},
+	}, model, nil
 }
 
 func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, reviewerID int64, approved bool, note string) (*dbent.SupplierResourceRequest, error) {
@@ -84,28 +665,54 @@ func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, 
 	if !approved {
 		return req.Update().SetStatus(supplierresourcerequest.StatusRejected).SetReviewedBy(reviewerID).SetReviewedAt(time.Now()).SetReviewNote(note).Save(ctx)
 	}
-	key, err := s.encryptor.Decrypt(req.APIKeyEncrypted)
+	sp, err := s.db.Supplier.Get(ctx, req.SupplierID)
+	if err != nil || sp.Status != supplier.StatusApproved {
+		return nil, fmt.Errorf("supplier must be approved before creating resources")
+	}
+	key, err := s.decryptSupplierAPIKey(req.APIKeyEncrypted)
 	if err != nil {
-		return nil, fmt.Errorf("decrypt api key: %w", err)
+		return nil, fmt.Errorf("API Key 密文已失效，请供应商在资源申请记录中更新 API Key 后重试")
+	}
+	groupName, err := supplierMarketplaceGroupName(req.SupplierID, req.GroupName)
+	if err != nil {
+		return nil, err
+	}
+	models, probeModel, err := normalizeSupplierResourceModels(req.SupportedModels, req.Model)
+	if err != nil {
+		return nil, err
+	}
+	modelMapping := make(map[string]any, len(models))
+	for _, model := range models {
+		modelMapping[model] = model
+	}
+	monitorCiphertext, err := s.encryptor.Encrypt(key)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt monitor api key: %w", err)
 	}
 	tx, err := s.db.Tx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	g, err := tx.Group.Create().SetSupplierID(req.SupplierID).SetName(req.GroupName).SetDescription(req.RelayName).SetPlatform("openai").SetSubscriptionType("standard").SetRateMultiplier(1).SetStatus("active").SetIsExclusive(false).Save(ctx)
+	g, err := tx.Group.Create().SetSupplierID(req.SupplierID).SetName(groupName).SetDescription(req.RelayName).SetPlatform("openai").SetSubscriptionType("standard").SetRateMultiplier(req.RateMultiplier).SetStatus("active").SetIsExclusive(false).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
-	a, err := tx.Account.Create().SetSupplierID(req.SupplierID).SetName(req.RelayName).SetPlatform("openai").SetType("api_key").SetCredentials(map[string]any{"api_key": key}).SetExtra(map[string]any{"base_url": req.RelayURL}).SetStatus("active").SetSchedulable(true).AddGroupIDs(g.ID).Save(ctx)
+	a, err := tx.Account.Create().SetSupplierID(req.SupplierID).SetName(req.RelayName).SetPlatform(PlatformOpenAI).SetType(AccountTypeAPIKey).SetCredentials(map[string]any{"api_key": key, "base_url": req.RelayURL, "model_mapping": modelMapping}).SetExtra(map[string]any{openai_compat.ExtraKeyResponsesSupported: false, UpstreamBillingProbeEnabledExtraKey: req.ProbeEnabled, UpstreamBillingRateSyncEnabledExtraKey: false}).SetStatus(StatusActive).SetSchedulable(true).AddGroupIDs(g.ID).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
-	m, err := tx.ChannelMonitor.Create().SetName(req.RelayName).SetProvider("openai").SetAPIMode("chat_completions").SetEndpoint(req.RelayURL).SetAPIKeyEncrypted(req.APIKeyEncrypted).SetPrimaryModel(req.Model).SetExtraModels([]string{}).SetGroupName(req.GroupName).SetGroupID(g.ID).SetEnabled(true).SetIntervalSeconds(60).SetJitterSeconds(5).SetCreatedBy(reviewerID).Save(ctx)
+	extraModels := make([]string, 0, len(models)-1)
+	for _, model := range models {
+		if model != probeModel {
+			extraModels = append(extraModels, model)
+		}
+	}
+	m, err := tx.ChannelMonitor.Create().SetName(req.RelayName).SetProvider("openai").SetAPIMode("chat_completions").SetEndpoint(req.RelayURL).SetAPIKeyEncrypted(monitorCiphertext).SetPrimaryModel(probeModel).SetExtraModels(extraModels).SetGroupName(groupName).SetGroupID(g.ID).SetEnabled(true).SetIntervalSeconds(60).SetJitterSeconds(5).SetCreatedBy(reviewerID).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
-	updated, err := tx.SupplierResourceRequest.UpdateOneID(req.ID).SetStatus(supplierresourcerequest.StatusApproved).SetReviewedBy(reviewerID).SetReviewedAt(time.Now()).SetReviewNote(note).SetGroupID(g.ID).SetAccountID(a.ID).SetMonitorID(m.ID).Save(ctx)
+	updated, err := tx.SupplierResourceRequest.UpdateOneID(req.ID).SetGroupName(groupName).SetModel(probeModel).SetSupportedModels(models).SetStatus(supplierresourcerequest.StatusApproved).SetReviewedBy(reviewerID).SetReviewedAt(time.Now()).SetReviewNote(note).SetGroupID(g.ID).SetAccountID(a.ID).SetMonitorID(m.ID).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -180,9 +787,11 @@ type SupplierGroupMetrics struct {
 	RequestCount    int64                 `json:"request_count"`
 	AvgLatencyMs    *float64              `json:"avg_latency_ms"`
 	AvgFirstTokenMs *float64              `json:"avg_first_token_ms"`
+	ProbeLatencyMs  *float64              `json:"probe_latency_ms"`
 	CacheHitRate    *float64              `json:"cache_hit_rate"`
 	TPS             *float64              `json:"tps"`
 	Availability    *float64              `json:"availability"`
+	LatestProbeAt   *time.Time            `json:"latest_probe_at"`
 	Timeline        []SupplierMetricPoint `json:"timeline"`
 }
 
@@ -306,17 +915,13 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 		return SupplierGroupMetrics{}, err
 	}
 	out := SupplierGroupMetrics{Timeline: make([]SupplierMetricPoint, 0, len(rows))}
-	var success int64
-	var duration, tokens, input, cache, ftSum, ftCount int64
+	var duration, tokens, input, cache int64
 	for _, r := range rows {
 		out.RequestCount += r.RequestCount
-		success += r.SuccessCount
 		duration += r.DurationMsSum
 		tokens += r.TotalTokens
 		input += r.InputTokens
 		cache += r.CacheReadTokens
-		ftSum += r.FirstTokenMsSum
-		ftCount += r.FirstTokenCount
 		p := SupplierMetricPoint{At: r.BucketStart, Requests: r.RequestCount}
 		if r.RequestCount > 0 {
 			v := float64(r.DurationMsSum) / float64(r.RequestCount)
@@ -337,14 +942,8 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 		out.Timeline = append(out.Timeline, p)
 	}
 	if out.RequestCount > 0 {
-		v := float64(success) / float64(out.RequestCount) * 100
-		out.Availability = &v
-		v = float64(duration) / float64(out.RequestCount)
+		v := float64(duration) / float64(out.RequestCount)
 		out.AvgLatencyMs = &v
-	}
-	if ftCount > 0 {
-		v := float64(ftSum) / float64(ftCount)
-		out.AvgFirstTokenMs = &v
 	}
 	if input+cache > 0 {
 		v := float64(cache) / float64(input+cache) * 100
@@ -362,6 +961,10 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 		for _, monitor := range monitors {
 			history, _ := s.db.ChannelMonitorHistory.Query().Where(channelmonitorhistory.MonitorID(monitor.ID), channelmonitorhistory.CheckedAtGTE(since)).All(ctx)
 			for _, point := range history {
+				if out.LatestProbeAt == nil || point.CheckedAt.After(*out.LatestProbeAt) {
+					checkedAt := point.CheckedAt
+					out.LatestProbeAt = &checkedAt
+				}
 				checks++
 				if point.Status == channelmonitorhistory.StatusOperational || point.Status == channelmonitorhistory.StatusDegraded {
 					healthy++
@@ -380,11 +983,11 @@ func (s *SupplierService) GroupMetrics(ctx context.Context, groupID int64, since
 			v := float64(healthy) / float64(checks) * 100
 			out.Availability = &v
 		}
-		if latencyCount > 0 && out.AvgLatencyMs == nil {
+		if latencyCount > 0 {
 			v := float64(latencySum) / float64(latencyCount)
-			out.AvgLatencyMs = &v
+			out.ProbeLatencyMs = &v
 		}
-		if probeFirstCount > 0 && out.AvgFirstTokenMs == nil {
+		if probeFirstCount > 0 {
 			v := float64(probeFirstSum) / float64(probeFirstCount)
 			out.AvgFirstTokenMs = &v
 		}
@@ -418,10 +1021,11 @@ func (s *SupplierService) addMetricBucket(ctx context.Context, log *dbent.UsageL
 func (s *SupplierService) Apply(ctx context.Context, userID int64, in SupplierApplication) (*dbent.Supplier, error) {
 	in.Name = strings.TrimSpace(in.Name)
 	in.RelayURL = strings.TrimSpace(in.RelayURL)
-	relayURL, parseErr := url.Parse(in.RelayURL)
-	if in.Name == "" || parseErr != nil || relayURL == nil || relayURL.Scheme != "https" || relayURL.Hostname() == "" || relayURL.User != nil {
+	relayURL, parseErr := urlvalidator.ValidateHTTPSURL(in.RelayURL, urlvalidator.ValidationOptions{AllowPrivate: false})
+	if in.Name == "" || parseErr != nil {
 		return nil, fmt.Errorf("name and relay_url are required")
 	}
+	in.RelayURL = relayURL
 	if existing, err := s.db.Supplier.Query().Where(supplier.UserID(userID)).Only(ctx); err == nil {
 		if existing.Status != "rejected" {
 			return nil, fmt.Errorf("supplier application already exists")
@@ -526,13 +1130,22 @@ func (s *SupplierService) CreateGroup(ctx context.Context, supplierID int64, in 
 	if in.Name == "" || in.Platform == "" || in.RateMultiplier < 0 {
 		return nil, fmt.Errorf("invalid group")
 	}
+	groupName, err := supplierMarketplaceGroupName(supplierID, in.Name)
+	if err != nil {
+		return nil, err
+	}
+	if exists, err := s.db.Group.Query().Where(group.NameEQ(groupName)).Exist(ctx); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, fmt.Errorf("supplier group name already exists")
+	}
 	if in.SubscriptionType == "" {
 		in.SubscriptionType = "standard"
 	}
 	if in.Status != "active" && in.Status != "disabled" {
 		in.Status = "disabled"
 	}
-	b := s.db.Group.Create().SetSupplierID(supplierID).SetName(in.Name).SetDescription(in.Description).SetPlatform(in.Platform).SetSubscriptionType(in.SubscriptionType).SetRateMultiplier(in.RateMultiplier).SetIsExclusive(in.IsExclusive).SetStatus(in.Status).SetSortOrder(in.SortOrder)
+	b := s.db.Group.Create().SetSupplierID(supplierID).SetName(groupName).SetDescription(in.Description).SetPlatform(in.Platform).SetSubscriptionType(in.SubscriptionType).SetRateMultiplier(in.RateMultiplier).SetIsExclusive(in.IsExclusive).SetStatus(in.Status).SetSortOrder(in.SortOrder)
 	if len(in.SupportedModelScopes) > 0 {
 		b.SetSupportedModelScopes(in.SupportedModelScopes)
 	}
@@ -543,13 +1156,24 @@ func (s *SupplierService) UpdateGroup(ctx context.Context, supplierID, groupID i
 	if err != nil {
 		return nil, fmt.Errorf("group not found")
 	}
+	groupName, err := supplierMarketplaceGroupName(supplierID, in.Name)
+	if err != nil {
+		return nil, err
+	}
+	if groupName != g.Name {
+		if exists, err := s.db.Group.Query().Where(group.NameEQ(groupName), group.IDNEQ(groupID)).Exist(ctx); err != nil {
+			return nil, err
+		} else if exists {
+			return nil, fmt.Errorf("supplier group name already exists")
+		}
+	}
 	if g.SupplierForcedOffline && in.Status == "active" {
 		return nil, fmt.Errorf("group is forced offline by administrator")
 	}
 	if in.RateMultiplier < 0 {
 		return nil, fmt.Errorf("invalid rate multiplier")
 	}
-	u := s.db.Group.UpdateOne(g).SetName(in.Name).SetDescription(in.Description).SetPlatform(in.Platform).SetSubscriptionType(in.SubscriptionType).SetRateMultiplier(in.RateMultiplier).SetIsExclusive(in.IsExclusive).SetStatus(in.Status).SetSortOrder(in.SortOrder)
+	u := s.db.Group.UpdateOne(g).SetName(groupName).SetDescription(in.Description).SetPlatform(in.Platform).SetSubscriptionType(in.SubscriptionType).SetRateMultiplier(in.RateMultiplier).SetIsExclusive(in.IsExclusive).SetStatus(in.Status).SetSortOrder(in.SortOrder)
 	if len(in.SupportedModelScopes) > 0 {
 		u.SetSupportedModelScopes(in.SupportedModelScopes)
 	}

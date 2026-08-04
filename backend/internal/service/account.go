@@ -20,6 +20,7 @@ import (
 
 type Account struct {
 	ID                      int64
+	SupplierID              *int64
 	Name                    string
 	Notes                   *string
 	Platform                string
@@ -145,6 +146,17 @@ func (a *Account) IsSyntheticUITest() bool {
 		return false
 	}
 	enabled, ok := a.Extra["synthetic_ui_test"].(bool)
+	return ok && enabled
+}
+
+// IsTransientTest reports an in-memory account used for a one-off connectivity
+// probe. Runtime state changes (error, rate-limit and capability snapshots)
+// must not be persisted for these accounts.
+func (a *Account) IsTransientTest() bool {
+	if a == nil || a.Extra == nil {
+		return false
+	}
+	enabled, ok := a.Extra["transient_account_test"].(bool)
 	return ok && enabled
 }
 

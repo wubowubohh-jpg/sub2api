@@ -47049,32 +47049,37 @@ func (m *SupplierMetricBucketMutation) ResetEdge(name string) error {
 // SupplierResourceRequestMutation represents an operation that mutates the SupplierResourceRequest nodes in the graph.
 type SupplierResourceRequestMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int64
-	group_name        *string
-	relay_name        *string
-	relay_url         *string
-	api_key_encrypted *string
-	model             *string
-	status            *supplierresourcerequest.Status
-	reviewed_by       *int64
-	addreviewed_by    *int64
-	review_note       *string
-	group_id          *int64
-	addgroup_id       *int64
-	account_id        *int64
-	addaccount_id     *int64
-	monitor_id        *int64
-	addmonitor_id     *int64
-	reviewed_at       *time.Time
-	created_at        *time.Time
-	clearedFields     map[string]struct{}
-	supplier          *int64
-	clearedsupplier   bool
-	done              bool
-	oldValue          func(context.Context) (*SupplierResourceRequest, error)
-	predicates        []predicate.SupplierResourceRequest
+	op                     Op
+	typ                    string
+	id                     *int64
+	group_name             *string
+	relay_name             *string
+	relay_url              *string
+	api_key_encrypted      *string
+	model                  *string
+	supported_models       *[]string
+	appendsupported_models []string
+	probe_enabled          *bool
+	rate_multiplier        *float64
+	addrate_multiplier     *float64
+	status                 *supplierresourcerequest.Status
+	reviewed_by            *int64
+	addreviewed_by         *int64
+	review_note            *string
+	group_id               *int64
+	addgroup_id            *int64
+	account_id             *int64
+	addaccount_id          *int64
+	monitor_id             *int64
+	addmonitor_id          *int64
+	reviewed_at            *time.Time
+	created_at             *time.Time
+	clearedFields          map[string]struct{}
+	supplier               *int64
+	clearedsupplier        bool
+	done                   bool
+	oldValue               func(context.Context) (*SupplierResourceRequest, error)
+	predicates             []predicate.SupplierResourceRequest
 }
 
 var _ ent.Mutation = (*SupplierResourceRequestMutation)(nil)
@@ -47389,6 +47394,149 @@ func (m *SupplierResourceRequestMutation) OldModel(ctx context.Context) (v strin
 // ResetModel resets all changes to the "model" field.
 func (m *SupplierResourceRequestMutation) ResetModel() {
 	m.model = nil
+}
+
+// SetSupportedModels sets the "supported_models" field.
+func (m *SupplierResourceRequestMutation) SetSupportedModels(s []string) {
+	m.supported_models = &s
+	m.appendsupported_models = nil
+}
+
+// SupportedModels returns the value of the "supported_models" field in the mutation.
+func (m *SupplierResourceRequestMutation) SupportedModels() (r []string, exists bool) {
+	v := m.supported_models
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSupportedModels returns the old "supported_models" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldSupportedModels(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSupportedModels is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSupportedModels requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSupportedModels: %w", err)
+	}
+	return oldValue.SupportedModels, nil
+}
+
+// AppendSupportedModels adds s to the "supported_models" field.
+func (m *SupplierResourceRequestMutation) AppendSupportedModels(s []string) {
+	m.appendsupported_models = append(m.appendsupported_models, s...)
+}
+
+// AppendedSupportedModels returns the list of values that were appended to the "supported_models" field in this mutation.
+func (m *SupplierResourceRequestMutation) AppendedSupportedModels() ([]string, bool) {
+	if len(m.appendsupported_models) == 0 {
+		return nil, false
+	}
+	return m.appendsupported_models, true
+}
+
+// ResetSupportedModels resets all changes to the "supported_models" field.
+func (m *SupplierResourceRequestMutation) ResetSupportedModels() {
+	m.supported_models = nil
+	m.appendsupported_models = nil
+}
+
+// SetProbeEnabled sets the "probe_enabled" field.
+func (m *SupplierResourceRequestMutation) SetProbeEnabled(b bool) {
+	m.probe_enabled = &b
+}
+
+// ProbeEnabled returns the value of the "probe_enabled" field in the mutation.
+func (m *SupplierResourceRequestMutation) ProbeEnabled() (r bool, exists bool) {
+	v := m.probe_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProbeEnabled returns the old "probe_enabled" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldProbeEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProbeEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProbeEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProbeEnabled: %w", err)
+	}
+	return oldValue.ProbeEnabled, nil
+}
+
+// ResetProbeEnabled resets all changes to the "probe_enabled" field.
+func (m *SupplierResourceRequestMutation) ResetProbeEnabled() {
+	m.probe_enabled = nil
+}
+
+// SetRateMultiplier sets the "rate_multiplier" field.
+func (m *SupplierResourceRequestMutation) SetRateMultiplier(f float64) {
+	m.rate_multiplier = &f
+	m.addrate_multiplier = nil
+}
+
+// RateMultiplier returns the value of the "rate_multiplier" field in the mutation.
+func (m *SupplierResourceRequestMutation) RateMultiplier() (r float64, exists bool) {
+	v := m.rate_multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRateMultiplier returns the old "rate_multiplier" field's value of the SupplierResourceRequest entity.
+// If the SupplierResourceRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierResourceRequestMutation) OldRateMultiplier(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRateMultiplier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRateMultiplier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRateMultiplier: %w", err)
+	}
+	return oldValue.RateMultiplier, nil
+}
+
+// AddRateMultiplier adds f to the "rate_multiplier" field.
+func (m *SupplierResourceRequestMutation) AddRateMultiplier(f float64) {
+	if m.addrate_multiplier != nil {
+		*m.addrate_multiplier += f
+	} else {
+		m.addrate_multiplier = &f
+	}
+}
+
+// AddedRateMultiplier returns the value that was added to the "rate_multiplier" field in this mutation.
+func (m *SupplierResourceRequestMutation) AddedRateMultiplier() (r float64, exists bool) {
+	v := m.addrate_multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRateMultiplier resets all changes to the "rate_multiplier" field.
+func (m *SupplierResourceRequestMutation) ResetRateMultiplier() {
+	m.rate_multiplier = nil
+	m.addrate_multiplier = nil
 }
 
 // SetStatus sets the "status" field.
@@ -47889,7 +48037,7 @@ func (m *SupplierResourceRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SupplierResourceRequestMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 17)
 	if m.supplier != nil {
 		fields = append(fields, supplierresourcerequest.FieldSupplierID)
 	}
@@ -47907,6 +48055,15 @@ func (m *SupplierResourceRequestMutation) Fields() []string {
 	}
 	if m.model != nil {
 		fields = append(fields, supplierresourcerequest.FieldModel)
+	}
+	if m.supported_models != nil {
+		fields = append(fields, supplierresourcerequest.FieldSupportedModels)
+	}
+	if m.probe_enabled != nil {
+		fields = append(fields, supplierresourcerequest.FieldProbeEnabled)
+	}
+	if m.rate_multiplier != nil {
+		fields = append(fields, supplierresourcerequest.FieldRateMultiplier)
 	}
 	if m.status != nil {
 		fields = append(fields, supplierresourcerequest.FieldStatus)
@@ -47952,6 +48109,12 @@ func (m *SupplierResourceRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.APIKeyEncrypted()
 	case supplierresourcerequest.FieldModel:
 		return m.Model()
+	case supplierresourcerequest.FieldSupportedModels:
+		return m.SupportedModels()
+	case supplierresourcerequest.FieldProbeEnabled:
+		return m.ProbeEnabled()
+	case supplierresourcerequest.FieldRateMultiplier:
+		return m.RateMultiplier()
 	case supplierresourcerequest.FieldStatus:
 		return m.Status()
 	case supplierresourcerequest.FieldReviewedBy:
@@ -47989,6 +48152,12 @@ func (m *SupplierResourceRequestMutation) OldField(ctx context.Context, name str
 		return m.OldAPIKeyEncrypted(ctx)
 	case supplierresourcerequest.FieldModel:
 		return m.OldModel(ctx)
+	case supplierresourcerequest.FieldSupportedModels:
+		return m.OldSupportedModels(ctx)
+	case supplierresourcerequest.FieldProbeEnabled:
+		return m.OldProbeEnabled(ctx)
+	case supplierresourcerequest.FieldRateMultiplier:
+		return m.OldRateMultiplier(ctx)
 	case supplierresourcerequest.FieldStatus:
 		return m.OldStatus(ctx)
 	case supplierresourcerequest.FieldReviewedBy:
@@ -48056,6 +48225,27 @@ func (m *SupplierResourceRequestMutation) SetField(name string, value ent.Value)
 		}
 		m.SetModel(v)
 		return nil
+	case supplierresourcerequest.FieldSupportedModels:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSupportedModels(v)
+		return nil
+	case supplierresourcerequest.FieldProbeEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProbeEnabled(v)
+		return nil
+	case supplierresourcerequest.FieldRateMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRateMultiplier(v)
+		return nil
 	case supplierresourcerequest.FieldStatus:
 		v, ok := value.(supplierresourcerequest.Status)
 		if !ok {
@@ -48120,6 +48310,9 @@ func (m *SupplierResourceRequestMutation) SetField(name string, value ent.Value)
 // this mutation.
 func (m *SupplierResourceRequestMutation) AddedFields() []string {
 	var fields []string
+	if m.addrate_multiplier != nil {
+		fields = append(fields, supplierresourcerequest.FieldRateMultiplier)
+	}
 	if m.addreviewed_by != nil {
 		fields = append(fields, supplierresourcerequest.FieldReviewedBy)
 	}
@@ -48140,6 +48333,8 @@ func (m *SupplierResourceRequestMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *SupplierResourceRequestMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case supplierresourcerequest.FieldRateMultiplier:
+		return m.AddedRateMultiplier()
 	case supplierresourcerequest.FieldReviewedBy:
 		return m.AddedReviewedBy()
 	case supplierresourcerequest.FieldGroupID:
@@ -48157,6 +48352,13 @@ func (m *SupplierResourceRequestMutation) AddedField(name string) (ent.Value, bo
 // type.
 func (m *SupplierResourceRequestMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case supplierresourcerequest.FieldRateMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRateMultiplier(v)
+		return nil
 	case supplierresourcerequest.FieldReviewedBy:
 		v, ok := value.(int64)
 		if !ok {
@@ -48262,6 +48464,15 @@ func (m *SupplierResourceRequestMutation) ResetField(name string) error {
 		return nil
 	case supplierresourcerequest.FieldModel:
 		m.ResetModel()
+		return nil
+	case supplierresourcerequest.FieldSupportedModels:
+		m.ResetSupportedModels()
+		return nil
+	case supplierresourcerequest.FieldProbeEnabled:
+		m.ResetProbeEnabled()
+		return nil
+	case supplierresourcerequest.FieldRateMultiplier:
+		m.ResetRateMultiplier()
 		return nil
 	case supplierresourcerequest.FieldStatus:
 		m.ResetStatus()

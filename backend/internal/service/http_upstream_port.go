@@ -1,10 +1,44 @@
 package service
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 )
+
+// strictUpstreamHostValidationKey marks short-lived probes that must perform
+// DNS/IP validation even when the global URL allowlist is disabled.
+type strictUpstreamHostValidationKey struct{}
+
+// WithStrictUpstreamHostValidation enables resolved-IP checks for an upstream
+// request without changing process-wide security settings.
+func WithStrictUpstreamHostValidation(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, strictUpstreamHostValidationKey{}, true)
+}
+
+// StrictUpstreamHostValidation reports whether a request requires resolved-IP
+// validation regardless of the global URL allowlist setting.
+func StrictUpstreamHostValidation(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	enabled, _ := ctx.Value(strictUpstreamHostValidationKey{}).(bool)
+	return enabled
+}
+
+// WithAccountUpstreamHostValidation applies the stricter socket-level host
+// policy to supplier-managed accounts. Their base URLs originate from the
+// supplier onboarding flow and remain untrusted after admin approval.
+func WithAccountUpstreamHostValidation(ctx context.Context, account *Account) context.Context {
+	if account == nil || account.SupplierID == nil {
+		return ctx
+	}
+	return WithStrictUpstreamHostValidation(ctx)
+}
 
 // HTTPUpstream 上游 HTTP 请求接口
 // 用于向上游 API（Claude、OpenAI、Gemini 等）发送请求

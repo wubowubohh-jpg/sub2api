@@ -3328,6 +3328,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 
 	return &service.Account{
 		ID:                      m.ID,
+		SupplierID:              m.SupplierID,
 		Name:                    m.Name,
 		Notes:                   m.Notes,
 		Platform:                m.Platform,

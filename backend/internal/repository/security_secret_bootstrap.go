@@ -18,6 +18,7 @@ import (
 
 const (
 	securitySecretKeyJWT        = "jwt_secret"
+	securitySecretKeyTOTP       = "totp_encryption_key"
 	securitySecretReadRetryMax  = 5
 	securitySecretReadRetryWait = 10 * time.Millisecond
 )
@@ -42,17 +43,51 @@ func ensureBootstrapSecrets(ctx context.Context, client *ent.Client, cfg *config
 			log.Println("Warning: configured JWT secret mismatches persisted value; using persisted secret for cross-instance consistency.")
 		}
 		cfg.JWT.Secret = storedSecret
+	} else {
+		secret, created, err := getOrCreateGeneratedSecuritySecret(ctx, client, securitySecretKeyJWT, 32)
+		if err != nil {
+			return fmt.Errorf("ensure jwt secret: %w", err)
+		}
+		cfg.JWT.Secret = secret
+
+		if created {
+			log.Println("Warning: JWT secret auto-generated and persisted to database. Consider rotating to a managed secret for production.")
+		}
+	}
+
+	return ensureTOTPEncryptionKey(ctx, client, cfg)
+}
+
+func ensureTOTPEncryptionKey(ctx context.Context, client *ent.Client, cfg *config.Config) error {
+	configured := strings.TrimSpace(cfg.Totp.EncryptionKey)
+	if configured != "" {
+		if raw, err := hex.DecodeString(configured); err != nil || len(raw) != 32 {
+			return fmt.Errorf("totp encryption key must be 64 hexadecimal characters")
+		}
+		stored, err := createSecuritySecretIfAbsent(ctx, client, securitySecretKeyTOTP, configured)
+		if err != nil {
+			return fmt.Errorf("persist totp encryption key: %w", err)
+		}
+		if stored != configured {
+			log.Println("Warning: configured TOTP encryption key mismatches persisted value; using persisted secret for cross-instance consistency.")
+		}
+		if raw, err := hex.DecodeString(stored); err != nil || len(raw) != 32 {
+			return fmt.Errorf("stored secret %q must be a 64-character hexadecimal key", securitySecretKeyTOTP)
+		}
+		cfg.Totp.EncryptionKey = stored
 		return nil
 	}
 
-	secret, created, err := getOrCreateGeneratedSecuritySecret(ctx, client, securitySecretKeyJWT, 32)
+	key, created, err := getOrCreateGeneratedSecuritySecret(ctx, client, securitySecretKeyTOTP, 32)
 	if err != nil {
-		return fmt.Errorf("ensure jwt secret: %w", err)
+		return fmt.Errorf("ensure totp encryption key: %w", err)
 	}
-	cfg.JWT.Secret = secret
-
+	if raw, decodeErr := hex.DecodeString(key); decodeErr != nil || len(raw) != 32 {
+		return fmt.Errorf("stored secret %q must be a 64-character hexadecimal key", securitySecretKeyTOTP)
+	}
+	cfg.Totp.EncryptionKey = key
 	if created {
-		log.Println("Warning: JWT secret auto-generated and persisted to database. Consider rotating to a managed secret for production.")
+		log.Println("Warning: TOTP encryption key auto-generated and persisted to database. Consider rotating to a managed secret for production.")
 	}
 	return nil
 }

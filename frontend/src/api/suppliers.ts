@@ -1,13 +1,81 @@
 import { apiClient } from './client'
 
 export type SupplierStatus = 'pending' | 'approved' | 'rejected' | 'frozen'
-export interface Supplier { id:number; user_id:number; name:string; relay_url:string; application_note:string; status:SupplierStatus; review_note:string; freeze_reason:string; pending_balance_cny:number; available_balance_cny:number; frozen_balance_cny:number; created_at:string }
+export interface Supplier {
+  id: number
+  user_id: number
+  name: string
+  relay_url: string
+  application_note: string
+  status: SupplierStatus
+  review_note: string
+  freeze_reason: string
+  pending_balance_cny: number
+  available_balance_cny: number
+  frozen_balance_cny: number
+  group_name_prefix?: string
+  supplier_code?: string
+  created_at: string
+}
 export interface SupplierGroup { id:number; name:string; description?:string; platform:string; rate_multiplier:number; status:string; is_exclusive:boolean; sort_order:number }
-export interface HallMetrics { request_count:number; avg_latency_ms?:number; avg_first_token_ms?:number; cache_hit_rate?:number; tps?:number; availability?:number; timeline:Array<{at:string;requests:number}> }
+export interface HallMetrics { request_count:number; avg_latency_ms?:number; avg_first_token_ms?:number; probe_latency_ms?:number; cache_hit_rate?:number; tps?:number; availability?:number; latest_probe_at?:string; timeline:Array<{at:string;requests:number}> }
 export interface HallGroup { id:number; name:string; description:string; platform:string; base_rate:number; admin_adjustment:number; effective_rate:number; supplier_id?:number; supplier_name?:string; status:string; is_exclusive:boolean; metrics:HallMetrics }
 export interface SupplierSettings { global_rate_adjustment:number; minimum_withdrawal_usd:number; platform_supply_enabled:boolean; platform_supplier_name:string }
 export interface SupplierWithdrawal { id:number; supplier_id:number; request_no:string; amount_cny:number; method:string; status:'pending'|'approved'|'rejected'|'paid'; review_note:string; payment_proof_key?:string; created_at:string }
-export interface SupplierResourceRequest { id:number; supplier_id:number; group_name:string; relay_name:string; relay_url:string; model:string; status:'pending'|'approved'|'rejected'; review_note:string; group_id?:number; account_id?:number; monitor_id?:number; created_at:string }
+export type SupplierProbeStatus = 'pending' | 'probing' | 'available' | 'failed' | 'disabled' | 'credential_invalid' | 'no_data'
+export interface SupplierResourceProbe {
+  account_id?: number
+  enabled: boolean
+  rate_sync_enabled?: boolean
+  account_rate_multiplier?: number
+  snapshot?: {
+    status?: string
+    data?: { effective_rate_multiplier?: number; resolved_rate_multiplier?: number }
+    received_at?: string
+    last_attempt_at?: string
+    next_probe_at?: string
+    http_status?: number
+    last_error?: string
+  }
+}
+export interface SupplierResourceRequest {
+  id: number
+  supplier_id?: number
+  group_name: string
+  group_name_suffix?: string
+  relay_name: string
+  relay_url: string
+  model: string
+  probe_model?: string
+  monitor_model?: string
+  supported_models?: string[]
+  rate_multiplier: number
+  status: 'pending' | 'approved' | 'rejected'
+  review_note: string
+  group_id?: number
+  account_id?: number
+  monitor_id?: number
+  upstream_billing_probe_enabled?: boolean
+  upstream_billing_probe?: SupplierResourceProbe
+  upstream_probe_status?: SupplierProbeStatus
+  upstream_rate?: number
+  upstream_rate_updated_at?: string
+  upstream_probe_error?: string
+  credentials_need_update?: boolean
+  credentials_valid?: boolean
+  created_at: string
+}
+export interface CreateSupplierResourceRequest {
+  group_name: string
+  relay_name: string
+  relay_url: string
+  api_key: string
+  model: string
+  probe_model: string
+  supported_models: string[]
+  upstream_billing_probe_enabled: boolean
+  rate_multiplier: number
+}
 export interface SupplierBill { id:number; group_id:number; group_name:string; model:string; input_tokens:number; output_tokens:number; cache_read_tokens:number; base_rate:number; effective_rate:number; amount_cny:number; status:'pending'|'available'|'frozen'; available_at?:string; created_at:string }
 
 export const supplierAPI = {
@@ -18,7 +86,9 @@ export const supplierAPI = {
   async updateGroup(id:number,payload:Partial<SupplierGroup>) { return (await apiClient.put<SupplierGroup>(`/suppliers/groups/${id}`,payload)).data },
   async accounts() { return (await apiClient.get<any[]>('/suppliers/accounts')).data },
   async resourceRequests() { return (await apiClient.get<{items:SupplierResourceRequest[]}>('/suppliers/resource-requests')).data },
-  async createResourceRequest(payload:{group_name:string;relay_name:string;relay_url:string;api_key:string;model:string}) { return (await apiClient.post<SupplierResourceRequest>('/suppliers/resource-requests',payload)).data },
+  async createResourceRequest(payload:CreateSupplierResourceRequest) { return (await apiClient.post<SupplierResourceRequest>('/suppliers/resource-requests',payload)).data },
+  async updateResourceRequestAPIKey(id:number,api_key:string) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/api-key`,{api_key})).data },
+  async updateResourceProbe(id:number,enabled:boolean) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/probe`,{enabled})).data },
   async bills(status='') { return (await apiClient.get<{items:SupplierBill[]}>('/suppliers/bills',{params:{status}})).data },
   async hall(window='6h') { return (await apiClient.get<{groups:HallGroup[]}>('/supplier-hall',{params:{window}})).data },
   async withdraw(payload:{amount_cny:number;method:string;profile:Record<string,unknown>}) { return (await apiClient.post('/suppliers/withdrawals',payload)).data },

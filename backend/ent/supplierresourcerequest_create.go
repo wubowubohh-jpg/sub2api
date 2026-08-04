@@ -67,6 +67,40 @@ func (_c *SupplierResourceRequestCreate) SetNillableModel(v *string) *SupplierRe
 	return _c
 }
 
+// SetSupportedModels sets the "supported_models" field.
+func (_c *SupplierResourceRequestCreate) SetSupportedModels(v []string) *SupplierResourceRequestCreate {
+	_c.mutation.SetSupportedModels(v)
+	return _c
+}
+
+// SetProbeEnabled sets the "probe_enabled" field.
+func (_c *SupplierResourceRequestCreate) SetProbeEnabled(v bool) *SupplierResourceRequestCreate {
+	_c.mutation.SetProbeEnabled(v)
+	return _c
+}
+
+// SetNillableProbeEnabled sets the "probe_enabled" field if the given value is not nil.
+func (_c *SupplierResourceRequestCreate) SetNillableProbeEnabled(v *bool) *SupplierResourceRequestCreate {
+	if v != nil {
+		_c.SetProbeEnabled(*v)
+	}
+	return _c
+}
+
+// SetRateMultiplier sets the "rate_multiplier" field.
+func (_c *SupplierResourceRequestCreate) SetRateMultiplier(v float64) *SupplierResourceRequestCreate {
+	_c.mutation.SetRateMultiplier(v)
+	return _c
+}
+
+// SetNillableRateMultiplier sets the "rate_multiplier" field if the given value is not nil.
+func (_c *SupplierResourceRequestCreate) SetNillableRateMultiplier(v *float64) *SupplierResourceRequestCreate {
+	if v != nil {
+		_c.SetRateMultiplier(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *SupplierResourceRequestCreate) SetStatus(v supplierresourcerequest.Status) *SupplierResourceRequestCreate {
 	_c.mutation.SetStatus(v)
@@ -223,6 +257,18 @@ func (_c *SupplierResourceRequestCreate) defaults() {
 		v := supplierresourcerequest.DefaultModel
 		_c.mutation.SetModel(v)
 	}
+	if _, ok := _c.mutation.SupportedModels(); !ok {
+		v := supplierresourcerequest.DefaultSupportedModels
+		_c.mutation.SetSupportedModels(v)
+	}
+	if _, ok := _c.mutation.ProbeEnabled(); !ok {
+		v := supplierresourcerequest.DefaultProbeEnabled
+		_c.mutation.SetProbeEnabled(v)
+	}
+	if _, ok := _c.mutation.RateMultiplier(); !ok {
+		v := supplierresourcerequest.DefaultRateMultiplier
+		_c.mutation.SetRateMultiplier(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := supplierresourcerequest.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -280,6 +326,20 @@ func (_c *SupplierResourceRequestCreate) check() error {
 	if v, ok := _c.mutation.Model(); ok {
 		if err := supplierresourcerequest.ModelValidator(v); err != nil {
 			return &ValidationError{Name: "model", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.model": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SupportedModels(); !ok {
+		return &ValidationError{Name: "supported_models", err: errors.New(`ent: missing required field "SupplierResourceRequest.supported_models"`)}
+	}
+	if _, ok := _c.mutation.ProbeEnabled(); !ok {
+		return &ValidationError{Name: "probe_enabled", err: errors.New(`ent: missing required field "SupplierResourceRequest.probe_enabled"`)}
+	}
+	if _, ok := _c.mutation.RateMultiplier(); !ok {
+		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "SupplierResourceRequest.rate_multiplier"`)}
+	}
+	if v, ok := _c.mutation.RateMultiplier(); ok {
+		if err := supplierresourcerequest.RateMultiplierValidator(v); err != nil {
+			return &ValidationError{Name: "rate_multiplier", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.rate_multiplier": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -345,6 +405,18 @@ func (_c *SupplierResourceRequestCreate) createSpec() (*SupplierResourceRequest,
 	if value, ok := _c.mutation.Model(); ok {
 		_spec.SetField(supplierresourcerequest.FieldModel, field.TypeString, value)
 		_node.Model = value
+	}
+	if value, ok := _c.mutation.SupportedModels(); ok {
+		_spec.SetField(supplierresourcerequest.FieldSupportedModels, field.TypeJSON, value)
+		_node.SupportedModels = value
+	}
+	if value, ok := _c.mutation.ProbeEnabled(); ok {
+		_spec.SetField(supplierresourcerequest.FieldProbeEnabled, field.TypeBool, value)
+		_node.ProbeEnabled = value
+	}
+	if value, ok := _c.mutation.RateMultiplier(); ok {
+		_spec.SetField(supplierresourcerequest.FieldRateMultiplier, field.TypeFloat64, value)
+		_node.RateMultiplier = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(supplierresourcerequest.FieldStatus, field.TypeEnum, value)
@@ -516,6 +588,48 @@ func (u *SupplierResourceRequestUpsert) SetModel(v string) *SupplierResourceRequ
 // UpdateModel sets the "model" field to the value that was provided on create.
 func (u *SupplierResourceRequestUpsert) UpdateModel() *SupplierResourceRequestUpsert {
 	u.SetExcluded(supplierresourcerequest.FieldModel)
+	return u
+}
+
+// SetSupportedModels sets the "supported_models" field.
+func (u *SupplierResourceRequestUpsert) SetSupportedModels(v []string) *SupplierResourceRequestUpsert {
+	u.Set(supplierresourcerequest.FieldSupportedModels, v)
+	return u
+}
+
+// UpdateSupportedModels sets the "supported_models" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsert) UpdateSupportedModels() *SupplierResourceRequestUpsert {
+	u.SetExcluded(supplierresourcerequest.FieldSupportedModels)
+	return u
+}
+
+// SetProbeEnabled sets the "probe_enabled" field.
+func (u *SupplierResourceRequestUpsert) SetProbeEnabled(v bool) *SupplierResourceRequestUpsert {
+	u.Set(supplierresourcerequest.FieldProbeEnabled, v)
+	return u
+}
+
+// UpdateProbeEnabled sets the "probe_enabled" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsert) UpdateProbeEnabled() *SupplierResourceRequestUpsert {
+	u.SetExcluded(supplierresourcerequest.FieldProbeEnabled)
+	return u
+}
+
+// SetRateMultiplier sets the "rate_multiplier" field.
+func (u *SupplierResourceRequestUpsert) SetRateMultiplier(v float64) *SupplierResourceRequestUpsert {
+	u.Set(supplierresourcerequest.FieldRateMultiplier, v)
+	return u
+}
+
+// UpdateRateMultiplier sets the "rate_multiplier" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsert) UpdateRateMultiplier() *SupplierResourceRequestUpsert {
+	u.SetExcluded(supplierresourcerequest.FieldRateMultiplier)
+	return u
+}
+
+// AddRateMultiplier adds v to the "rate_multiplier" field.
+func (u *SupplierResourceRequestUpsert) AddRateMultiplier(v float64) *SupplierResourceRequestUpsert {
+	u.Add(supplierresourcerequest.FieldRateMultiplier, v)
 	return u
 }
 
@@ -783,6 +897,55 @@ func (u *SupplierResourceRequestUpsertOne) SetModel(v string) *SupplierResourceR
 func (u *SupplierResourceRequestUpsertOne) UpdateModel() *SupplierResourceRequestUpsertOne {
 	return u.Update(func(s *SupplierResourceRequestUpsert) {
 		s.UpdateModel()
+	})
+}
+
+// SetSupportedModels sets the "supported_models" field.
+func (u *SupplierResourceRequestUpsertOne) SetSupportedModels(v []string) *SupplierResourceRequestUpsertOne {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.SetSupportedModels(v)
+	})
+}
+
+// UpdateSupportedModels sets the "supported_models" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsertOne) UpdateSupportedModels() *SupplierResourceRequestUpsertOne {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.UpdateSupportedModels()
+	})
+}
+
+// SetProbeEnabled sets the "probe_enabled" field.
+func (u *SupplierResourceRequestUpsertOne) SetProbeEnabled(v bool) *SupplierResourceRequestUpsertOne {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.SetProbeEnabled(v)
+	})
+}
+
+// UpdateProbeEnabled sets the "probe_enabled" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsertOne) UpdateProbeEnabled() *SupplierResourceRequestUpsertOne {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.UpdateProbeEnabled()
+	})
+}
+
+// SetRateMultiplier sets the "rate_multiplier" field.
+func (u *SupplierResourceRequestUpsertOne) SetRateMultiplier(v float64) *SupplierResourceRequestUpsertOne {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.SetRateMultiplier(v)
+	})
+}
+
+// AddRateMultiplier adds v to the "rate_multiplier" field.
+func (u *SupplierResourceRequestUpsertOne) AddRateMultiplier(v float64) *SupplierResourceRequestUpsertOne {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.AddRateMultiplier(v)
+	})
+}
+
+// UpdateRateMultiplier sets the "rate_multiplier" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsertOne) UpdateRateMultiplier() *SupplierResourceRequestUpsertOne {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.UpdateRateMultiplier()
 	})
 }
 
@@ -1239,6 +1402,55 @@ func (u *SupplierResourceRequestUpsertBulk) SetModel(v string) *SupplierResource
 func (u *SupplierResourceRequestUpsertBulk) UpdateModel() *SupplierResourceRequestUpsertBulk {
 	return u.Update(func(s *SupplierResourceRequestUpsert) {
 		s.UpdateModel()
+	})
+}
+
+// SetSupportedModels sets the "supported_models" field.
+func (u *SupplierResourceRequestUpsertBulk) SetSupportedModels(v []string) *SupplierResourceRequestUpsertBulk {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.SetSupportedModels(v)
+	})
+}
+
+// UpdateSupportedModels sets the "supported_models" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsertBulk) UpdateSupportedModels() *SupplierResourceRequestUpsertBulk {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.UpdateSupportedModels()
+	})
+}
+
+// SetProbeEnabled sets the "probe_enabled" field.
+func (u *SupplierResourceRequestUpsertBulk) SetProbeEnabled(v bool) *SupplierResourceRequestUpsertBulk {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.SetProbeEnabled(v)
+	})
+}
+
+// UpdateProbeEnabled sets the "probe_enabled" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsertBulk) UpdateProbeEnabled() *SupplierResourceRequestUpsertBulk {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.UpdateProbeEnabled()
+	})
+}
+
+// SetRateMultiplier sets the "rate_multiplier" field.
+func (u *SupplierResourceRequestUpsertBulk) SetRateMultiplier(v float64) *SupplierResourceRequestUpsertBulk {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.SetRateMultiplier(v)
+	})
+}
+
+// AddRateMultiplier adds v to the "rate_multiplier" field.
+func (u *SupplierResourceRequestUpsertBulk) AddRateMultiplier(v float64) *SupplierResourceRequestUpsertBulk {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.AddRateMultiplier(v)
+	})
+}
+
+// UpdateRateMultiplier sets the "rate_multiplier" field to the value that was provided on create.
+func (u *SupplierResourceRequestUpsertBulk) UpdateRateMultiplier() *SupplierResourceRequestUpsertBulk {
+	return u.Update(func(s *SupplierResourceRequestUpsert) {
+		s.UpdateRateMultiplier()
 	})
 }
 

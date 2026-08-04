@@ -22,6 +22,13 @@ const parameterLimitTestDriverName = "sub2api_param_limit_test"
 
 var registerParameterLimitTestDriverOnce sync.Once
 
+func TestAccountEntityToServicePreservesSupplierOwnership(t *testing.T) {
+	supplierID := int64(41)
+	account := accountEntityToService(&dbent.Account{ID: 9, SupplierID: &supplierID})
+	require.NotNil(t, account)
+	require.Equal(t, &supplierID, account.SupplierID)
+}
+
 func TestAccountsToService_LargeActiveAccountSetDoesNotExceedPostgresParameterLimit(t *testing.T) {
 	repo := newParameterLimitAccountRepo(t)
 

@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/supplier"
@@ -110,6 +111,53 @@ func (_u *SupplierResourceRequestUpdate) SetNillableModel(v *string) *SupplierRe
 	if v != nil {
 		_u.SetModel(*v)
 	}
+	return _u
+}
+
+// SetSupportedModels sets the "supported_models" field.
+func (_u *SupplierResourceRequestUpdate) SetSupportedModels(v []string) *SupplierResourceRequestUpdate {
+	_u.mutation.SetSupportedModels(v)
+	return _u
+}
+
+// AppendSupportedModels appends value to the "supported_models" field.
+func (_u *SupplierResourceRequestUpdate) AppendSupportedModels(v []string) *SupplierResourceRequestUpdate {
+	_u.mutation.AppendSupportedModels(v)
+	return _u
+}
+
+// SetProbeEnabled sets the "probe_enabled" field.
+func (_u *SupplierResourceRequestUpdate) SetProbeEnabled(v bool) *SupplierResourceRequestUpdate {
+	_u.mutation.SetProbeEnabled(v)
+	return _u
+}
+
+// SetNillableProbeEnabled sets the "probe_enabled" field if the given value is not nil.
+func (_u *SupplierResourceRequestUpdate) SetNillableProbeEnabled(v *bool) *SupplierResourceRequestUpdate {
+	if v != nil {
+		_u.SetProbeEnabled(*v)
+	}
+	return _u
+}
+
+// SetRateMultiplier sets the "rate_multiplier" field.
+func (_u *SupplierResourceRequestUpdate) SetRateMultiplier(v float64) *SupplierResourceRequestUpdate {
+	_u.mutation.ResetRateMultiplier()
+	_u.mutation.SetRateMultiplier(v)
+	return _u
+}
+
+// SetNillableRateMultiplier sets the "rate_multiplier" field if the given value is not nil.
+func (_u *SupplierResourceRequestUpdate) SetNillableRateMultiplier(v *float64) *SupplierResourceRequestUpdate {
+	if v != nil {
+		_u.SetRateMultiplier(*v)
+	}
+	return _u
+}
+
+// AddRateMultiplier adds value to the "rate_multiplier" field.
+func (_u *SupplierResourceRequestUpdate) AddRateMultiplier(v float64) *SupplierResourceRequestUpdate {
+	_u.mutation.AddRateMultiplier(v)
 	return _u
 }
 
@@ -339,6 +387,11 @@ func (_u *SupplierResourceRequestUpdate) check() error {
 			return &ValidationError{Name: "model", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.model": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RateMultiplier(); ok {
+		if err := supplierresourcerequest.RateMultiplierValidator(v); err != nil {
+			return &ValidationError{Name: "rate_multiplier", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.rate_multiplier": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := supplierresourcerequest.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.status": %w`, err)}
@@ -376,6 +429,23 @@ func (_u *SupplierResourceRequestUpdate) sqlSave(ctx context.Context) (_node int
 	}
 	if value, ok := _u.mutation.Model(); ok {
 		_spec.SetField(supplierresourcerequest.FieldModel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupportedModels(); ok {
+		_spec.SetField(supplierresourcerequest.FieldSupportedModels, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSupportedModels(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, supplierresourcerequest.FieldSupportedModels, value)
+		})
+	}
+	if value, ok := _u.mutation.ProbeEnabled(); ok {
+		_spec.SetField(supplierresourcerequest.FieldProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RateMultiplier(); ok {
+		_spec.SetField(supplierresourcerequest.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
+		_spec.AddField(supplierresourcerequest.FieldRateMultiplier, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(supplierresourcerequest.FieldStatus, field.TypeEnum, value)
@@ -555,6 +625,53 @@ func (_u *SupplierResourceRequestUpdateOne) SetNillableModel(v *string) *Supplie
 	if v != nil {
 		_u.SetModel(*v)
 	}
+	return _u
+}
+
+// SetSupportedModels sets the "supported_models" field.
+func (_u *SupplierResourceRequestUpdateOne) SetSupportedModels(v []string) *SupplierResourceRequestUpdateOne {
+	_u.mutation.SetSupportedModels(v)
+	return _u
+}
+
+// AppendSupportedModels appends value to the "supported_models" field.
+func (_u *SupplierResourceRequestUpdateOne) AppendSupportedModels(v []string) *SupplierResourceRequestUpdateOne {
+	_u.mutation.AppendSupportedModels(v)
+	return _u
+}
+
+// SetProbeEnabled sets the "probe_enabled" field.
+func (_u *SupplierResourceRequestUpdateOne) SetProbeEnabled(v bool) *SupplierResourceRequestUpdateOne {
+	_u.mutation.SetProbeEnabled(v)
+	return _u
+}
+
+// SetNillableProbeEnabled sets the "probe_enabled" field if the given value is not nil.
+func (_u *SupplierResourceRequestUpdateOne) SetNillableProbeEnabled(v *bool) *SupplierResourceRequestUpdateOne {
+	if v != nil {
+		_u.SetProbeEnabled(*v)
+	}
+	return _u
+}
+
+// SetRateMultiplier sets the "rate_multiplier" field.
+func (_u *SupplierResourceRequestUpdateOne) SetRateMultiplier(v float64) *SupplierResourceRequestUpdateOne {
+	_u.mutation.ResetRateMultiplier()
+	_u.mutation.SetRateMultiplier(v)
+	return _u
+}
+
+// SetNillableRateMultiplier sets the "rate_multiplier" field if the given value is not nil.
+func (_u *SupplierResourceRequestUpdateOne) SetNillableRateMultiplier(v *float64) *SupplierResourceRequestUpdateOne {
+	if v != nil {
+		_u.SetRateMultiplier(*v)
+	}
+	return _u
+}
+
+// AddRateMultiplier adds value to the "rate_multiplier" field.
+func (_u *SupplierResourceRequestUpdateOne) AddRateMultiplier(v float64) *SupplierResourceRequestUpdateOne {
+	_u.mutation.AddRateMultiplier(v)
 	return _u
 }
 
@@ -797,6 +914,11 @@ func (_u *SupplierResourceRequestUpdateOne) check() error {
 			return &ValidationError{Name: "model", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.model": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RateMultiplier(); ok {
+		if err := supplierresourcerequest.RateMultiplierValidator(v); err != nil {
+			return &ValidationError{Name: "rate_multiplier", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.rate_multiplier": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := supplierresourcerequest.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SupplierResourceRequest.status": %w`, err)}
@@ -851,6 +973,23 @@ func (_u *SupplierResourceRequestUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := _u.mutation.Model(); ok {
 		_spec.SetField(supplierresourcerequest.FieldModel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupportedModels(); ok {
+		_spec.SetField(supplierresourcerequest.FieldSupportedModels, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSupportedModels(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, supplierresourcerequest.FieldSupportedModels, value)
+		})
+	}
+	if value, ok := _u.mutation.ProbeEnabled(); ok {
+		_spec.SetField(supplierresourcerequest.FieldProbeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RateMultiplier(); ok {
+		_spec.SetField(supplierresourcerequest.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
+		_spec.AddField(supplierresourcerequest.FieldRateMultiplier, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(supplierresourcerequest.FieldStatus, field.TypeEnum, value)

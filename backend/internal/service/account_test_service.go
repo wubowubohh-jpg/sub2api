@@ -186,6 +186,27 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.sendErrorAndEnd(c, "Account not found")
 	}
 
+	return s.TestAccountConnectionWithAccount(c, account, modelID, prompt, mode)
+}
+
+// TestAccountConnectionWithAccount tests an already-resolved account. It is
+// shared by persisted account tests and short-lived admin review probes whose
+// credentials must never be exposed through an API response.
+func (s *AccountTestService) TestAccountConnectionWithAccount(c *gin.Context, account *Account, modelID string, prompt string, mode string) error {
+	if account == nil {
+		return s.sendErrorAndEnd(c, "Account not found")
+	}
+	if account.IsTransientTest() && s.accountRepo != nil {
+		return s.TestTransientAccountConnection(c, account, modelID, prompt, mode)
+	}
+	if c != nil && c.Request != nil {
+		requestCtx := WithAccountUpstreamHostValidation(c.Request.Context(), account)
+		if account.IsTransientTest() || account.ID < 0 {
+			requestCtx = WithStrictUpstreamHostValidation(requestCtx)
+		}
+		c.Request = c.Request.WithContext(requestCtx)
+	}
+
 	// Synthetic UI load-test accounts exercise the real SSE parsing and modal
 	// interactions, but intentionally do not send their placeholder credentials
 	// to an upstream provider.
@@ -218,6 +239,27 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	}
 
 	return s.testClaudeAccountConnection(c, account, modelID)
+}
+
+// TestTransientAccountConnection runs a test against an in-memory account and
+// deliberately detaches the persistence repository. This prevents probe
+// failures (401/429, capability observations, etc.) from writing scheduler or
+// account state for a temporary resource application.
+func (s *AccountTestService) TestTransientAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, mode string) error {
+	if s == nil {
+		return errors.New("account test service unavailable")
+	}
+	probe := &AccountTestService{
+		geminiTokenProvider:       s.geminiTokenProvider,
+		claudeTokenProvider:       s.claudeTokenProvider,
+		grokTokenProvider:         s.grokTokenProvider,
+		antigravityGatewayService: s.antigravityGatewayService,
+		httpUpstream:              s.httpUpstream,
+		cfg:                       s.cfg,
+		tlsFPProfileService:       s.tlsFPProfileService,
+		agentIdentityWS:           s.agentIdentityWS,
+	}
+	return probe.TestAccountConnectionWithAccount(c, account, modelID, prompt, mode)
 }
 
 // testClaudeAccountConnection tests an Anthropic Claude account's connection

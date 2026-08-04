@@ -24,6 +24,7 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(
 	body []byte,
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	ctx = WithAccountUpstreamHostValidation(ctx, account)
 	startTime := time.Now()
 
 	originalModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())

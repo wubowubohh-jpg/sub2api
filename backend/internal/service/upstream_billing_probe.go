@@ -636,6 +636,9 @@ func (s *UpstreamBillingProbeService) probeLoadedAccount(ctx context.Context, ac
 		profile = HTTPUpstreamProfileOpenAI
 	}
 	reqCtx := WithHTTPUpstreamProfile(req.Context(), profile)
+	// Supplier endpoints are user-controlled. Keep DNS/IP and redirect checks
+	// enabled for scheduled probes even when the global URL allowlist is off.
+	reqCtx = WithStrictUpstreamHostValidation(reqCtx)
 	req = req.WithContext(WithHTTPUpstreamRedirectsDisabled(reqCtx))
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)

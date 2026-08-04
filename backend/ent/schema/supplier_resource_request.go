@@ -19,6 +19,9 @@ func (SupplierResourceRequest) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int64("supplier_id"), field.String("group_name").MaxLen(100).NotEmpty(), field.String("relay_name").MaxLen(100).NotEmpty(), field.String("relay_url").MaxLen(500).NotEmpty(),
 		field.String("api_key_encrypted").Sensitive().NotEmpty(), field.String("model").MaxLen(200).Default("gpt-5.5"),
+		field.JSON("supported_models", []string{}).Default([]string{"gpt-5.5"}),
+		field.Bool("probe_enabled").Default(true),
+		field.Float("rate_multiplier").Default(1).Min(0),
 		field.Enum("status").Values("pending", "approved", "rejected").Default("pending"), field.Int64("reviewed_by").Optional().Nillable(), field.String("review_note").Default(""), field.Int64("group_id").Optional().Nillable(), field.Int64("account_id").Optional().Nillable(), field.Int64("monitor_id").Optional().Nillable(), field.Time("reviewed_at").Optional().Nillable(), field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }

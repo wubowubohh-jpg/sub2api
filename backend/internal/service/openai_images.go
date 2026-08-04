@@ -556,6 +556,7 @@ func (s *OpenAIGatewayService) ForwardImages(
 	parsed *OpenAIImagesRequest,
 	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	ctx = WithAccountUpstreamHostValidation(ctx, account)
 	if parsed == nil {
 		return nil, fmt.Errorf("parsed images request is required")
 	}

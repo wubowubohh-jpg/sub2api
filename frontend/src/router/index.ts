@@ -217,11 +217,34 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/supplier-hall', name: 'SupplierHall', component: () => import('@/views/user/SupplierHallView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: false, title: 'Supplier Hall' }
+    meta: { requiresAuth: true, requiresAdmin: false, title: '供应商大厅' }
   },
   {
-    path: '/supplier', name: 'SupplierWorkspace', component: () => import('@/views/user/SupplierWorkspaceView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: false, title: 'Supplier Workspace' }
+    path: '/supplier',
+    name: 'SupplierWorkspace',
+    component: () => import('@/views/user/SupplierWorkspaceView.vue'),
+    redirect: { name: 'SupplierResourceSubmit' },
+    meta: { requiresAuth: true, requiresAdmin: false, title: '供应商工作台' },
+    children: [
+      {
+        path: 'resources/new',
+        name: 'SupplierResourceSubmit',
+        component: () => import('@/views/user/SupplierResourceSubmitView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: false, title: '提交中转资源' }
+      },
+      {
+        path: 'resources/requests',
+        name: 'SupplierResourceRequests',
+        component: () => import('@/views/user/SupplierResourceRequestsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: false, title: '资源申请记录' }
+      },
+      {
+        path: 'bills',
+        name: 'SupplierBills',
+        component: () => import('@/views/user/SupplierBillsView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: false, title: '收益账单' }
+      }
+    ]
   },
   {
     path: '/batch-image',

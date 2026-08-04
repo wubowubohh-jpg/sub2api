@@ -150,3 +150,10 @@ func safeDialContext(ctx context.Context, network, address string) (net.Conn, er
 	}
 	return nil, lastErr
 }
+
+// SafeDialContext is the shared socket-level SSRF guard for outbound probes.
+// Keep the implementation in this package so channel monitoring and
+// administrator supplier tests enforce the same hostname/IP policy.
+func SafeDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	return safeDialContext(ctx, network, address)
+}

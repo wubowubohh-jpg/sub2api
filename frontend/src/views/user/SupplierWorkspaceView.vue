@@ -1,22 +1,212 @@
-<template><AppLayout><div class="mx-auto max-w-7xl space-y-7 p-4 md:p-7"><header><h1 class="text-xl font-semibold">供应商工作台</h1><p class="mt-1 text-sm text-gray-500">管理入驻状态、中转资源申请与结算账单。</p></header>
-<div v-if="loading" class="rounded-lg border bg-white py-20 text-center text-gray-400">加载中...</div>
-<form v-else-if="!profile||profile.status==='rejected'" class="max-w-2xl space-y-5 rounded-lg border bg-white p-6 shadow-sm" @submit.prevent="submitSupplier"><div><h2 class="font-semibold">申请供应商入驻</h2><p class="mt-1 text-sm text-gray-500">该信息仅用于入驻审核，通过后才能提交中转资源。</p></div><label class="block text-sm font-medium">供应商名称<input v-model="supplierForm.name" required placeholder="公司、团队或个人品牌名称" class="input mt-2 w-full" /></label><label class="block text-sm font-medium">官方网站或中转站地址<input v-model="supplierForm.relay_url" type="url" required placeholder="https://example.com" class="input mt-2 w-full" /></label><label class="block text-sm font-medium">申请说明<textarea v-model="supplierForm.application_note" rows="4" placeholder="请说明资源来源、服务能力和联系方式" class="input mt-2 w-full" /></label><button class="rounded-lg bg-teal-600 px-5 py-2.5 font-medium text-white">提交入驻审核</button></form>
-<div v-else-if="profile.status!=='approved'" class="rounded-lg border bg-white py-16 text-center shadow-sm"><div class="font-medium">{{profile.status==='pending'?'入驻申请审核中':'供应商已冻结'}}</div><p class="mt-2 text-sm text-gray-500">{{profile.review_note||profile.freeze_reason||'请等待管理员处理'}}</p></div>
-<template v-else><section class="rounded-lg border bg-white p-5 shadow-sm dark:bg-gray-900"><h2 class="font-semibold">提交新的中转资源</h2><p class="mt-1 text-sm text-gray-500">管理员批准后，系统会自动创建公开分组、调度账号并开启 GPT-5.5 监听。</p><form class="mt-5 grid gap-5 md:grid-cols-2" @submit.prevent="submitResource"><Field label="大厅分组名称" hint="用户在供应商大厅看到的名称，例如“高速 GPT 专线”。"><input v-model="resourceForm.group_name" required placeholder="高速 GPT 专线" class="input mt-2 w-full" /></Field><Field label="中转站名称" hint="用于管理员识别资源来源。"><input v-model="resourceForm.relay_name" required placeholder="香港中转一号" class="input mt-2 w-full" /></Field><Field label="API 基础地址" hint="兼容 OpenAI 的 HTTPS 根地址，不包含模型路径。"><input v-model="resourceForm.relay_url" type="url" required placeholder="https://api.example.com" class="input mt-2 w-full" /></Field><Field label="中转站 API Key" hint="加密保存，不会展示给其他用户。"><input v-model="resourceForm.api_key" type="password" required autocomplete="new-password" placeholder="sk-..." class="input mt-2 w-full" /></Field><Field label="默认监听模型" hint="审核通过后自动开启可用性检测。"><input v-model="resourceForm.model" readonly class="input mt-2 w-full bg-gray-50" /></Field><div class="flex items-end"><button class="rounded-lg bg-teal-600 px-5 py-2.5 font-medium text-white hover:bg-teal-700">提交资源审核</button></div></form></section>
-<section><h2 class="mb-3 font-semibold">资源申请记录</h2><div class="overflow-x-auto rounded-lg border bg-white shadow-sm"><table class="w-full min-w-[700px] text-sm"><thead class="bg-gray-50 text-left text-xs text-gray-500"><tr><th class="p-3">分组</th><th>中转站</th><th>模型</th><th>状态</th><th>审核备注</th></tr></thead><tbody><tr v-for="r in requests" :key="r.id" class="border-t"><td class="p-3 font-medium">{{r.group_name}}</td><td>{{r.relay_name}}</td><td>{{r.model}}</td><td><StatusBadge :status="r.status" /></td><td>{{r.review_note||'--'}}</td></tr><tr v-if="!requests.length"><td colspan="5" class="p-10 text-center text-gray-400">暂无资源申请</td></tr></tbody></table></div></section>
-<section><div class="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-semibold">收益账单</h2><p class="mt-1 text-xs text-gray-500">账单已隐藏用户、API 密钥和请求来源信息。</p></div><div class="flex gap-1"><button v-for="f in billFilters" :key="f.value" class="rounded-lg px-3 py-1.5 text-xs" :class="billStatus===f.value?'bg-teal-600 text-white':'bg-gray-100 text-gray-600'" @click="setBillStatus(f.value)">{{f.label}}</button></div></div><div class="overflow-x-auto rounded-lg border bg-white shadow-sm"><table class="w-full min-w-[920px] text-sm"><thead class="bg-gray-50 text-left text-xs text-gray-500"><tr><th class="p-3">调用时间</th><th>分组/模型</th><th>Token</th><th>倍率</th><th>收益</th><th>状态</th><th>可提现时间</th></tr></thead><tbody><tr v-for="b in bills" :key="b.id" class="border-t"><td class="p-3">{{date(b.created_at)}}</td><td><div class="font-medium">{{b.group_name||'#'+b.group_id}}</div><div class="text-xs text-gray-500">{{b.model||'--'}}</div></td><td>输入 {{b.input_tokens}} / 输出 {{b.output_tokens}}<div class="text-xs text-gray-500">缓存 {{b.cache_read_tokens}}</div></td><td>{{number(b.base_rate)}} → {{number(b.effective_rate)}}</td><td class="font-medium text-emerald-700">¥{{money(b.amount_cny)}}</td><td>{{b.status==='pending'?'待结算':b.status==='available'?'可提现':'冻结'}}</td><td>{{b.available_at?date(b.available_at):'--'}}</td></tr><tr v-if="!bills.length"><td colspan="7" class="p-12 text-center text-gray-400">暂无账单记录</td></tr></tbody></table></div></section></template>
-</div></AppLayout></template>
+<template>
+  <AppLayout>
+    <div class="mx-auto max-w-7xl space-y-6">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div class="flex flex-wrap items-center gap-3">
+            <h1 class="text-xl font-semibold text-gray-900 dark:text-white">供应商工作台</h1>
+            <span
+              v-if="profile"
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+              :class="profileStatusClass"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-current" />
+              {{ profileStatusLabel }}
+            </span>
+          </div>
+          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">
+            {{ profile?.name || '完成入驻审核后即可管理中转资源与收益。' }}
+          </p>
+        </div>
+        <RouterLink
+          v-if="profile?.status === 'approved'"
+          to="/supplier-hall"
+          class="btn btn-secondary inline-flex items-center gap-2 self-start"
+        >
+          <Icon name="globe" size="sm" />
+          供应商大厅
+        </RouterLink>
+      </header>
+
+      <div
+        v-if="loading"
+        class="flex min-h-[320px] items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900"
+      >
+        <LoadingSpinner />
+      </div>
+
+      <form
+        v-else-if="!profile || profile.status === 'rejected'"
+        class="max-w-2xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm sm:p-7 dark:border-dark-700 dark:bg-dark-900"
+        @submit.prevent="submitSupplier"
+      >
+        <div class="flex items-start gap-3 border-b border-gray-100 pb-5 dark:border-dark-700">
+          <div class="rounded-lg bg-primary-50 p-2.5 text-primary-600 dark:bg-primary-900/20 dark:text-primary-300">
+            <Icon name="badge" size="lg" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-gray-900 dark:text-white">
+              {{ profile?.status === 'rejected' ? '重新提交入驻资料' : '申请供应商入驻' }}
+            </h2>
+            <p v-if="profile?.review_note" class="mt-1 text-sm text-rose-600 dark:text-rose-300">
+              审核备注：{{ profile.review_note }}
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-5 space-y-5">
+          <label class="block">
+            <span class="input-label">供应商名称</span>
+            <input
+              v-model.trim="supplierForm.name"
+              required
+              maxlength="100"
+              placeholder="公司、团队或个人品牌名称"
+              class="input mt-2 w-full"
+            />
+          </label>
+          <label class="block">
+            <span class="input-label">官方网站或中转站地址</span>
+            <input
+              v-model.trim="supplierForm.relay_url"
+              type="url"
+              required
+              placeholder="https://example.com"
+              class="input mt-2 w-full"
+            />
+          </label>
+          <label class="block">
+            <span class="input-label">申请说明</span>
+            <textarea
+              v-model.trim="supplierForm.application_note"
+              rows="4"
+              maxlength="2000"
+              placeholder="资源来源、服务能力与联系信息"
+              class="input mt-2 w-full resize-y"
+            />
+          </label>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+          <button type="submit" class="btn btn-primary" :disabled="submitting">
+            <LoadingSpinner v-if="submitting" size="sm" color="white" />
+            <Icon v-else name="upload" size="sm" />
+            {{ submitting ? '提交中' : '提交入驻审核' }}
+          </button>
+        </div>
+      </form>
+
+      <section
+        v-else-if="profile.status !== 'approved'"
+        class="rounded-lg border border-gray-200 bg-white px-5 py-14 text-center shadow-sm dark:border-dark-700 dark:bg-dark-900"
+      >
+        <div
+          class="mx-auto flex h-12 w-12 items-center justify-center rounded-full"
+          :class="profile.status === 'frozen' ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20' : 'bg-amber-50 text-amber-600 dark:bg-amber-900/20'"
+        >
+          <Icon :name="profile.status === 'frozen' ? 'ban' : 'clock'" size="lg" />
+        </div>
+        <h2 class="mt-4 font-semibold text-gray-900 dark:text-white">
+          {{ profile.status === 'pending' ? '入驻资料审核中' : '供应商账号已冻结' }}
+        </h2>
+        <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-dark-400">
+          {{ profile.review_note || profile.freeze_reason || '请等待管理员处理。' }}
+        </p>
+      </section>
+
+      <template v-else>
+        <nav
+          class="grid grid-cols-3 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900"
+          aria-label="供应商工作台模块"
+        >
+          <RouterLink
+            v-for="item in moduleNav"
+            :key="item.name"
+            :to="{ name: item.name }"
+            class="flex min-h-[68px] items-center justify-center gap-2 border-r border-gray-200 px-2 text-center text-sm font-medium text-gray-500 transition-colors last:border-r-0 hover:bg-gray-50 hover:text-gray-900 sm:px-4 dark:border-dark-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+            :class="isModuleActive(item.name) ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300' : ''"
+          >
+            <Icon :name="item.icon" size="sm" class="hidden flex-shrink-0 sm:block" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </nav>
+
+        <RouterView v-slot="{ Component }">
+          <component :is="Component" :supplier="profile" />
+        </RouterView>
+      </template>
+    </div>
+  </AppLayout>
+</template>
+
 <script setup lang="ts">
-import { defineComponent, h, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { supplierAPI, type Supplier, type SupplierBill, type SupplierResourceRequest } from '@/api/suppliers'
-const Field=defineComponent({props:{label:String,hint:String},setup(p,{slots}){return()=>h('label',{class:'text-sm font-medium'},[p.label,h('span',{class:'mt-1 block text-xs font-normal text-gray-500'},p.hint),slots.default?.()])}})
-const StatusBadge=defineComponent({props:{status:String},setup(p){return()=>h('span',{class:'inline-flex rounded-full px-2.5 py-1 text-xs font-medium '+(p.status==='approved'?'bg-emerald-50 text-emerald-700':p.status==='rejected'?'bg-rose-50 text-rose-700':'bg-amber-50 text-amber-700')},p.status==='approved'?'已通过':p.status==='rejected'?'已驳回':'审核中')}})
-const loading=ref(true),profile=ref<Supplier|null>(null),requests=ref<SupplierResourceRequest[]>([]),bills=ref<SupplierBill[]>([]),billStatus=ref('')
-const billFilters=[{label:'全部',value:''},{label:'待结算',value:'pending'},{label:'可提现',value:'available'}]
-const supplierForm=reactive({name:'',relay_url:'',application_note:''}),resourceForm=reactive({group_name:'',relay_name:'',relay_url:'',api_key:'',model:'gpt-5.5'})
-async function load(){try{const p=await supplierAPI.me();profile.value=p;if(p.status==='approved'){const[r,b]=await Promise.all([supplierAPI.resourceRequests(),supplierAPI.bills(billStatus.value)]);requests.value=r.items||[];bills.value=b.items||[]}}catch{profile.value=null}finally{loading.value=false}}
-async function submitSupplier(){profile.value=await supplierAPI.apply(supplierForm)} async function submitResource(){await supplierAPI.createResourceRequest(resourceForm);Object.assign(resourceForm,{group_name:'',relay_name:'',relay_url:'',api_key:'',model:'gpt-5.5'});await load()} async function setBillStatus(v:string){billStatus.value=v;bills.value=(await supplierAPI.bills(v)).items||[]}
-const date=(v:string)=>new Date(v).toLocaleString(),number=(v:unknown)=>Number(v||0).toFixed(4),money=(v:unknown)=>Number(v||0).toFixed(4)
-onMounted(load)
+import { Icon } from '@/components/icons'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { supplierAPI, type Supplier } from '@/api/suppliers'
+import { useAppStore } from '@/stores'
+import { extractApiErrorMessage } from '@/utils/apiError'
+
+const route = useRoute()
+const appStore = useAppStore()
+const loading = ref(true)
+const submitting = ref(false)
+const profile = ref<Supplier | null>(null)
+const supplierForm = reactive({ name: '', relay_url: '', application_note: '' })
+
+const moduleNav = [
+  { name: 'SupplierResourceSubmit', label: '提交中转资源', icon: 'plus' as const },
+  { name: 'SupplierResourceRequests', label: '资源申请记录', icon: 'clipboard' as const },
+  { name: 'SupplierBills', label: '收益账单', icon: 'chart' as const }
+]
+
+const profileStatusLabel = computed(() => ({
+  pending: '入驻审核中',
+  approved: '已入驻',
+  rejected: '审核驳回',
+  frozen: '已冻结'
+}[profile.value?.status || 'pending']))
+
+const profileStatusClass = computed(() => ({
+  pending: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
+  approved: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300',
+  rejected: 'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300',
+  frozen: 'bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300'
+}[profile.value?.status || 'pending']))
+
+function isModuleActive(name: string) {
+  return route.name === name
+}
+
+async function loadProfile() {
+  loading.value = true
+  try {
+    profile.value = await supplierAPI.me()
+    Object.assign(supplierForm, {
+      name: profile.value.name,
+      relay_url: profile.value.relay_url,
+      application_note: profile.value.application_note
+    })
+  } catch {
+    profile.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+async function submitSupplier() {
+  submitting.value = true
+  try {
+    profile.value = await supplierAPI.apply(supplierForm)
+    appStore.showSuccess('入驻资料已提交')
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, '提交入驻资料失败'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+onMounted(loadProfile)
 </script>

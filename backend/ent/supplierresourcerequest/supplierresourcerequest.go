@@ -27,6 +27,12 @@ const (
 	FieldAPIKeyEncrypted = "api_key_encrypted"
 	// FieldModel holds the string denoting the model field in the database.
 	FieldModel = "model"
+	// FieldSupportedModels holds the string denoting the supported_models field in the database.
+	FieldSupportedModels = "supported_models"
+	// FieldProbeEnabled holds the string denoting the probe_enabled field in the database.
+	FieldProbeEnabled = "probe_enabled"
+	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
+	FieldRateMultiplier = "rate_multiplier"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldReviewedBy holds the string denoting the reviewed_by field in the database.
@@ -65,6 +71,9 @@ var Columns = []string{
 	FieldRelayURL,
 	FieldAPIKeyEncrypted,
 	FieldModel,
+	FieldSupportedModels,
+	FieldProbeEnabled,
+	FieldRateMultiplier,
 	FieldStatus,
 	FieldReviewedBy,
 	FieldReviewNote,
@@ -98,6 +107,14 @@ var (
 	DefaultModel string
 	// ModelValidator is a validator for the "model" field. It is called by the builders before save.
 	ModelValidator func(string) error
+	// DefaultSupportedModels holds the default value on creation for the "supported_models" field.
+	DefaultSupportedModels []string
+	// DefaultProbeEnabled holds the default value on creation for the "probe_enabled" field.
+	DefaultProbeEnabled bool
+	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
+	DefaultRateMultiplier float64
+	// RateMultiplierValidator is a validator for the "rate_multiplier" field. It is called by the builders before save.
+	RateMultiplierValidator func(float64) error
 	// DefaultReviewNote holds the default value on creation for the "review_note" field.
 	DefaultReviewNote string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -167,6 +184,16 @@ func ByAPIKeyEncrypted(opts ...sql.OrderTermOption) OrderOption {
 // ByModel orders the results by the model field.
 func ByModel(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModel, opts...).ToFunc()
+}
+
+// ByProbeEnabled orders the results by the probe_enabled field.
+func ByProbeEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProbeEnabled, opts...).ToFunc()
+}
+
+// ByRateMultiplier orders the results by the rate_multiplier field.
+func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRateMultiplier, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

@@ -455,6 +455,45 @@ func TestAccountTestService_OpenAIAPIKeyResponsesUsesCodexProbeHeaders(t *testin
 	requireOpenAICodexProbeHeaders(t, req.Header)
 }
 
+func TestAccountTestService_TransientOpenAIProbeDoesNotPersistFailureState(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{
+		newJSONResponse(http.StatusUnauthorized, `{"error":{"message":"invalid key"}}`),
+	}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		cfg: &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{
+			Enabled: false,
+		}}},
+	}
+	account := &Account{
+		ID:          -12,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-review",
+			"base_url": "https://compat-upstream.example/v1",
+		},
+		Extra: map[string]any{
+			openai_compat.ExtraKeyResponsesSupported: false,
+			"transient_account_test":                 true,
+		},
+	}
+
+	err := svc.TestTransientAccountConnection(ctx, account, "gpt-5.5", "", AccountTestModeDefault)
+	require.Error(t, err)
+	require.Len(t, upstream.requests, 1)
+	require.True(t, StrictUpstreamHostValidation(upstream.requests[0].Context()))
+	require.Zero(t, repo.setErrorID)
+	require.Zero(t, repo.rateLimitedID)
+	require.Nil(t, repo.updatedExtra)
+}
+
 func TestAccountTestService_OpenAIAPIKeyResponsesUnsupportedUsesChatCompletionsPath(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()

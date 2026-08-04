@@ -1764,6 +1764,9 @@ var (
 		{Name: "relay_url", Type: field.TypeString, Size: 500},
 		{Name: "api_key_encrypted", Type: field.TypeString},
 		{Name: "model", Type: field.TypeString, Size: 200, Default: "gpt-5.5"},
+		{Name: "supported_models", Type: field.TypeJSON},
+		{Name: "probe_enabled", Type: field.TypeBool, Default: true},
+		{Name: "rate_multiplier", Type: field.TypeFloat64, Default: 1},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected"}, Default: "pending"},
 		{Name: "reviewed_by", Type: field.TypeInt64, Nullable: true},
 		{Name: "review_note", Type: field.TypeString, Default: ""},
@@ -1782,7 +1785,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "supplier_resource_requests_suppliers_resource_requests",
-				Columns:    []*schema.Column{SupplierResourceRequestsColumns[14]},
+				Columns:    []*schema.Column{SupplierResourceRequestsColumns[17]},
 				RefColumns: []*schema.Column{SuppliersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1791,7 +1794,7 @@ var (
 			{
 				Name:    "supplierresourcerequest_supplier_id_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{SupplierResourceRequestsColumns[14], SupplierResourceRequestsColumns[6], SupplierResourceRequestsColumns[13]},
+				Columns: []*schema.Column{SupplierResourceRequestsColumns[17], SupplierResourceRequestsColumns[9], SupplierResourceRequestsColumns[16]},
 			},
 		},
 	}

@@ -184,6 +184,14 @@ func NewHTTPUpstream(cfg *config.Config) service.HTTPUpstream {
 //   - inFlight > 0 的客户端不会被淘汰，确保活跃请求不被中断
 func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
 	applyGrokCLIProxyHeaders(req)
+	if service.StrictUpstreamHostValidation(requestContext(req)) {
+		if strings.TrimSpace(proxyURL) == "" {
+			return s.doStrictDirectRequest(req)
+		}
+		if err := s.validateStrictRequestHost(req); err != nil {
+			return nil, err
+		}
+	}
 	if err := s.validateRequestHost(req); err != nil {
 		return nil, err
 	}
@@ -200,6 +208,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 
 	// 执行请求
 	client := httpClientForUpstreamRequest(entry.client, req)
+	client = s.withStrictRedirectValidation(client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	resp, err := servertiming.Do(client, req)
 	if err != nil {
@@ -229,6 +238,17 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 // profile 为 nil 时不启用 TLS 指纹，行为与 Do 方法相同。
 // profile 非 nil 时使用指定的 Profile 进行 TLS 指纹伪装。
 func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, profile *tlsfingerprint.Profile) (*http.Response, error) {
+	if service.StrictUpstreamHostValidation(requestContext(req)) {
+		if strings.TrimSpace(proxyURL) == "" {
+			// Supplier review accounts are short-lived API-key probes. Use the
+			// strict direct transport even if a TLS fingerprint was configured
+			// on the account template.
+			return s.doStrictDirectRequest(req)
+		}
+		if err := s.validateStrictRequestHost(req); err != nil {
+			return nil, err
+		}
+	}
 	if profile == nil {
 		return s.Do(req, proxyURL, accountID, accountConcurrency)
 	}
@@ -264,6 +284,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	}
 
 	client := httpClientForUpstreamRequest(entry.client, req)
+	client = s.withStrictRedirectValidation(client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	resp, err := servertiming.Do(client, req)
 	if err != nil {
@@ -568,7 +589,8 @@ func (s *httpUpstreamService) shouldValidateResolvedIP() bool {
 }
 
 func (s *httpUpstreamService) validateRequestHost(req *http.Request) error {
-	if !s.shouldValidateResolvedIP() {
+	strict := req != nil && service.StrictUpstreamHostValidation(req.Context())
+	if !s.shouldValidateResolvedIP() && !strict {
 		return nil
 	}
 	if req == nil || req.URL == nil {
@@ -582,6 +604,63 @@ func (s *httpUpstreamService) validateRequestHost(req *http.Request) error {
 		return err
 	}
 	return nil
+}
+
+func requestContext(req *http.Request) context.Context {
+	if req == nil {
+		return context.Background()
+	}
+	return req.Context()
+}
+
+func (s *httpUpstreamService) validateStrictRequestHost(req *http.Request) error {
+	if req == nil || req.URL == nil {
+		return errors.New("request url is nil")
+	}
+	host := strings.TrimSpace(req.URL.Hostname())
+	if host == "" {
+		return errors.New("request host is empty")
+	}
+	return urlvalidator.ValidateResolvedIP(host)
+}
+
+// doStrictDirectRequest uses the channel-monitor socket policy for untrusted
+// supplier endpoints. Resolving again inside DialContext closes the DNS
+// rebinding gap between URL validation and the actual TCP connection.
+func (s *httpUpstreamService) doStrictDirectRequest(req *http.Request) (*http.Response, error) {
+	if err := s.validateStrictRequestHost(req); err != nil {
+		return nil, err
+	}
+
+	settings := defaultPoolSettings(s.cfg)
+	transport, err := buildUpstreamTransport(settings, nil, upstreamProtocolModeDefault)
+	if err != nil {
+		return nil, err
+	}
+	transport.DialContext = service.SafeDialContext
+	transport.ForceAttemptHTTP2 = true
+	transport.TLSHandshakeTimeout = 15 * time.Second
+
+	client := &http.Client{Transport: transport}
+	client = httpClientForUpstreamRequest(client, req)
+	client = s.withStrictRedirectValidation(client, req)
+	resp, err := servertiming.Do(client, req)
+	if err != nil {
+		transport.CloseIdleConnections()
+		return nil, err
+	}
+	decompressResponseBody(resp)
+	resp.Body = wrapTrackedBody(resp.Body, transport.CloseIdleConnections)
+	return resp, nil
+}
+
+func (s *httpUpstreamService) withStrictRedirectValidation(client *http.Client, req *http.Request) *http.Client {
+	if client == nil || req == nil || !service.StrictUpstreamHostValidation(req.Context()) || service.HTTPUpstreamRedirectsDisabled(req.Context()) {
+		return client
+	}
+	clone := *client
+	clone.CheckRedirect = s.redirectChecker
+	return &clone
 }
 
 func (s *httpUpstreamService) redirectChecker(req *http.Request, via []*http.Request) error {

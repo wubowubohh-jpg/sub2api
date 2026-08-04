@@ -334,6 +334,7 @@ func TestUpstreamBillingProbeSuccessPersistsSanitizedSnapshot(t *testing.T) {
 	require.Equal(t, http.MethodGet, upstream.lastReq.Method)
 	require.Equal(t, "Bearer sk-sensitive", upstream.lastReq.Header.Get("Authorization"))
 	require.True(t, HTTPUpstreamRedirectsDisabled(upstream.lastReq.Context()))
+	require.True(t, StrictUpstreamHostValidation(upstream.lastReq.Context()))
 
 	persisted := decodeUpstreamBillingProbeSnapshot(account.Extra)
 	require.NotNil(t, persisted)

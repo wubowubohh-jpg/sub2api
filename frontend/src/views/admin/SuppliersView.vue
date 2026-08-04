@@ -56,7 +56,7 @@
           <table class="w-full min-w-[980px] text-sm">
             <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-gray-950"><tr><th class="p-4">分组</th><th>中转站</th><th>地址</th><th>模型</th><th>状态</th><th class="pr-4 text-right">操作</th></tr></thead>
             <tbody>
-              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4 font-medium">{{ r.group_name }}</td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td>{{ r.model }}</td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td><td class="space-x-3 pr-4 text-right"><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button><span v-else class="text-xs text-gray-400">已处理</span></td></tr>
+              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4"><div class="font-medium">{{ r.group_name }}</div><div class="mt-1 text-xs text-gray-400">基础倍率 {{ Number(r.rate_multiplier ?? 1).toFixed(4) }}</div></td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td><div class="flex max-w-64 flex-wrap gap-1"><span v-for="model in resourceModels(r)" :key="model" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">{{ model }}</span></div><div class="mt-1 text-xs text-gray-400">监听 {{ r.monitor_model || r.probe_model || r.model }}</div></td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td><td class="space-x-3 pr-4 text-right"><button v-if="r.status === 'pending'" class="text-sky-700 hover:text-sky-800" @click="openResourceTest(r)">模型测试</button><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button><span v-else class="text-xs text-gray-400">已处理</span></td></tr>
               <tr v-if="!resourcePage.length"><td colspan="6" class="p-16 text-center text-gray-400">暂无资源审核记录</td></tr>
             </tbody>
           </table>
@@ -78,13 +78,24 @@
         </div>
       </section>
     </div>
+
+    <AccountTestModal
+      :show="testingResource !== null"
+      :account="testingResourceAccount"
+      :model-options="testingResourceModels"
+      :test-endpoint="testingResourceEndpoint"
+      @close="closeResourceTest"
+    />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { adminSupplierAPI, type Supplier, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
+import type { ClaudeModel } from '@/types'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 type Tab = 'suppliers' | 'resources' | 'withdrawals'
 const activeTab = ref<Tab>('suppliers')
@@ -95,6 +106,7 @@ const loading = reactive<Record<Tab, boolean>>({ suppliers: false, resources: fa
 const items = ref<Supplier[]>([])
 const resourceRequests = ref<SupplierResourceRequest[]>([])
 const withdrawals = ref<SupplierWithdrawal[]>([])
+const testingResource = ref<SupplierResourceRequest | null>(null)
 const error = ref('')
 const settings = reactive({ global_rate_adjustment: 0, minimum_withdrawal_usd: 100, platform_supply_enabled: true, platform_supplier_name: '平台自营' })
 
@@ -112,6 +124,33 @@ function pageSlice<T>(list: T[], tab: Tab) { return list.slice((pages[tab] - 1) 
 const supplierPage = computed(() => pageSlice(items.value, 'suppliers'))
 const resourcePage = computed(() => pageSlice(resourceRequests.value, 'resources'))
 const withdrawalPage = computed(() => pageSlice(withdrawals.value, 'withdrawals'))
+const testingResourceAccount = computed(() => testingResource.value ? {
+  id: testingResource.value.id,
+  name: `${testingResource.value.group_name} / ${testingResource.value.relay_name}`,
+  platform: 'openai' as const,
+  type: 'apikey' as const,
+  status: 'active' as const,
+} : null)
+const testingResourceModels = computed<ClaudeModel[]>(() => {
+  if (!testingResource.value) return []
+  const primary = testingResource.value.probe_model || testingResource.value.monitor_model || testingResource.value.model
+  const ids = testingResource.value.supported_models?.length
+    ? [primary, ...testingResource.value.supported_models]
+    : [primary]
+  return [...new Set(ids.filter(Boolean))].map(id => ({
+    id,
+    type: 'model',
+    display_name: id,
+    created_at: '',
+  }))
+})
+const testingResourceEndpoint = computed(() => testingResource.value
+  ? `/admin/suppliers/resource-requests/${testingResource.value.id}/test`
+  : '')
+
+function resourceModels(resource: SupplierResourceRequest) {
+  return resource.supported_models?.length ? resource.supported_models : [resource.model].filter(Boolean)
+}
 
 function statusClass(status: string) { return ['approved', 'available', 'paid', 'active'].includes(status) ? 'bg-emerald-50 text-emerald-700' : ['rejected', 'frozen'].includes(status) ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700' }
 function statusLabel(status: string) { return ({ pending: '待审核', approved: '已通过', rejected: '已驳回', frozen: '已冻结', paid: '已打款' } as Record<string, string>)[status] || status }
@@ -137,7 +176,18 @@ async function saveSettings() { try { Object.assign(settings, await adminSupplie
 async function review(item: Supplier, status: 'approved' | 'rejected') { const note = status === 'rejected' ? (prompt('驳回原因') || '') : ''; await adminSupplierAPI.review(item.id, status, note); await loadTab('suppliers', true) }
 async function freeze(item: Supplier) { const reason = prompt('冻结原因'); if (reason === null) return; await adminSupplierAPI.freeze(item.id, reason); await loadTab('suppliers', true) }
 async function unfreeze(item: Supplier) { if (!confirm(`确认解除 ${item.name} 的冻结状态？`)) return; await adminSupplierAPI.unfreeze(item.id); await loadTab('suppliers', true) }
-async function reviewResource(id: number, approved: boolean) { const note = approved ? '' : (prompt('驳回原因') || ''); await adminSupplierAPI.reviewResourceRequest(id, approved, note); await loadTab('resources', true) }
+async function reviewResource(id: number, approved: boolean) {
+  const note = approved ? '' : (prompt('驳回原因') || '')
+  error.value = ''
+  try {
+    await adminSupplierAPI.reviewResourceRequest(id, approved, note)
+    await loadTab('resources', true)
+  } catch (e) {
+    error.value = extractApiErrorMessage(e, '资源审核失败')
+  }
+}
+function openResourceTest(resource: SupplierResourceRequest) { testingResource.value = resource }
+function closeResourceTest() { testingResource.value = null }
 async function updateWithdrawal(id: number, status: 'approved' | 'rejected') { const note = status === 'rejected' ? (prompt('驳回原因') || '') : ''; await adminSupplierAPI.reviewWithdrawal(id, status, note); await loadTab('withdrawals', true) }
 async function pay(id: number) { const proof = prompt('打款凭证存储键'); if (!proof) return; await adminSupplierAPI.reviewWithdrawal(id, 'paid', '', proof); await loadTab('withdrawals', true) }
 

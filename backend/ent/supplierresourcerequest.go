@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -30,6 +31,12 @@ type SupplierResourceRequest struct {
 	APIKeyEncrypted string `json:"-"`
 	// Model holds the value of the "model" field.
 	Model string `json:"model,omitempty"`
+	// SupportedModels holds the value of the "supported_models" field.
+	SupportedModels []string `json:"supported_models,omitempty"`
+	// ProbeEnabled holds the value of the "probe_enabled" field.
+	ProbeEnabled bool `json:"probe_enabled,omitempty"`
+	// RateMultiplier holds the value of the "rate_multiplier" field.
+	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
 	// Status holds the value of the "status" field.
 	Status supplierresourcerequest.Status `json:"status,omitempty"`
 	// ReviewedBy holds the value of the "reviewed_by" field.
@@ -77,6 +84,12 @@ func (*SupplierResourceRequest) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case supplierresourcerequest.FieldSupportedModels:
+			values[i] = new([]byte)
+		case supplierresourcerequest.FieldProbeEnabled:
+			values[i] = new(sql.NullBool)
+		case supplierresourcerequest.FieldRateMultiplier:
+			values[i] = new(sql.NullFloat64)
 		case supplierresourcerequest.FieldID, supplierresourcerequest.FieldSupplierID, supplierresourcerequest.FieldReviewedBy, supplierresourcerequest.FieldGroupID, supplierresourcerequest.FieldAccountID, supplierresourcerequest.FieldMonitorID:
 			values[i] = new(sql.NullInt64)
 		case supplierresourcerequest.FieldGroupName, supplierresourcerequest.FieldRelayName, supplierresourcerequest.FieldRelayURL, supplierresourcerequest.FieldAPIKeyEncrypted, supplierresourcerequest.FieldModel, supplierresourcerequest.FieldStatus, supplierresourcerequest.FieldReviewNote:
@@ -139,6 +152,26 @@ func (_m *SupplierResourceRequest) assignValues(columns []string, values []any) 
 				return fmt.Errorf("unexpected type %T for field model", values[i])
 			} else if value.Valid {
 				_m.Model = value.String
+			}
+		case supplierresourcerequest.FieldSupportedModels:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field supported_models", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.SupportedModels); err != nil {
+					return fmt.Errorf("unmarshal field supported_models: %w", err)
+				}
+			}
+		case supplierresourcerequest.FieldProbeEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field probe_enabled", values[i])
+			} else if value.Valid {
+				_m.ProbeEnabled = value.Bool
+			}
+		case supplierresourcerequest.FieldRateMultiplier:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field rate_multiplier", values[i])
+			} else if value.Valid {
+				_m.RateMultiplier = value.Float64
 			}
 		case supplierresourcerequest.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -250,6 +283,15 @@ func (_m *SupplierResourceRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("model=")
 	builder.WriteString(_m.Model)
+	builder.WriteString(", ")
+	builder.WriteString("supported_models=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SupportedModels))
+	builder.WriteString(", ")
+	builder.WriteString("probe_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProbeEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("rate_multiplier=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RateMultiplier))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

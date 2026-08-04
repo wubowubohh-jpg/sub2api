@@ -151,6 +151,8 @@ func RegisterUserRoutes(
 			suppliers.GET("/groups", h.Supplier.MyGroups)
 			suppliers.GET("/resource-requests", h.Supplier.MyResourceRequests)
 			suppliers.POST("/resource-requests", h.Supplier.CreateResourceRequest)
+			suppliers.PUT("/resource-requests/:id/api-key", h.Supplier.UpdateResourceRequestAPIKey)
+			suppliers.PUT("/resource-requests/:id/probe", h.Supplier.UpdateResourceRequestProbe)
 			suppliers.GET("/bills", h.Supplier.MyBills)
 			suppliers.POST("/groups", h.Supplier.CreateGroup)
 			suppliers.PUT("/groups/:id", h.Supplier.UpdateGroup)

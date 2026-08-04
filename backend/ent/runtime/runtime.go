@@ -2150,12 +2150,26 @@ func init() {
 	supplierresourcerequest.DefaultModel = supplierresourcerequestDescModel.Default.(string)
 	// supplierresourcerequest.ModelValidator is a validator for the "model" field. It is called by the builders before save.
 	supplierresourcerequest.ModelValidator = supplierresourcerequestDescModel.Validators[0].(func(string) error)
+	// supplierresourcerequestDescSupportedModels is the schema descriptor for supported_models field.
+	supplierresourcerequestDescSupportedModels := supplierresourcerequestFields[6].Descriptor()
+	// supplierresourcerequest.DefaultSupportedModels holds the default value on creation for the supported_models field.
+	supplierresourcerequest.DefaultSupportedModels = supplierresourcerequestDescSupportedModels.Default.([]string)
+	// supplierresourcerequestDescProbeEnabled is the schema descriptor for probe_enabled field.
+	supplierresourcerequestDescProbeEnabled := supplierresourcerequestFields[7].Descriptor()
+	// supplierresourcerequest.DefaultProbeEnabled holds the default value on creation for the probe_enabled field.
+	supplierresourcerequest.DefaultProbeEnabled = supplierresourcerequestDescProbeEnabled.Default.(bool)
+	// supplierresourcerequestDescRateMultiplier is the schema descriptor for rate_multiplier field.
+	supplierresourcerequestDescRateMultiplier := supplierresourcerequestFields[8].Descriptor()
+	// supplierresourcerequest.DefaultRateMultiplier holds the default value on creation for the rate_multiplier field.
+	supplierresourcerequest.DefaultRateMultiplier = supplierresourcerequestDescRateMultiplier.Default.(float64)
+	// supplierresourcerequest.RateMultiplierValidator is a validator for the "rate_multiplier" field. It is called by the builders before save.
+	supplierresourcerequest.RateMultiplierValidator = supplierresourcerequestDescRateMultiplier.Validators[0].(func(float64) error)
 	// supplierresourcerequestDescReviewNote is the schema descriptor for review_note field.
-	supplierresourcerequestDescReviewNote := supplierresourcerequestFields[8].Descriptor()
+	supplierresourcerequestDescReviewNote := supplierresourcerequestFields[11].Descriptor()
 	// supplierresourcerequest.DefaultReviewNote holds the default value on creation for the review_note field.
 	supplierresourcerequest.DefaultReviewNote = supplierresourcerequestDescReviewNote.Default.(string)
 	// supplierresourcerequestDescCreatedAt is the schema descriptor for created_at field.
-	supplierresourcerequestDescCreatedAt := supplierresourcerequestFields[13].Descriptor()
+	supplierresourcerequestDescCreatedAt := supplierresourcerequestFields[16].Descriptor()
 	// supplierresourcerequest.DefaultCreatedAt holds the default value on creation for the created_at field.
 	supplierresourcerequest.DefaultCreatedAt = supplierresourcerequestDescCreatedAt.Default.(func() time.Time)
 	supplierwithdrawalFields := schema.SupplierWithdrawal{}.Fields()
