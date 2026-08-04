@@ -358,7 +358,6 @@ func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int6
 		configuredRate := request.RateMultiplier
 		if request.GroupID != nil {
 			if item := groupsByID[*request.GroupID]; item != nil && item.SupplierID != nil && *item.SupplierID == request.SupplierID {
-				configuredRate = item.RateMultiplier
 				if item.SupplierAdminAdjustment != nil {
 					view.AdminRateAdjustment = *item.SupplierAdminAdjustment
 				}
@@ -614,10 +613,18 @@ func (s *SupplierService) AdminUpdateResourceRequest(ctx context.Context, reques
 		if groupErr != nil {
 			return nil, fmt.Errorf("supplier group not found")
 		}
+		adminAdjustment := s.supplierGlobalRateAdjustment(ctx)
+		if g.SupplierAdminAdjustment != nil {
+			adminAdjustment = *g.SupplierAdminAdjustment
+		}
+		if in.AdminRateAdjustment != nil {
+			adminAdjustment = *in.AdminRateAdjustment
+		}
+		finalRate := in.RateMultiplier + adminAdjustment
 		groupUpdate := tx.Group.UpdateOne(g).
 			SetName(groupName).
 			SetDescription(relayName).
-			SetRateMultiplier(in.RateMultiplier)
+			SetRateMultiplier(finalRate)
 		if in.AdminRateAdjustment != nil {
 			groupUpdate.SetSupplierAdminAdjustment(*in.AdminRateAdjustment)
 		}
@@ -649,7 +656,7 @@ func (s *SupplierService) AdminUpdateResourceRequest(ctx context.Context, reques
 		if !in.ProbeEnabled {
 			extra[UpstreamBillingRateSyncEnabledExtraKey] = false
 		}
-		if _, err = tx.Account.UpdateOne(a).SetName(relayName).SetCredentials(credentials).SetExtra(extra).Save(ctx); err != nil {
+		if _, err = tx.Account.UpdateOne(a).SetName(relayName).SetCredentials(credentials).SetExtra(extra).SetRateMultiplier(finalRate).Save(ctx); err != nil {
 			return nil, err
 		}
 
@@ -720,15 +727,29 @@ func (s *SupplierService) updateResourceRequestRate(ctx context.Context, supplie
 		if groupErr != nil {
 			return nil, fmt.Errorf("supplier group not found")
 		}
-		groupUpdate := tx.Group.UpdateOne(g)
+		configuredRate := req.RateMultiplier
 		if rate != nil {
-			groupUpdate.SetRateMultiplier(*rate)
+			configuredRate = *rate
 		}
+		adminAdjustment := s.supplierGlobalRateAdjustment(ctx)
+		if g.SupplierAdminAdjustment != nil {
+			adminAdjustment = *g.SupplierAdminAdjustment
+		}
+		if adjustment != nil {
+			adminAdjustment = *adjustment
+		}
+		finalRate := configuredRate + adminAdjustment
+		groupUpdate := tx.Group.UpdateOne(g).SetRateMultiplier(finalRate)
 		if adjustment != nil {
 			groupUpdate.SetSupplierAdminAdjustment(*adjustment)
 		}
 		if _, err = groupUpdate.Save(ctx); err != nil {
 			return nil, err
+		}
+		if req.AccountID != nil {
+			if _, err = tx.Account.UpdateOneID(*req.AccountID).SetRateMultiplier(finalRate).Save(ctx); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -1014,13 +1035,15 @@ func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, 
 		return nil, err
 	}
 	defer tx.Rollback()
+	adminAdjustment := s.supplierGlobalRateAdjustment(ctx)
+	finalRate := req.RateMultiplier + adminAdjustment
 	g, err := tx.Group.Create().
 		SetSupplierID(req.SupplierID).
 		SetName(groupName).
 		SetDescription(req.RelayName).
 		SetPlatform("openai").
 		SetSubscriptionType("standard").
-		SetRateMultiplier(req.RateMultiplier).
+		SetRateMultiplier(finalRate).
 		SetStatus("active").
 		SetIsExclusive(false).
 		SetRpmLimit(0).
@@ -1029,7 +1052,7 @@ func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, 
 	if err != nil {
 		return nil, err
 	}
-	a, err := tx.Account.Create().SetSupplierID(req.SupplierID).SetName(req.RelayName).SetPlatform(PlatformOpenAI).SetType(AccountTypeAPIKey).SetCredentials(map[string]any{"api_key": key, "base_url": req.RelayURL, "model_mapping": modelMapping}).SetExtra(map[string]any{openai_compat.ExtraKeyResponsesSupported: false, UpstreamBillingProbeEnabledExtraKey: req.ProbeEnabled, UpstreamBillingRateSyncEnabledExtraKey: false}).SetStatus(StatusActive).SetSchedulable(true).AddGroupIDs(g.ID).Save(ctx)
+	a, err := tx.Account.Create().SetSupplierID(req.SupplierID).SetName(req.RelayName).SetPlatform(PlatformOpenAI).SetType(AccountTypeAPIKey).SetCredentials(map[string]any{"api_key": key, "base_url": req.RelayURL, "model_mapping": modelMapping}).SetExtra(map[string]any{openai_compat.ExtraKeyResponsesSupported: false, UpstreamBillingProbeEnabledExtraKey: req.ProbeEnabled, UpstreamBillingRateSyncEnabledExtraKey: false}).SetRateMultiplier(finalRate).SetStatus(StatusActive).SetSchedulable(true).AddGroupIDs(g.ID).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1222,7 +1245,41 @@ func (s *SupplierService) UpdateSettings(ctx context.Context, in SupplierSetting
 			return SupplierSettings{}, err
 		}
 	}
+	if err := s.syncGlobalAdjustedResourceRates(ctx, in.GlobalRateAdjustment); err != nil {
+		return SupplierSettings{}, err
+	}
 	return s.GetSettings(ctx)
+}
+
+func (s *SupplierService) syncGlobalAdjustedResourceRates(ctx context.Context, adjustment float64) error {
+	requests, err := s.db.SupplierResourceRequest.Query().
+		Where(
+			supplierresourcerequest.StatusEQ(supplierresourcerequest.StatusApproved),
+			supplierresourcerequest.GroupIDNotNil(),
+		).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, request := range requests {
+		g, groupErr := s.db.Group.Get(ctx, *request.GroupID)
+		if groupErr != nil || g.SupplierID == nil || g.SupplierAdminAdjustment != nil {
+			continue
+		}
+		finalRate := request.RateMultiplier + adjustment
+		if _, err = g.Update().SetRateMultiplier(finalRate).Save(ctx); err != nil {
+			return err
+		}
+		if request.AccountID != nil {
+			if _, err = s.db.Account.UpdateOneID(*request.AccountID).SetRateMultiplier(finalRate).Save(ctx); err != nil {
+				return err
+			}
+		}
+		if s.authCacheInvalidator != nil {
+			s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, g.ID)
+		}
+	}
+	return nil
 }
 
 func (s *SupplierService) AddDocument(ctx context.Context, supplierID int64, storageKey, originalName, contentType string, size int64) (*dbent.SupplierDocument, error) {
@@ -1432,15 +1489,34 @@ func (s *SupplierService) SetGroupModeration(ctx context.Context, groupID int64,
 		return nil, fmt.Errorf("supplier group not found")
 	}
 	u := s.db.Group.UpdateOne(g)
+	oldAdjustment := s.supplierGlobalRateAdjustment(ctx)
+	if g.SupplierAdminAdjustment != nil {
+		oldAdjustment = *g.SupplierAdminAdjustment
+	}
+	newAdjustment := oldAdjustment
 	if clearAdjustment {
 		u.ClearSupplierAdminAdjustment()
+		newAdjustment = s.supplierGlobalRateAdjustment(ctx)
 	} else if adjustment != nil {
 		u.SetSupplierAdminAdjustment(*adjustment)
+		newAdjustment = *adjustment
 	}
+	baseRate := g.RateMultiplier - oldAdjustment
+	request, requestErr := s.db.SupplierResourceRequest.Query().
+		Where(supplierresourcerequest.GroupID(groupID)).
+		Only(ctx)
+	if requestErr == nil {
+		baseRate = request.RateMultiplier
+	}
+	finalRate := baseRate + newAdjustment
+	u.SetRateMultiplier(finalRate)
 	if forcedOffline != nil {
 		u.SetSupplierForcedOffline(*forcedOffline)
 	}
 	updated, err := u.Save(ctx)
+	if err == nil && requestErr == nil && request.AccountID != nil {
+		_, err = s.db.Account.UpdateOneID(*request.AccountID).SetRateMultiplier(finalRate).Save(ctx)
+	}
 	if err == nil && s.authCacheInvalidator != nil {
 		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
 	}
@@ -1583,7 +1659,7 @@ func (s *SupplierService) EffectiveRate(ctx context.Context, g *dbent.Group) (fl
 	if g.SupplierAdminAdjustment != nil {
 		adjust = *g.SupplierAdminAdjustment
 	}
-	return g.RateMultiplier + adjust, adjust, nil
+	return g.RateMultiplier, adjust, nil
 }
 
 func (s *SupplierService) supplierGlobalRateAdjustment(ctx context.Context) float64 {
@@ -1660,15 +1736,19 @@ func (s *SupplierService) ReconcileUsage(ctx context.Context, limit int) (int, e
 			continue
 		}
 		effective, adjustment, _ := s.EffectiveRate(ctx, g)
+		baseRate := effective - adjustment
+		if baseRate < 0 {
+			baseRate = 0
+		}
 		modelCost := log.TotalCost
 		if log.RateMultiplier > 0 {
 			modelCost = log.ActualCost / log.RateMultiplier
 		}
-		earning := modelCost * g.RateMultiplier * ratio
-		if e = s.RecordEarning(ctx, fmt.Sprintf("usage:%d", log.ID), log.ID, *g.SupplierID, g.ID, modelCost, g.RateMultiplier, adjustment, ratio); e != nil {
+		earning := modelCost * baseRate * ratio
+		if e = s.RecordEarning(ctx, fmt.Sprintf("usage:%d", log.ID), log.ID, *g.SupplierID, g.ID, modelCost, baseRate, adjustment, ratio); e != nil {
 			return count, e
 		}
-		if e = s.db.UsageLog.UpdateOneID(log.ID).SetSupplierID(*g.SupplierID).SetSupplierBaseRate(g.RateMultiplier).SetSupplierAdminAdjustment(adjustment).SetSupplierModelCostUsd(modelCost).SetSupplierRechargeRatio(ratio).SetSupplierEarningCny(earning).SetRateMultiplier(effective).Exec(ctx); e != nil {
+		if e = s.db.UsageLog.UpdateOneID(log.ID).SetSupplierID(*g.SupplierID).SetSupplierBaseRate(baseRate).SetSupplierAdminAdjustment(adjustment).SetSupplierModelCostUsd(modelCost).SetSupplierRechargeRatio(ratio).SetSupplierEarningCny(earning).SetRateMultiplier(effective).Exec(ctx); e != nil {
 			return count, e
 		}
 		if e = s.addMetricBucket(ctx, log); e != nil {

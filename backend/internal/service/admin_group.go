@@ -58,20 +58,8 @@ func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, erro
 }
 
 func (s *adminServiceImpl) decorateSupplierGroupRates(ctx context.Context, groups []Group) []Group {
-	global := 0.0
-	if s.settingService != nil {
-		global = s.settingService.GetSupplierGlobalRateAdjustment(ctx)
-	}
 	for i := range groups {
 		groups[i].EffectiveRateMultiplier = groups[i].RateMultiplier
-		if groups[i].SupplierID == nil {
-			continue
-		}
-		adjustment := global
-		if groups[i].SupplierAdminAdjustment != nil {
-			adjustment = *groups[i].SupplierAdminAdjustment
-		}
-		groups[i].EffectiveRateMultiplier = groups[i].RateMultiplier + adjustment
 	}
 	return groups
 }

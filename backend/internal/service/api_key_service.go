@@ -260,7 +260,6 @@ type APIKeyService struct {
 	cache                     APIKeyCache
 	rateLimitCacheInvalid     RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
 	concurrencyService        *ConcurrencyService
-	settingService            *SettingService
 	cfg                       *config.Config
 	authCacheL1               *ristretto.Cache
 	authNegativeCacheL1       *ristretto.Cache
@@ -337,61 +336,6 @@ func (s *APIKeyService) SetRateLimitCacheInvalidator(inv RateLimitCacheInvalidat
 
 func (s *APIKeyService) SetConcurrencyService(concurrencyService *ConcurrencyService) {
 	s.concurrencyService = concurrencyService
-}
-
-func (s *APIKeyService) SetSettingService(settingService *SettingService) {
-	s.settingService = settingService
-}
-
-func (s *APIKeyService) supplierGlobalRateAdjustment(ctx context.Context) float64 {
-	if s.settingService == nil {
-		return 0
-	}
-	return s.settingService.GetSupplierGlobalRateAdjustment(ctx)
-}
-
-func decorateSupplierGroupRateWithAdjustment(group *Group, globalAdjustment float64) {
-	if group == nil {
-		return
-	}
-	group.EffectiveRateMultiplier = group.RateMultiplier
-	if group.SupplierID == nil {
-		return
-	}
-	adjustment := globalAdjustment
-	if group.SupplierAdminAdjustment != nil {
-		adjustment = *group.SupplierAdminAdjustment
-	}
-	finalRate := group.RateMultiplier + adjustment
-	group.RateMultiplier = finalRate
-	group.EffectiveRateMultiplier = finalRate
-}
-
-func (s *APIKeyService) decorateSupplierGroupRate(ctx context.Context, group *Group) {
-	if group == nil || group.SupplierID == nil {
-		decorateSupplierGroupRateWithAdjustment(group, 0)
-		return
-	}
-	decorateSupplierGroupRateWithAdjustment(group, s.supplierGlobalRateAdjustment(ctx))
-}
-
-func (s *APIKeyService) decorateAPIKeySupplierGroupRate(ctx context.Context, apiKey *APIKey) {
-	if apiKey != nil {
-		s.decorateSupplierGroupRate(ctx, apiKey.Group)
-	}
-}
-
-func (s *APIKeyService) decorateAPIKeysSupplierGroupRates(ctx context.Context, keys []APIKey) {
-	globalAdjustment := 0.0
-	globalLoaded := false
-	for i := range keys {
-		group := keys[i].Group
-		if group != nil && group.SupplierID != nil && !globalLoaded {
-			globalAdjustment = s.supplierGlobalRateAdjustment(ctx)
-			globalLoaded = true
-		}
-		decorateSupplierGroupRateWithAdjustment(group, globalAdjustment)
-	}
 }
 
 func (s *APIKeyService) compileAPIKeyIPRules(apiKey *APIKey) {
@@ -595,7 +539,6 @@ func (s *APIKeyService) List(ctx context.Context, userID int64, params paginatio
 		return nil, nil, fmt.Errorf("list api keys: %w", err)
 	}
 	s.fillCurrentConcurrency(ctx, keys)
-	s.decorateAPIKeysSupplierGroupRates(ctx, keys)
 	return keys, pagination, nil
 }
 
@@ -610,7 +553,6 @@ func (s *APIKeyService) listByCurrentConcurrency(ctx context.Context, userID int
 		return nil, nil, fmt.Errorf("list api keys: %w", err)
 	}
 	s.fillCurrentConcurrency(ctx, keys)
-	s.decorateAPIKeysSupplierGroupRates(ctx, keys)
 	sortAPIKeysByCurrentConcurrency(keys, params.NormalizedSortOrder(pagination.SortOrderDesc))
 	return paginateAPIKeys(keys, params), apiKeyPaginationResult(int64(len(keys)), params), nil
 }
@@ -720,7 +662,6 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	s.compileAPIKeyIPRules(apiKey)
 	if apiKey != nil {
 		apiKey.CurrentConcurrency = s.currentConcurrencyForAPIKey(ctx, apiKey.ID)
-		s.decorateAPIKeySupplierGroupRate(ctx, apiKey)
 	}
 	return apiKey, nil
 }
@@ -932,7 +873,6 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		_ = s.rateLimitCacheInvalid.InvalidateAPIKeyRateLimit(ctx, apiKey.ID)
 	}
 
-	s.decorateAPIKeySupplierGroupRate(ctx, apiKey)
 	return apiKey, nil
 }
 
@@ -1067,15 +1007,8 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 
 	// 过滤出用户有权限的分组
 	availableGroups := make([]Group, 0)
-	globalAdjustment := 0.0
-	globalLoaded := false
 	for _, group := range allGroups {
 		if s.canUserBindGroupInternal(user, &group, subscribedGroupIDs) {
-			if group.SupplierID != nil && !globalLoaded {
-				globalAdjustment = s.supplierGlobalRateAdjustment(ctx)
-				globalLoaded = true
-			}
-			decorateSupplierGroupRateWithAdjustment(&group, globalAdjustment)
 			availableGroups = append(availableGroups, group)
 		}
 	}
@@ -1098,7 +1031,6 @@ func (s *APIKeyService) SearchAPIKeys(ctx context.Context, userID int64, keyword
 	if err != nil {
 		return nil, fmt.Errorf("search api keys: %w", err)
 	}
-	s.decorateAPIKeysSupplierGroupRates(ctx, keys)
 	return keys, nil
 }
 
