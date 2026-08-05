@@ -124,6 +124,7 @@ func RegisterAdminRoutes(
 		suppliers := admin.Group("/suppliers")
 		{
 			suppliers.GET("", h.Supplier.AdminList)
+			suppliers.GET("/:id/bills", h.Supplier.AdminBills)
 			suppliers.PUT("/:id/review", h.Supplier.AdminReview)
 			suppliers.POST("/:id/freeze", h.Supplier.AdminFreeze)
 			suppliers.POST("/:id/unfreeze", h.Supplier.AdminUnfreeze)

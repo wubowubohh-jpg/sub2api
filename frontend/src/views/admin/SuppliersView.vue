@@ -62,7 +62,7 @@
                 <td><a :href="s.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ s.relay_url }}</a></td>
                 <td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(s.status)">{{ statusLabel(s.status) }}</span></td>
                 <td>¥{{ money(s.pending_balance_cny) }}</td><td>¥{{ money(s.available_balance_cny) }}</td>
-                <td class="space-x-3 pr-4 text-right"><button v-if="s.status === 'pending'" class="text-emerald-700" @click="review(s, 'approved')">通过</button><button v-if="s.status === 'pending'" class="text-rose-700" @click="review(s, 'rejected')">驳回</button><button v-if="s.status === 'approved'" class="text-amber-700" @click="freeze(s)">冻结</button><button v-if="s.status === 'frozen'" class="text-emerald-700" @click="unfreeze(s)">解除冻结</button></td>
+                <td class="space-x-3 pr-4 text-right"><button class="text-sky-700 hover:text-sky-800" @click="openSupplierBills(s)">查看账单</button><button v-if="s.status === 'pending'" class="text-emerald-700" @click="review(s, 'approved')">通过</button><button v-if="s.status === 'pending'" class="text-rose-700" @click="review(s, 'rejected')">驳回</button><button v-if="s.status === 'approved'" class="text-amber-700" @click="freeze(s)">冻结</button><button v-if="s.status === 'frozen'" class="text-emerald-700" @click="unfreeze(s)">解除冻结</button></td>
               </tr>
               <tr v-if="!supplierPage.length"><td colspan="6" class="p-16 text-center text-gray-400">暂无供应商记录</td></tr>
             </tbody>
@@ -103,6 +103,69 @@
       :test-endpoint="testingResourceEndpoint"
       @close="closeResourceTest"
     />
+    <BaseDialog
+      :show="billSupplier !== null"
+      :title="billSupplier ? `${billSupplier.name} · 收益账单` : '收益账单'"
+      width="extra-wide"
+      @close="closeSupplierBills"
+    >
+      <div class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+            <button
+              v-for="filter in [{ label: '全部', value: '' }, { label: '待结算', value: 'pending' }, { label: '可提现', value: 'available' }, { label: '已冻结', value: 'frozen' }]"
+              :key="filter.value || 'all'"
+              type="button"
+              class="rounded-md px-3 py-1.5 text-xs font-medium"
+              :class="supplierBillsStatus === filter.value ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 dark:text-gray-300'"
+              @click="setSupplierBillsStatus(filter.value)"
+            >
+              {{ filter.label }}
+            </button>
+          </div>
+          <span class="text-xs text-gray-500">共 {{ supplierBillsTotal }} 条记录</span>
+        </div>
+        <div v-if="supplierBillsLoading" class="py-16 text-center text-sm text-gray-400">正在加载账单...</div>
+        <div v-else-if="supplierBills.length" class="overflow-x-auto rounded-lg border dark:border-gray-700">
+          <table class="w-full min-w-[1250px] text-xs">
+            <thead class="bg-gray-50 text-left text-gray-500 dark:bg-gray-800/70 dark:text-gray-300">
+              <tr>
+                <th class="px-3 py-3">时间</th>
+                <th class="px-3 py-3">分组 / 模型</th>
+                <th class="px-3 py-3">用户</th>
+                <th class="px-3 py-3">账号 / API Key</th>
+                <th class="px-3 py-3">请求</th>
+                <th class="px-3 py-3">Token</th>
+                <th class="px-3 py-3">倍率快照</th>
+                <th class="px-3 py-3">模型原价</th>
+                <th class="px-3 py-3">供应商收益</th>
+                <th class="px-3 py-3">状态</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y dark:divide-gray-800">
+              <tr v-for="bill in supplierBills" :key="bill.id" class="hover:bg-gray-50/70 dark:hover:bg-gray-800/40">
+                <td class="whitespace-nowrap px-3 py-3 text-gray-500">{{ formatDate(bill.created_at) }}</td>
+                <td class="px-3 py-3"><div class="font-medium text-gray-900 dark:text-white">{{ bill.group_name || `#${bill.group_id}` }}</div><div class="mt-1 text-gray-500">{{ bill.model || '--' }}</div></td>
+                <td class="px-3 py-3"><div class="font-medium text-gray-900 dark:text-white">{{ bill.username || '--' }}</div><div class="mt-1 text-gray-500">{{ bill.user_email || (bill.user_id ? `ID ${bill.user_id}` : '--') }}</div></td>
+                <td class="px-3 py-3 text-gray-500"><div>账号 {{ bill.account_id ?? '--' }}</div><div class="mt-1">Key {{ bill.api_key_id ?? '--' }}</div></td>
+                <td class="max-w-48 truncate px-3 py-3 font-mono text-gray-500" :title="bill.request_id">{{ bill.request_id || (bill.usage_log_id ? `log #${bill.usage_log_id}` : '--') }}</td>
+                <td class="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{{ formatInteger(bill.input_tokens + bill.output_tokens) }}<span class="mt-1 block text-gray-400">缓存 {{ formatInteger(bill.cache_read_tokens) }}</span></td>
+                <td class="whitespace-nowrap px-3 py-3 font-mono text-gray-600 dark:text-gray-300">{{ formatRate(bill.base_rate) }} + {{ formatRate(bill.admin_adjustment) }} = {{ formatRate(bill.effective_rate) }}</td>
+                <td class="whitespace-nowrap px-3 py-3 font-mono text-gray-600 dark:text-gray-300">${{ bill.model_cost_usd.toFixed(6) }}<span class="mt-1 block text-gray-400">比例 {{ bill.recharge_ratio }}</span></td>
+                <td class="whitespace-nowrap px-3 py-3 font-semibold text-emerald-700 dark:text-emerald-400">¥{{ money(bill.amount_cny) }}<span class="mt-1 block font-normal text-gray-400">{{ bill.entry_type }}</span></td>
+                <td class="whitespace-nowrap px-3 py-3"><span class="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-700 dark:text-gray-200">{{ statusLabel(bill.status) }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="py-16 text-center text-sm text-gray-400">暂无收益账单</div>
+        <div class="flex items-center justify-end gap-3 border-t pt-3 text-xs text-gray-500 dark:border-gray-800">
+          <button class="rounded-lg border px-3 py-1.5 disabled:opacity-40 dark:border-gray-700" :disabled="supplierBillsPage <= 1 || supplierBillsLoading" @click="changeSupplierBillsPage(-1)">上一页</button>
+          <span>{{ supplierBillsPage }} / {{ supplierBillsPageCount }}</span>
+          <button class="rounded-lg border px-3 py-1.5 disabled:opacity-40 dark:border-gray-700" :disabled="supplierBillsPage >= supplierBillsPageCount || supplierBillsLoading" @click="changeSupplierBillsPage(1)">下一页</button>
+        </div>
+      </div>
+    </BaseDialog>
     <BaseDialog :show="editingResource !== null" title="编辑供应商资源" width="wide" @close="closeResourceEdit">
       <div v-if="editingResource" class="space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-4 dark:border-gray-800">
@@ -200,7 +263,7 @@ import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { adminSupplierAPI, type Supplier, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
+import { adminSupplierAPI, type Supplier, type SupplierAdminBill, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
 import type { ClaudeModel } from '@/types'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
@@ -213,6 +276,13 @@ const loading = reactive<Record<Tab, boolean>>({ suppliers: false, resources: fa
 const items = ref<Supplier[]>([])
 const resourceRequests = ref<SupplierResourceRequest[]>([])
 const withdrawals = ref<SupplierWithdrawal[]>([])
+const billSupplier = ref<Supplier | null>(null)
+const supplierBills = ref<SupplierAdminBill[]>([])
+const supplierBillsTotal = ref(0)
+const supplierBillsPage = ref(1)
+const supplierBillsPageSize = 20
+const supplierBillsLoading = ref(false)
+const supplierBillsStatus = ref('')
 const testingResource = ref<SupplierResourceRequest | null>(null)
 const editingResource = ref<SupplierResourceRequest | null>(null)
 const resourceSaving = ref(false)
@@ -265,6 +335,7 @@ function pageSlice<T>(list: T[], tab: Tab) { return list.slice((pages[tab] - 1) 
 const supplierPage = computed(() => pageSlice(items.value, 'suppliers'))
 const resourcePage = computed(() => pageSlice(resourceRequests.value, 'resources'))
 const withdrawalPage = computed(() => pageSlice(withdrawals.value, 'withdrawals'))
+const supplierBillsPageCount = computed(() => Math.max(1, Math.ceil(supplierBillsTotal.value / supplierBillsPageSize)))
 const testingResourceAccount = computed(() => testingResource.value ? {
   id: testingResource.value.id,
   name: `${testingResource.value.group_name} / ${testingResource.value.relay_name}`,
@@ -322,6 +393,17 @@ function formatRate(value: unknown) {
   return Number.isFinite(rate) ? rate.toFixed(4) : '--'
 }
 
+function formatDate(value: string | undefined) {
+  if (!value) return '--'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+
+function formatInteger(value: unknown) {
+  const number = Number(value || 0)
+  return Number.isFinite(number) ? number.toLocaleString() : '0'
+}
+
 function resourceAppliedRate(resource: SupplierResourceRequest) {
   const serverRate = Number(resource.applied_rate_multiplier)
   if (Number.isFinite(serverRate)) return serverRate
@@ -362,6 +444,53 @@ async function selectTab(tab: Tab) { activeTab.value = tab; await loadTab(tab) }
 function reloadActive() { return loadTab(activeTab.value, true) }
 function resetPages() { pages.suppliers = 1; pages.resources = 1; pages.withdrawals = 1 }
 function changePage(delta: number) { pages[activeTab.value] = Math.min(activePages.value, Math.max(1, pages[activeTab.value] + delta)) }
+
+async function loadSupplierBills() {
+  if (!billSupplier.value) return
+  supplierBillsLoading.value = true
+  try {
+    const response = await adminSupplierAPI.bills(
+      billSupplier.value.id,
+      supplierBillsStatus.value,
+      supplierBillsPageSize,
+      (supplierBillsPage.value - 1) * supplierBillsPageSize,
+    )
+    supplierBills.value = response.items || []
+    supplierBillsTotal.value = Number(response.total || 0)
+    supplierBillsPage.value = Math.min(supplierBillsPage.value, supplierBillsPageCount.value)
+  } catch (e) {
+    error.value = extractApiErrorMessage(e, '收益账单加载失败')
+  } finally {
+    supplierBillsLoading.value = false
+  }
+}
+
+async function openSupplierBills(item: Supplier) {
+  billSupplier.value = item
+  supplierBillsStatus.value = ''
+  supplierBillsPage.value = 1
+  supplierBills.value = []
+  supplierBillsTotal.value = 0
+  await loadSupplierBills()
+}
+
+function closeSupplierBills() {
+  if (!supplierBillsLoading.value) billSupplier.value = null
+}
+
+function setSupplierBillsStatus(value: string) {
+  supplierBillsStatus.value = value
+  supplierBillsPage.value = 1
+  void loadSupplierBills()
+}
+
+function changeSupplierBillsPage(delta: number) {
+  const next = Math.min(supplierBillsPageCount.value, Math.max(1, supplierBillsPage.value + delta))
+  if (next === supplierBillsPage.value) return
+  supplierBillsPage.value = next
+  void loadSupplierBills()
+}
+
 async function saveSettings() {
   if (!settingsValid.value || settingsSaving.value) return
   settingsSaving.value = true

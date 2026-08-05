@@ -98,6 +98,35 @@ export interface UpdateSupplierResourceModelsRequest {
   supported_models: string[]
 }
 export interface SupplierBill { id:number; group_id:number; group_name:string; model:string; input_tokens:number; output_tokens:number; cache_read_tokens:number; base_rate:number; effective_rate:number; amount_cny:number; status:'pending'|'available'|'frozen'; available_at?:string; created_at:string }
+export interface SupplierAdminBill {
+  id:number
+  supplier_id:number
+  group_id:number
+  group_name:string
+  usage_log_id?:number
+  request_id?:string
+  user_id?:number
+  user_email?:string
+  username?:string
+  api_key_id?:number
+  account_id?:number
+  model?:string
+  input_tokens:number
+  output_tokens:number
+  cache_read_tokens:number
+  base_rate:number
+  admin_adjustment:number
+  effective_rate:number
+  model_cost_usd:number
+  recharge_ratio:number
+  earning_usd:number
+  amount_cny:number
+  entry_type:string
+  status:'pending'|'available'|'frozen'
+  available_at?:string
+  created_at:string
+}
+export interface SupplierAdminBillResponse { items:SupplierAdminBill[]; total:number; limit:number; offset:number }
 
 export const supplierAPI = {
   async me() { return (await apiClient.get<Supplier>('/suppliers/me')).data },
@@ -126,6 +155,7 @@ export const adminSupplierAPI = {
   async withdrawals(status='') { return (await apiClient.get<{items:SupplierWithdrawal[]}>('/admin/supplier-withdrawals',{params:{status}})).data },
   async reviewWithdrawal(id:number,status:'approved'|'rejected'|'paid',note='',payment_proof_key='') { return (await apiClient.put<SupplierWithdrawal>(`/admin/supplier-withdrawals/${id}`,{status,note,payment_proof_key})).data },
   async resourceRequests(status='') { return (await apiClient.get<{items:SupplierResourceRequest[]}>('/admin/suppliers/resource-requests',{params:{status}})).data },
+  async bills(supplierID:number, status='', limit=20, offset=0) { return (await apiClient.get<SupplierAdminBillResponse>(`/admin/suppliers/${supplierID}/bills`,{params:{status,limit,offset}})).data },
   async reviewResourceRequest(id:number,approved:boolean,note='') { return (await apiClient.put<SupplierResourceRequest>(`/admin/suppliers/resource-requests/${id}`,{approved,note})).data },
   async updateResourceRequest(id:number,payload:AdminUpdateSupplierResourceRequest) { return (await apiClient.put<SupplierResourceRequest>(`/admin/suppliers/resource-requests/${id}/details`,payload)).data },
   async updateResourceRate(id:number,rate_multiplier:number,admin_rate_adjustment?:number) { return (await apiClient.put<SupplierResourceRequest>(`/admin/suppliers/resource-requests/${id}/rate`,{rate_multiplier,admin_rate_adjustment})).data },

@@ -307,6 +307,17 @@ func (h *SupplierHandler) MyBills(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
 		return
 	}
+	// Usage logs are reconciled into the supplier ledger asynchronously. Refresh
+	// them here as well so the bills endpoint is correct on its first request,
+	// independently of the profile request made by the workspace UI.
+	if _, err = h.svc.ReconcileUsage(c, 1000); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if _, err = h.svc.ReleaseDue(c, time.Now()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	items, err := h.svc.Bills(c, sp.ID, c.Query("status"), 100)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -534,6 +545,47 @@ func (h *SupplierHandler) AdminList(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
+
+// AdminBills exposes the full settlement snapshot, including the originating
+// user, to administrators. Supplier-facing endpoints use MyBills instead.
+func (h *SupplierHandler) AdminBills(c *gin.Context) {
+	supplierID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || supplierID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid supplier id"})
+		return
+	}
+	limit := 100
+	offset := 0
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		limit, err = strconv.Atoi(raw)
+		if err != nil || limit <= 0 || limit > 500 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "limit must be between 1 and 500"})
+			return
+		}
+	}
+	if raw := strings.TrimSpace(c.Query("offset")); raw != "" {
+		offset, err = strconv.Atoi(raw)
+		if err != nil || offset < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "offset must be non-negative"})
+			return
+		}
+	}
+	if _, err = h.svc.ReconcileUsage(c, 1000); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if _, err = h.svc.ReleaseDue(c, time.Now()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	items, total, err := h.svc.AdminBills(c, supplierID, c.Query("status"), limit, offset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": total, "limit": limit, "offset": offset})
+}
+
 func (h *SupplierHandler) AdminReview(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	uid, _ := subject(c)

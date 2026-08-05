@@ -32,6 +32,7 @@ type SupplierService struct {
 	schedulerSnapshot    *SchedulerSnapshotService
 	stop                 chan struct{}
 	stopOnce             sync.Once
+	settlementMu         sync.Mutex
 }
 
 func NewSupplierService(db *dbent.Client, encryptor SecretEncryptor, authCacheInvalidator APIKeyAuthCacheInvalidator) *SupplierService {
@@ -1279,6 +1280,112 @@ type SupplierBillItem struct {
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
+// SupplierAdminBillItem is the administrator-only settlement view. It keeps
+// the immutable billing snapshot together with the originating usage request
+// and user identity; supplier-facing bills intentionally use the smaller DTO
+// above and never include these fields.
+type SupplierAdminBillItem struct {
+	ID              int64      `json:"id"`
+	SupplierID      int64      `json:"supplier_id"`
+	GroupID         int64      `json:"group_id"`
+	GroupName       string     `json:"group_name"`
+	UsageLogID      *int64     `json:"usage_log_id,omitempty"`
+	RequestID       string     `json:"request_id,omitempty"`
+	UserID          *int64     `json:"user_id,omitempty"`
+	UserEmail       string     `json:"user_email,omitempty"`
+	Username        string     `json:"username,omitempty"`
+	APIKeyID        *int64     `json:"api_key_id,omitempty"`
+	AccountID       *int64     `json:"account_id,omitempty"`
+	Model           string     `json:"model,omitempty"`
+	InputTokens     int        `json:"input_tokens"`
+	OutputTokens    int        `json:"output_tokens"`
+	CacheReadTokens int        `json:"cache_read_tokens"`
+	BaseRate        float64    `json:"base_rate"`
+	AdminAdjustment float64    `json:"admin_adjustment"`
+	EffectiveRate   float64    `json:"effective_rate"`
+	ModelCostUSD    float64    `json:"model_cost_usd"`
+	RechargeRatio   float64    `json:"recharge_ratio"`
+	EarningUSD      float64    `json:"earning_usd"`
+	AmountCNY       float64    `json:"amount_cny"`
+	EntryType       string     `json:"entry_type"`
+	Status          string     `json:"status"`
+	AvailableAt     *time.Time `json:"available_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
+// AdminBills lists a supplier's immutable ledger snapshots and enriches usage
+// entries with the originating user. It is only called by admin routes.
+func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, bucket string, limit, offset int) ([]SupplierAdminBillItem, int, error) {
+	if supplierID <= 0 {
+		return nil, 0, fmt.Errorf("invalid supplier id")
+	}
+	if bucket != "" && bucket != string(supplierledger.BucketPending) && bucket != string(supplierledger.BucketAvailable) && bucket != string(supplierledger.BucketFrozen) {
+		return nil, 0, fmt.Errorf("invalid bill status")
+	}
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if _, err := s.db.Supplier.Get(ctx, supplierID); err != nil {
+		return nil, 0, err
+	}
+	q := s.db.SupplierLedger.Query().Where(supplierledger.SupplierID(supplierID)).Order(dbent.Desc(supplierledger.FieldCreatedAt), dbent.Desc(supplierledger.FieldID))
+	if bucket != "" {
+		q.Where(supplierledger.BucketEQ(supplierledger.Bucket(bucket)))
+	}
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	entries, err := q.Offset(offset).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]SupplierAdminBillItem, 0, len(entries))
+	for _, entry := range entries {
+		item := SupplierAdminBillItem{
+			ID:              entry.ID,
+			SupplierID:      entry.SupplierID,
+			GroupID:         entry.GroupID,
+			UsageLogID:      entry.UsageLogID,
+			BaseRate:        entry.BaseRate,
+			AdminAdjustment: entry.AdminAdjustment,
+			EffectiveRate:   entry.EffectiveRate,
+			ModelCostUSD:    entry.ModelCostUsd,
+			RechargeRatio:   entry.RechargeRatio,
+			EarningUSD:      entry.EarningUsd,
+			AmountCNY:       entry.AmountCny,
+			EntryType:       string(entry.EntryType),
+			Status:          string(entry.Bucket),
+			AvailableAt:     entry.AvailableAt,
+			CreatedAt:       entry.CreatedAt,
+		}
+		if g, e := s.db.Group.Get(ctx, entry.GroupID); e == nil && g.SupplierID != nil && *g.SupplierID == supplierID {
+			item.GroupName = g.Name
+		}
+		if entry.UsageLogID != nil {
+			if log, e := s.db.UsageLog.Get(ctx, *entry.UsageLogID); e == nil {
+				item.RequestID = log.RequestID
+				item.Model = log.Model
+				item.InputTokens = log.InputTokens
+				item.OutputTokens = log.OutputTokens
+				item.CacheReadTokens = log.CacheReadTokens
+				item.APIKeyID = &log.APIKeyID
+				item.AccountID = &log.AccountID
+				item.UserID = &log.UserID
+				if user, userErr := s.db.User.Get(ctx, log.UserID); userErr == nil {
+					item.UserEmail = user.Email
+					item.Username = user.Username
+				}
+			}
+		}
+		out = append(out, item)
+	}
+	return out, total, nil
+}
+
 func (s *SupplierService) Bills(ctx context.Context, supplierID int64, bucket string, limit int) ([]SupplierBillItem, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 100
@@ -1855,6 +1962,14 @@ func (s *SupplierService) RecordEarning(ctx context.Context, eventKey string, us
 	defer tx.Rollback()
 	delayDays := s.supplierSettlementDelayDays(ctx)
 	if err = tx.SupplierLedger.Create().SetSupplierID(supplierID).SetGroupID(groupID).SetUsageLogID(usageID).SetEventKey(eventKey).SetEntryType(supplierledger.EntryTypeEarning).SetBucket(supplierledger.BucketPending).SetBaseRate(baseRate).SetAdminAdjustment(adminAdjustment).SetEffectiveRate(baseRate + adminAdjustment).SetModelCostUsd(modelCostUSD).SetRechargeRatio(rechargeRatio).SetEarningUsd(modelCostUSD * baseRate).SetAmountCny(amount).SetAvailableAt(time.Now().AddDate(0, 0, delayDays)).Exec(ctx); err != nil {
+		// Multiple workers may reconcile the same usage row at once. A unique
+		// event-key conflict means another worker already completed the entry.
+		_ = tx.Rollback()
+		if dbent.IsConstraintError(err) {
+			if _, lookupErr := s.db.SupplierLedger.Query().Where(supplierledger.EventKey(eventKey)).Only(ctx); lookupErr == nil {
+				return nil
+			}
+		}
 		return err
 	}
 	if err = tx.Supplier.UpdateOneID(supplierID).AddPendingBalanceCny(amount).Exec(ctx); err != nil {
@@ -1865,10 +1980,18 @@ func (s *SupplierService) RecordEarning(ctx context.Context, eventKey string, us
 
 // ReconcileUsage converts persisted supplier-group usage into idempotent settlement entries.
 func (s *SupplierService) ReconcileUsage(ctx context.Context, limit int) (int, error) {
+	s.settlementMu.Lock()
+	defer s.settlementMu.Unlock()
 	if limit <= 0 || limit > 1000 {
 		limit = 200
 	}
-	logs, err := s.db.UsageLog.Query().Where(usagelog.GroupIDNotNil(), usagelog.SupplierIDIsNil()).Order(dbent.Asc(usagelog.FieldID)).Limit(limit).All(ctx)
+	// Ignore administrator-owned and orphaned groups at the SQL level. Keeping
+	// them in the first batch could starve supplier usage rows indefinitely.
+	logs, err := s.db.UsageLog.Query().Where(
+		usagelog.GroupIDNotNil(),
+		usagelog.SupplierIDIsNil(),
+		usagelog.HasGroupWith(group.SupplierIDNotNil()),
+	).Order(dbent.Asc(usagelog.FieldID)).Limit(limit).All(ctx)
 	if err != nil {
 		return 0, err
 	}

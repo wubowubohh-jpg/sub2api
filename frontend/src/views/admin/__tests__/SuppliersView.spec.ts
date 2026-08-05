@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SuppliersView from '../SuppliersView.vue'
 
 const {
+  bills,
   list,
   resourceRequests,
   settings,
   updateResourceRequest,
   withdrawals,
 } = vi.hoisted(() => ({
+  bills: vi.fn(),
   list: vi.fn(),
   resourceRequests: vi.fn(),
   settings: vi.fn(),
@@ -19,6 +21,7 @@ const {
 
 vi.mock('@/api/suppliers', () => ({
   adminSupplierAPI: {
+    bills,
     list,
     resourceRequests,
     settings,
@@ -54,6 +57,21 @@ const resource = {
   created_at: '2026-08-05T00:00:00Z',
 }
 
+const supplier = {
+  id: 7,
+  user_id: 17,
+  name: '账单供应商',
+  relay_url: 'https://relay.example.com',
+  application_note: '',
+  status: 'approved',
+  review_note: '',
+  freeze_reason: '',
+  pending_balance_cny: 12.34,
+  available_balance_cny: 5.67,
+  frozen_balance_cny: 0,
+  created_at: '2026-08-05T00:00:00Z',
+}
+
 function field(wrapper: ReturnType<typeof mount>, label: string) {
   const target = wrapper.findAll('label').find(item => item.find('.input-label').exists() && item.find('.input-label').text() === label)
   expect(target, `field ${label}`).toBeDefined()
@@ -64,7 +82,7 @@ describe('SuppliersView resource editor', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     settings.mockResolvedValue({ global_rate_adjustment: 0.01, settlement_delay_days: 7 })
-    list.mockResolvedValue({ items: [] })
+    list.mockResolvedValue({ items: [{ ...supplier }] })
     resourceRequests.mockResolvedValue({ items: [{ ...resource }] })
     withdrawals.mockResolvedValue({ items: [] })
     updateResourceRequest.mockResolvedValue({
@@ -77,6 +95,38 @@ describe('SuppliersView resource editor', () => {
       admin_rate_adjustment: 0.015,
       effective_rate_multiplier: 0.09,
       review_note: 'updated by admin',
+    })
+    bills.mockResolvedValue({
+      items: [{
+        id: 99,
+        supplier_id: supplier.id,
+        group_id: 81,
+        group_name: 'A0007-main',
+        usage_log_id: 501,
+        request_id: 'req-supplier-bill',
+        user_id: 18,
+        user_email: 'customer@example.com',
+        username: 'customer',
+        api_key_id: 31,
+        account_id: 91,
+        model: 'gpt-5.5',
+        input_tokens: 100,
+        output_tokens: 200,
+        cache_read_tokens: 25,
+        base_rate: 0.04,
+        admin_adjustment: 0.01,
+        effective_rate: 0.05,
+        model_cost_usd: 1.25,
+        recharge_ratio: 1,
+        earning_usd: 0.05,
+        amount_cny: 0.05,
+        entry_type: 'earning',
+        status: 'pending',
+        created_at: '2026-08-05T00:00:00Z',
+      }],
+      total: 1,
+      limit: 20,
+      offset: 0,
     })
   })
 
@@ -126,6 +176,33 @@ describe('SuppliersView resource editor', () => {
       admin_rate_adjustment: 0.015,
       review_note: 'updated by admin',
     })
+    wrapper.unmount()
+  })
+
+  it('shows the selected supplier ledger with the originating user details', async () => {
+    const wrapper = mount(SuppliersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          AccountTestModal: true,
+          BaseDialog: {
+            props: ['show', 'title'],
+            template: '<div v-if="show" class="modal-content"><slot /><slot name="footer" /></div>',
+          },
+          Toggle: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.findAll('button').find(button => button.text().includes('查看账单'))!.trigger('click')
+    await flushPromises()
+
+    expect(bills).toHaveBeenCalledWith(7, '', 20, 0)
+    expect(wrapper.text()).toContain('customer@example.com')
+    expect(wrapper.text()).toContain('req-supplier-bill')
+    expect(wrapper.text()).toContain('账号 91')
+    expect(wrapper.text()).toContain('Key 31')
     wrapper.unmount()
   })
 })

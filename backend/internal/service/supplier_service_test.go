@@ -95,6 +95,102 @@ func TestSupplierEffectiveRateLocalOverridesGlobal(t *testing.T) {
 	require.InDelta(t, 0.01, adjustment, 0.000001)
 }
 
+func TestReconcileUsageCreatesSupplierBill(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	user := svc.db.User.Create().SetEmail("supplier-bill@example.com").SetUsername("bill-user").SetPasswordHash("x").SaveX(ctx)
+	adminGroup := svc.db.Group.Create().
+		SetName("platform-group").
+		SetPlatform(PlatformOpenAI).
+		SaveX(ctx)
+	adminAccount := svc.db.Account.Create().
+		SetName("Platform account").
+		SetPlatform(PlatformOpenAI).
+		SetType(AccountTypeAPIKey).
+		SetCredentials(map[string]any{"api_key": "sk-platform"}).
+		SaveX(ctx)
+	adminAPIKey := svc.db.APIKey.Create().
+		SetUserID(user.ID).
+		SetKey("sk-platform-user-key").
+		SetName("Platform key").
+		SetGroupID(adminGroup.ID).
+		SaveX(ctx)
+	adminLog := svc.db.UsageLog.Create().
+		SetUserID(user.ID).
+		SetAPIKeyID(adminAPIKey.ID).
+		SetAccountID(adminAccount.ID).
+		SetRequestID("platform-request-before-supplier").
+		SetModel("gpt-5.5").
+		SetGroupID(adminGroup.ID).
+		SaveX(ctx)
+	supplier := svc.db.Supplier.Create().
+		SetUserID(user.ID).
+		SetName("Bill Supplier").
+		SetRelayURL("https://relay.example.com").
+		SetStatus("approved").
+		SaveX(ctx)
+	group := svc.db.Group.Create().
+		SetSupplierID(supplier.ID).
+		SetName("A0001-bill").
+		SetPlatform(PlatformOpenAI).
+		SetRateMultiplier(0.04).
+		SaveX(ctx)
+	account := svc.db.Account.Create().
+		SetSupplierID(supplier.ID).
+		SetName("Bill account").
+		SetPlatform(PlatformOpenAI).
+		SetType(AccountTypeAPIKey).
+		SetCredentials(map[string]any{"api_key": "sk-bill"}).
+		SaveX(ctx)
+	apiKey := svc.db.APIKey.Create().
+		SetUserID(user.ID).
+		SetKey("sk-bill-user-key").
+		SetName("Bill key").
+		SetGroupID(group.ID).
+		SaveX(ctx)
+	log := svc.db.UsageLog.Create().
+		SetUserID(user.ID).
+		SetAPIKeyID(apiKey.ID).
+		SetAccountID(account.ID).
+		SetRequestID("supplier-bill-request").
+		SetModel("gpt-5.5").
+		SetGroupID(group.ID).
+		SetActualCost(2).
+		SetRateMultiplier(1).
+		SaveX(ctx)
+
+	// The administrator log has a lower ID. A one-row batch must still select
+	// the supplier log rather than repeatedly consuming administrator history.
+	count, err := svc.ReconcileUsage(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+	require.Nil(t, svc.db.UsageLog.GetX(ctx, adminLog.ID).SupplierID)
+	bills, err := svc.Bills(ctx, supplier.ID, "", 100)
+	require.NoError(t, err)
+	require.Len(t, bills, 1)
+	require.Equal(t, group.Name, bills[0].GroupName)
+	require.Equal(t, "gpt-5.5", bills[0].Model)
+	require.InDelta(t, 0.08, bills[0].AmountCNY, 0.000001)
+	require.Equal(t, "pending", bills[0].Status)
+	adminBills, total, err := svc.AdminBills(ctx, supplier.ID, "", 20, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, total)
+	require.Len(t, adminBills, 1)
+	require.Equal(t, user.ID, *adminBills[0].UserID)
+	require.Equal(t, user.Email, adminBills[0].UserEmail)
+	require.Equal(t, user.Username, adminBills[0].Username)
+	require.Equal(t, log.ID, *adminBills[0].UsageLogID)
+	require.Equal(t, log.RequestID, adminBills[0].RequestID)
+
+	// Reconciliation is idempotent; the same usage row must not create a
+	// duplicate ledger entry when the endpoint is refreshed.
+	count, err = svc.ReconcileUsage(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+	bills, err = svc.Bills(ctx, supplier.ID, "", 100)
+	require.NoError(t, err)
+	require.Len(t, bills, 1)
+}
+
 func TestSupplierGroupMetricsUsesBestModelAvailability(t *testing.T) {
 	svc, ctx := newSupplierTestService(t)
 	group := svc.db.Group.Create().
