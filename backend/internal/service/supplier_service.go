@@ -1513,7 +1513,7 @@ func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, buck
 	if _, err := s.db.Supplier.Get(ctx, supplierID); err != nil {
 		return nil, 0, SupplierAdminBillSummary{}, err
 	}
-	q := s.db.SupplierLedger.Query().Where(supplierledger.SupplierID(supplierID)).Order(dbent.Desc(supplierledger.FieldCreatedAt), dbent.Desc(supplierledger.FieldID))
+	q := s.db.SupplierLedger.Query().Where(supplierledger.SupplierID(supplierID))
 	if bucket != "" {
 		q.Where(supplierledger.BucketEQ(supplierledger.Bucket(bucket)))
 	}
@@ -1525,7 +1525,11 @@ func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, buck
 	if err != nil {
 		return nil, 0, SupplierAdminBillSummary{}, err
 	}
-	entries, err := q.Offset(offset).Limit(limit).All(ctx)
+	entries, err := q.Clone().
+		Order(dbent.Desc(supplierledger.FieldCreatedAt), dbent.Desc(supplierledger.FieldID)).
+		Offset(offset).
+		Limit(limit).
+		All(ctx)
 	if err != nil {
 		return nil, 0, SupplierAdminBillSummary{}, err
 	}

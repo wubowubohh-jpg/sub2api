@@ -136,7 +136,8 @@ export function extractApiErrorMessage(
   // Plain object from API client interceptor (most common case)
   if (typeof err === 'object' && err !== null) {
     const e = err as ApiErrorLike
-    // Interceptor shape: { message, error }
+    const hasGenericAxiosMessage = /^Request failed with status code \d+$/i.test(e.message?.trim() ?? '')
+    if (e.error && (!e.message || hasGenericAxiosMessage)) return e.error
     if (e.message) return e.message
     if (e.error) return e.error
     // Legacy axios shape: { response.data.detail }
