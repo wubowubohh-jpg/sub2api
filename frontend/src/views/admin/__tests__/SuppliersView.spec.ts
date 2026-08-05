@@ -74,6 +74,9 @@ const supplier = {
   pending_balance_cny: 12.34,
   available_balance_cny: 5.67,
   frozen_balance_cny: 0,
+  supplier_earning_cny: 18.01,
+  admin_markup_earning_cny: 4.5,
+  settlement_total_cny: 22.51,
   created_at: '2026-08-05T00:00:00Z',
 }
 
@@ -123,9 +126,15 @@ describe('SuppliersView resource editor', () => {
         admin_adjustment: 0.01,
         effective_rate: 0.05,
         model_cost_usd: 1.25,
-        recharge_ratio: 1,
+        recharge_ratio: 0.125,
         earning_usd: 0.05,
         amount_cny: 0.05,
+        supplier_earning_usd: 0.05,
+        supplier_earning_cny: 0.4,
+        admin_markup_earning_usd: 0.0125,
+        admin_markup_earning_cny: 0.1,
+        settlement_total_usd: 0.0625,
+        settlement_total_cny: 0.5,
         entry_type: 'earning',
         status: 'pending',
         created_at: '2026-08-05T00:00:00Z',
@@ -133,6 +142,11 @@ describe('SuppliersView resource editor', () => {
       total: 1,
       limit: 20,
       offset: 0,
+      summary: {
+        supplier_earning_cny: 18.01,
+        admin_markup_earning_cny: 4.5,
+        settlement_total_cny: 22.51,
+      },
     })
   })
 
@@ -209,6 +223,9 @@ describe('SuppliersView resource editor', () => {
     expect(wrapper.text()).toContain('req-supplier-bill')
     expect(wrapper.text()).toContain('账号 91')
     expect(wrapper.text()).toContain('Key 31')
+    expect(wrapper.text()).toContain('平台加价收益合计')
+    expect(wrapper.text()).toContain('管理员增加倍率累计')
+    expect(wrapper.text()).toContain('22.51')
     wrapper.unmount()
   })
 

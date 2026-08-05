@@ -52,7 +52,7 @@ func TestSyncSupplierResourceProbeRateUpdatesBaseAndEffectiveRates(t *testing.T)
 		SetAccountID(account.ID).
 		SetRateMultiplier(0.04).
 		SaveX(ctx)
-	client.Setting.Create().SetKey(service.SettingKeySupplierGlobalRateAdjustment).SetValue("0.02").SaveX(ctx)
+	adjustmentSetting := client.Setting.Create().SetKey(service.SettingKeySupplierGlobalRateAdjustment).SetValue("0.02").SaveX(ctx)
 
 	supplierID := supplier.ID
 	probeAccount := &service.Account{
@@ -75,6 +75,15 @@ func TestSyncSupplierResourceProbeRateUpdatesBaseAndEffectiveRates(t *testing.T)
 	_, err = repo.syncSupplierResourceProbeRate(ctx, probeAccount, &baseRate)
 	require.NoError(t, err)
 	require.InDelta(t, baseRate, client.SupplierResourceRequest.GetX(ctx, request.ID).RateMultiplier, 0.000001)
+	require.InDelta(t, 0.09, client.Group.GetX(ctx, group.ID).RateMultiplier, 0.000001)
+	require.InDelta(t, 0.09, client.Account.GetX(ctx, account.ID).RateMultiplier, 0.000001)
+
+	client.Group.UpdateOneID(group.ID).ClearSupplierAdminAdjustment().ExecX(ctx)
+	client.Setting.UpdateOneID(adjustmentSetting.ID).SetValue("-0.2").ExecX(ctx)
+	baseRate = 0.08
+	_, err = repo.syncSupplierResourceProbeRate(ctx, probeAccount, &baseRate)
+	require.ErrorContains(t, err, "invalid supplier effective rate")
+	require.InDelta(t, 0.08, client.SupplierResourceRequest.GetX(ctx, request.ID).RateMultiplier, 0.000001)
 	require.InDelta(t, 0.09, client.Group.GetX(ctx, group.ID).RateMultiplier, 0.000001)
 	require.InDelta(t, 0.09, client.Account.GetX(ctx, account.ID).RateMultiplier, 0.000001)
 }

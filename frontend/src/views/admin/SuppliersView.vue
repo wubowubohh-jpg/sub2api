@@ -54,17 +54,19 @@
         <div v-if="activeLoading" class="py-24 text-center text-sm text-gray-400">正在加载...</div>
 
         <div v-else-if="activeTab === 'suppliers'" class="overflow-x-auto">
-          <table class="w-full min-w-[900px] text-sm">
-            <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-gray-950"><tr><th class="p-4">供应商</th><th>中转站</th><th>状态</th><th>待结算</th><th>可提现</th><th class="pr-4 text-right">操作</th></tr></thead>
+          <table class="w-full min-w-[1120px] text-sm">
+            <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-gray-950"><tr><th class="p-4">供应商</th><th>中转站</th><th>状态</th><th>供应商余额</th><th>平台加价收益</th><th>结算合计</th><th class="pr-4 text-right">操作</th></tr></thead>
             <tbody>
               <tr v-for="s in supplierPage" :key="s.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40">
                 <td class="p-4"><div class="font-medium">{{ s.name }}</div><div class="mt-1 text-xs text-gray-400">ID {{ s.id }}</div></td>
                 <td><a :href="s.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ s.relay_url }}</a></td>
                 <td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(s.status)">{{ statusLabel(s.status) }}</span></td>
-                <td>¥{{ money(s.pending_balance_cny) }}</td><td>¥{{ money(s.available_balance_cny) }}</td>
+                <td class="py-3"><div class="font-medium text-amber-700 dark:text-amber-400">待结 ¥{{ money(s.pending_balance_cny) }}</div><div class="mt-1 text-xs text-emerald-700 dark:text-emerald-400">可提现 ¥{{ money(s.available_balance_cny) }}</div><div v-if="Number(s.frozen_balance_cny) > 0" class="mt-1 text-xs text-gray-500">提现冻结 ¥{{ money(s.frozen_balance_cny) }}</div></td>
+                <td class="py-3"><div class="font-semibold text-sky-700 dark:text-sky-400">¥{{ money(s.admin_markup_earning_cny) }}</div><div class="mt-1 text-xs text-gray-400">管理员增加倍率累计</div></td>
+                <td class="py-3"><div class="font-medium text-gray-800 dark:text-gray-100">¥{{ money(s.settlement_total_cny) }}</div><div class="mt-1 text-xs text-gray-400">供应商收益 + 平台加价收益</div></td>
                 <td class="space-x-3 pr-4 text-right"><button class="text-sky-700 hover:text-sky-800" @click="openSupplierBills(s)">查看账单</button><button v-if="s.status === 'pending'" class="text-emerald-700" @click="review(s, 'approved')">通过</button><button v-if="s.status === 'pending'" class="text-rose-700" @click="review(s, 'rejected')">驳回</button><button v-if="s.status === 'approved'" class="text-amber-700" @click="freeze(s)">冻结</button><button v-if="s.status === 'frozen'" class="text-emerald-700" @click="unfreeze(s)">解除冻结</button></td>
               </tr>
-              <tr v-if="!supplierPage.length"><td colspan="6" class="p-16 text-center text-gray-400">暂无供应商记录</td></tr>
+              <tr v-if="!supplierPage.length"><td colspan="7" class="p-16 text-center text-gray-400">暂无供应商记录</td></tr>
             </tbody>
           </table>
         </div>
@@ -110,6 +112,11 @@
       @close="closeSupplierBills"
     >
       <div class="space-y-4">
+        <div class="grid overflow-hidden rounded-lg border bg-gray-50 sm:grid-cols-3 dark:border-gray-700 dark:bg-gray-800/40">
+          <div class="px-4 py-3 sm:border-r dark:border-gray-700"><div class="text-xs text-gray-500">结算合计</div><div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">¥{{ money(supplierBillsSummary.settlement_total_cny) }}</div><div class="mt-1 text-xs text-gray-400">供应商收益 + 平台加价收益</div></div>
+          <div class="border-t px-4 py-3 sm:border-r sm:border-t-0 dark:border-gray-700"><div class="text-xs text-gray-500">供应商收益合计</div><div class="mt-1 text-lg font-semibold text-emerald-700 dark:text-emerald-400">¥{{ money(supplierBillsSummary.supplier_earning_cny) }}</div><div class="mt-1 text-xs text-gray-400">按供应商基础倍率结算</div></div>
+          <div class="border-t px-4 py-3 sm:border-t-0 dark:border-gray-700"><div class="text-xs text-gray-500">平台加价收益合计</div><div class="mt-1 text-lg font-semibold text-sky-700 dark:text-sky-400">¥{{ money(supplierBillsSummary.admin_markup_earning_cny) }}</div><div class="mt-1 text-xs text-gray-400">由管理员增加倍率产生</div></div>
+        </div>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
             <button
@@ -127,7 +134,7 @@
         </div>
         <div v-if="supplierBillsLoading" class="py-16 text-center text-sm text-gray-400">正在加载账单...</div>
         <div v-else-if="supplierBills.length" class="overflow-x-auto rounded-lg border dark:border-gray-700">
-          <table class="w-full min-w-[1250px] text-xs">
+          <table class="w-full min-w-[1520px] text-xs">
             <thead class="bg-gray-50 text-left text-gray-500 dark:bg-gray-800/70 dark:text-gray-300">
               <tr>
                 <th class="px-3 py-3">时间</th>
@@ -136,9 +143,11 @@
                 <th class="px-3 py-3">账号 / API Key</th>
                 <th class="px-3 py-3">请求</th>
                 <th class="px-3 py-3">Token</th>
-                <th class="px-3 py-3">倍率快照</th>
-                <th class="px-3 py-3">模型原价</th>
+                <th class="px-3 py-3">倍率拆分</th>
+                <th class="px-3 py-3">模型原价 / 充值倍率</th>
                 <th class="px-3 py-3">供应商收益</th>
+                <th class="px-3 py-3">平台加价收益</th>
+                <th class="px-3 py-3">结算合计</th>
                 <th class="px-3 py-3">状态</th>
               </tr>
             </thead>
@@ -150,10 +159,12 @@
                 <td class="px-3 py-3 text-gray-500"><div>账号 {{ bill.account_id ?? '--' }}</div><div class="mt-1">Key {{ bill.api_key_id ?? '--' }}</div></td>
                 <td class="max-w-48 truncate px-3 py-3 font-mono text-gray-500" :title="bill.request_id">{{ bill.request_id || (bill.usage_log_id ? `log #${bill.usage_log_id}` : '--') }}</td>
                 <td class="whitespace-nowrap px-3 py-3 text-gray-600 dark:text-gray-300">{{ formatInteger(bill.input_tokens + bill.output_tokens) }}<span class="mt-1 block text-gray-400">缓存 {{ formatInteger(bill.cache_read_tokens) }}</span></td>
-                <td class="whitespace-nowrap px-3 py-3 font-mono text-gray-600 dark:text-gray-300">{{ formatRate(bill.base_rate) }} + {{ formatRate(bill.admin_adjustment) }} = {{ formatRate(bill.effective_rate) }}</td>
-                <td class="whitespace-nowrap px-3 py-3 font-mono text-gray-600 dark:text-gray-300">${{ bill.model_cost_usd.toFixed(6) }}<span class="mt-1 block text-gray-400">比例 {{ bill.recharge_ratio }}</span></td>
-                <td class="whitespace-nowrap px-3 py-3 font-semibold text-emerald-700 dark:text-emerald-400">¥{{ money(bill.amount_cny) }}<span class="mt-1 block font-normal text-gray-400">{{ bill.entry_type }}</span></td>
-                <td class="whitespace-nowrap px-3 py-3"><span class="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-700 dark:text-gray-200">{{ statusLabel(bill.status) }}</span></td>
+                <td class="whitespace-nowrap px-3 py-3 font-mono text-gray-600 dark:text-gray-300"><div>供应商 {{ formatRate(bill.base_rate) }}</div><div class="mt-1 text-sky-700 dark:text-sky-400">管理员 {{ formatSignedRate(bill.admin_adjustment) }}</div><div class="mt-1 font-semibold text-gray-900 dark:text-white">最终 {{ formatRate(bill.effective_rate) }}</div></td>
+                <td class="whitespace-nowrap px-3 py-3 font-mono text-gray-600 dark:text-gray-300">${{ bill.model_cost_usd.toFixed(6) }}<span class="mt-1 block text-gray-400">¥1 充值 {{ formatRechargeRatio(bill.recharge_ratio) }} USD</span></td>
+                <td class="whitespace-nowrap px-3 py-3 font-semibold text-emerald-700 dark:text-emerald-400">¥{{ detailedMoney(bill.supplier_earning_cny) }}<span class="mt-1 block font-normal text-gray-400">${{ bill.supplier_earning_usd.toFixed(6) }}</span></td>
+                <td class="whitespace-nowrap px-3 py-3 font-semibold text-sky-700 dark:text-sky-400">¥{{ detailedMoney(bill.admin_markup_earning_cny) }}<span class="mt-1 block font-normal text-gray-400">${{ bill.admin_markup_earning_usd.toFixed(6) }}</span></td>
+                <td class="whitespace-nowrap px-3 py-3 font-semibold text-gray-900 dark:text-white">¥{{ detailedMoney(bill.settlement_total_cny) }}<span class="mt-1 block font-normal text-gray-400">${{ bill.settlement_total_usd.toFixed(6) }}</span></td>
+                <td class="whitespace-nowrap px-3 py-3"><span class="rounded-full bg-gray-100 px-2 py-1 text-gray-600 dark:bg-gray-700 dark:text-gray-200">{{ statusLabel(bill.status) }}</span><span class="mt-1 block text-gray-400">{{ entryTypeLabel(bill.entry_type) }}</span></td>
               </tr>
             </tbody>
           </table>
@@ -263,7 +274,7 @@ import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { adminSupplierAPI, type Supplier, type SupplierAdminBill, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
+import { adminSupplierAPI, type Supplier, type SupplierAdminBill, type SupplierAdminBillSummary, type SupplierResourceRequest, type SupplierWithdrawal } from '@/api/suppliers'
 import type { ClaudeModel } from '@/types'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
@@ -278,6 +289,7 @@ const resourceRequests = ref<SupplierResourceRequest[]>([])
 const withdrawals = ref<SupplierWithdrawal[]>([])
 const billSupplier = ref<Supplier | null>(null)
 const supplierBills = ref<SupplierAdminBill[]>([])
+const supplierBillsSummary = ref<SupplierAdminBillSummary>({ supplier_earning_cny: 0, admin_markup_earning_cny: 0, settlement_total_cny: 0 })
 const supplierBillsTotal = ref(0)
 const supplierBillsPage = ref(1)
 const supplierBillsPageSize = 20
@@ -442,7 +454,11 @@ function resourceIsOnline(resource: SupplierResourceRequest) {
 function statusClass(status: string) { return ['approved', 'available', 'paid', 'active'].includes(status) ? 'bg-emerald-50 text-emerald-700' : ['rejected', 'frozen'].includes(status) ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700' }
 function statusLabel(status: string) { return ({ pending: '待审核', approved: '已通过', rejected: '已驳回', frozen: '已冻结', paid: '已打款' } as Record<string, string>)[status] || status }
 function methodLabel(value: string) { return ({ alipay: '支付宝', wechat: '微信', bank: '银行卡' } as Record<string, string>)[value] || value }
+function entryTypeLabel(value: string) { return ({ earning: '收益入账', reversal: '冲正', release: '转为可提现', withdrawal: '提现冻结', withdrawal_refund: '提现退回' } as Record<string, string>)[value] || value }
 function money(value: unknown) { const amount = Number(value); return Number.isFinite(amount) ? amount.toFixed(2) : '0.00' }
+function detailedMoney(value: unknown) { const amount = Number(value); return Number.isFinite(amount) ? amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) : '0.00' }
+function formatRechargeRatio(value: unknown) { const ratio = Number(value); return Number.isFinite(ratio) && ratio > 0 ? ratio.toFixed(4) : '--' }
+function formatSignedRate(value: unknown) { const rate = Number(value); return Number.isFinite(rate) ? `${rate >= 0 ? '+' : ''}${rate.toFixed(4)}` : '--' }
 
 async function loadTab(tab: Tab, force = false) {
   if (loaded[tab] && !force) return
@@ -471,6 +487,7 @@ async function loadSupplierBills() {
       (supplierBillsPage.value - 1) * supplierBillsPageSize,
     )
     supplierBills.value = response.items || []
+    supplierBillsSummary.value = response.summary || { supplier_earning_cny: 0, admin_markup_earning_cny: 0, settlement_total_cny: 0 }
     supplierBillsTotal.value = Number(response.total || 0)
     supplierBillsPage.value = Math.min(supplierBillsPage.value, supplierBillsPageCount.value)
   } catch (e) {
@@ -490,7 +507,11 @@ async function openSupplierBills(item: Supplier) {
 }
 
 function closeSupplierBills() {
-  if (!supplierBillsLoading.value) billSupplier.value = null
+  if (!supplierBillsLoading.value) {
+    billSupplier.value = null
+    supplierBills.value = []
+    supplierBillsSummary.value = { supplier_earning_cny: 0, admin_markup_earning_cny: 0, settlement_total_cny: 0 }
+  }
 }
 
 function setSupplierBillsStatus(value: string) {

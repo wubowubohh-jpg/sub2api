@@ -13,6 +13,9 @@ export interface Supplier {
   pending_balance_cny: number
   available_balance_cny: number
   frozen_balance_cny: number
+  supplier_earning_cny?: number
+  admin_markup_earning_cny?: number
+  settlement_total_cny?: number
   group_name_prefix?: string
   supplier_code?: string
   created_at: string
@@ -123,12 +126,23 @@ export interface SupplierAdminBill {
   recharge_ratio:number
   earning_usd:number
   amount_cny:number
+  supplier_earning_usd:number
+  supplier_earning_cny:number
+  admin_markup_earning_usd:number
+  admin_markup_earning_cny:number
+  settlement_total_usd:number
+  settlement_total_cny:number
   entry_type:string
   status:'pending'|'available'|'frozen'
   available_at?:string
   created_at:string
 }
-export interface SupplierAdminBillResponse { items:SupplierAdminBill[]; total:number; limit:number; offset:number }
+export interface SupplierAdminBillSummary {
+  supplier_earning_cny:number
+  admin_markup_earning_cny:number
+  settlement_total_cny:number
+}
+export interface SupplierAdminBillResponse { items:SupplierAdminBill[]; total:number; limit:number; offset:number; summary:SupplierAdminBillSummary }
 
 export const supplierAPI = {
   async me() { return (await apiClient.get<Supplier>('/suppliers/me')).data },

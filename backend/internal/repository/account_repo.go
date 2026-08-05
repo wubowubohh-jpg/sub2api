@@ -2776,7 +2776,7 @@ func (r *accountRepository) syncSupplierResourceProbeRate(
 		}
 	}
 	effectiveRate := *baseRate + adjustment
-	if math.IsNaN(effectiveRate) || math.IsInf(effectiveRate, 0) {
+	if math.IsNaN(effectiveRate) || math.IsInf(effectiveRate, 0) || effectiveRate < 0 {
 		return nil, errors.New("invalid supplier effective rate")
 	}
 	if _, err = client.SupplierResourceRequest.UpdateOne(request).SetRateMultiplier(*baseRate).Save(ctx); err != nil {

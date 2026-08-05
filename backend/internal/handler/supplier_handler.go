@@ -573,7 +573,15 @@ func (h *SupplierHandler) Withdraw(c *gin.Context) {
 }
 
 func (h *SupplierHandler) AdminList(c *gin.Context) {
-	items, err := h.svc.List(c, c.Query("status"))
+	if _, err := h.svc.ReconcileUsage(c, 1000); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if _, err := h.svc.ReleaseDue(c, time.Now()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	items, err := h.svc.AdminList(c, c.Query("status"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -613,12 +621,12 @@ func (h *SupplierHandler) AdminBills(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	items, total, err := h.svc.AdminBills(c, supplierID, c.Query("status"), limit, offset)
+	items, total, summary, err := h.svc.AdminBills(c, supplierID, c.Query("status"), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items, "total": total, "limit": limit, "offset": offset})
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": total, "limit": limit, "offset": offset, "summary": summary})
 }
 
 func (h *SupplierHandler) AdminReview(c *gin.Context) {

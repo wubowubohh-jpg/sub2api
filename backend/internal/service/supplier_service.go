@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
@@ -682,6 +684,10 @@ func validSupplierRate(value float64) bool {
 	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
+func validSupplierEffectiveRate(baseRate, adminAdjustment float64) bool {
+	return validSupplierRate(baseRate) && !math.IsNaN(adminAdjustment) && !math.IsInf(adminAdjustment, 0) && baseRate+adminAdjustment >= 0
+}
+
 // UpdateResourceRequestRate updates the supplier-controlled rate. Approved
 // resources update their linked billing group in the same transaction.
 func (s *SupplierService) UpdateResourceRequestRate(ctx context.Context, supplierID, requestID int64, rate float64) (*SupplierResourceRequestView, error) {
@@ -810,6 +816,9 @@ func (s *SupplierService) AdminUpdateResourceRequest(ctx context.Context, reques
 			adminAdjustment = *in.AdminRateAdjustment
 		}
 		finalRate := in.RateMultiplier + adminAdjustment
+		if !validSupplierEffectiveRate(in.RateMultiplier, adminAdjustment) {
+			return nil, fmt.Errorf("supplier effective rate must not be negative")
+		}
 		groupUpdate := tx.Group.UpdateOne(g).
 			SetName(groupName).
 			SetDescription(relayName).
@@ -926,6 +935,9 @@ func (s *SupplierService) updateResourceRequestRate(ctx context.Context, supplie
 			adminAdjustment = *adjustment
 		}
 		finalRate := configuredRate + adminAdjustment
+		if !validSupplierEffectiveRate(configuredRate, adminAdjustment) {
+			return nil, fmt.Errorf("supplier effective rate must not be negative")
+		}
 		groupUpdate := tx.Group.UpdateOne(g).SetRateMultiplier(finalRate)
 		if adjustment != nil {
 			groupUpdate.SetSupplierAdminAdjustment(*adjustment)
@@ -1232,6 +1244,9 @@ func (s *SupplierService) ReviewResourceRequest(ctx context.Context, requestID, 
 	defer tx.Rollback()
 	adminAdjustment := s.supplierGlobalRateAdjustment(ctx)
 	finalRate := req.RateMultiplier + adminAdjustment
+	if !validSupplierEffectiveRate(req.RateMultiplier, adminAdjustment) {
+		return nil, fmt.Errorf("supplier effective rate must not be negative")
+	}
 	g, err := tx.Group.Create().
 		SetSupplierID(req.SupplierID).
 		SetName(groupName).
@@ -1366,35 +1381,6 @@ type SupplierBillItem struct {
 	CacheReadTokens int        `json:"cache_read_tokens"`
 	BaseRate        float64    `json:"base_rate"`
 	EffectiveRate   float64    `json:"effective_rate"`
-	AmountCNY       float64    `json:"amount_cny"`
-	Status          string     `json:"status"`
-	AvailableAt     *time.Time `json:"available_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-}
-
-// SupplierAdminBillItem is the administrator-only settlement view. It keeps
-// the immutable billing snapshot together with the originating usage request
-// and user identity; supplier-facing bills intentionally use the smaller DTO
-// above and never include these fields.
-type SupplierAdminBillItem struct {
-	ID              int64      `json:"id"`
-	SupplierID      int64      `json:"supplier_id"`
-	GroupID         int64      `json:"group_id"`
-	GroupName       string     `json:"group_name"`
-	UsageLogID      *int64     `json:"usage_log_id,omitempty"`
-	RequestID       string     `json:"request_id,omitempty"`
-	UserID          *int64     `json:"user_id,omitempty"`
-	UserEmail       string     `json:"user_email,omitempty"`
-	Username        string     `json:"username,omitempty"`
-	APIKeyID        *int64     `json:"api_key_id,omitempty"`
-	AccountID       *int64     `json:"account_id,omitempty"`
-	Model           string     `json:"model,omitempty"`
-	InputTokens     int        `json:"input_tokens"`
-	OutputTokens    int        `json:"output_tokens"`
-	CacheReadTokens int        `json:"cache_read_tokens"`
-	BaseRate        float64    `json:"base_rate"`
-	AdminAdjustment float64    `json:"admin_adjustment"`
-	EffectiveRate   float64    `json:"effective_rate"`
 	ModelCostUSD    float64    `json:"model_cost_usd"`
 	RechargeRatio   float64    `json:"recharge_ratio"`
 	EarningUSD      float64    `json:"earning_usd"`
@@ -1405,14 +1391,118 @@ type SupplierAdminBillItem struct {
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
+// SupplierAdminBillItem is the administrator-only settlement view. It keeps
+// the immutable billing snapshot together with the originating usage request
+// and user identity; supplier-facing bills intentionally use the smaller DTO
+// above and never include these fields.
+type SupplierAdminBillItem struct {
+	ID                    int64      `json:"id"`
+	SupplierID            int64      `json:"supplier_id"`
+	GroupID               int64      `json:"group_id"`
+	GroupName             string     `json:"group_name"`
+	UsageLogID            *int64     `json:"usage_log_id,omitempty"`
+	RequestID             string     `json:"request_id,omitempty"`
+	UserID                *int64     `json:"user_id,omitempty"`
+	UserEmail             string     `json:"user_email,omitempty"`
+	Username              string     `json:"username,omitempty"`
+	APIKeyID              *int64     `json:"api_key_id,omitempty"`
+	AccountID             *int64     `json:"account_id,omitempty"`
+	Model                 string     `json:"model,omitempty"`
+	InputTokens           int        `json:"input_tokens"`
+	OutputTokens          int        `json:"output_tokens"`
+	CacheReadTokens       int        `json:"cache_read_tokens"`
+	BaseRate              float64    `json:"base_rate"`
+	AdminAdjustment       float64    `json:"admin_adjustment"`
+	EffectiveRate         float64    `json:"effective_rate"`
+	ModelCostUSD          float64    `json:"model_cost_usd"`
+	RechargeRatio         float64    `json:"recharge_ratio"`
+	EarningUSD            float64    `json:"earning_usd"`
+	AmountCNY             float64    `json:"amount_cny"`
+	SupplierEarningUSD    float64    `json:"supplier_earning_usd"`
+	SupplierEarningCNY    float64    `json:"supplier_earning_cny"`
+	AdminMarkupEarningUSD float64    `json:"admin_markup_earning_usd"`
+	AdminMarkupEarningCNY float64    `json:"admin_markup_earning_cny"`
+	SettlementTotalUSD    float64    `json:"settlement_total_usd"`
+	SettlementTotalCNY    float64    `json:"settlement_total_cny"`
+	EntryType             string     `json:"entry_type"`
+	Status                string     `json:"status"`
+	AvailableAt           *time.Time `json:"available_at,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+}
+
+type SupplierAdminBillSummary struct {
+	SupplierEarningCNY    float64 `json:"supplier_earning_cny"`
+	AdminMarkupEarningCNY float64 `json:"admin_markup_earning_cny"`
+	SettlementTotalCNY    float64 `json:"settlement_total_cny"`
+}
+
+type SupplierAdminListItem struct {
+	*dbent.Supplier
+	SupplierEarningCNY    float64 `json:"supplier_earning_cny"`
+	AdminMarkupEarningCNY float64 `json:"admin_markup_earning_cny"`
+	SettlementTotalCNY    float64 `json:"settlement_total_cny"`
+}
+
+type supplierAmountAggregateRow struct {
+	SupplierID            int64   `json:"supplier_id,omitempty"`
+	SupplierEarningCNY    float64 `json:"supplier_earning_cny,omitempty"`
+	AdminMarkupEarningCNY float64 `json:"admin_markup_earning_cny,omitempty"`
+}
+
+func sumSupplierEarningCNY(selector *entsql.Selector) string {
+	return fmt.Sprintf("COALESCE(SUM(%s), 0)", selector.C(supplierledger.FieldAmountCny))
+}
+
+func sumAdminMarkupEarningCNY(selector *entsql.Selector) string {
+	modelCost := selector.C(supplierledger.FieldModelCostUsd)
+	adjustment := selector.C(supplierledger.FieldAdminAdjustment)
+	rechargeRatio := selector.C(supplierledger.FieldRechargeRatio)
+	entryType := selector.C(supplierledger.FieldEntryType)
+	return fmt.Sprintf(
+		"COALESCE(SUM(CASE WHEN %s > 0 THEN (CASE WHEN %s = 'reversal' THEN -1 ELSE 1 END * ABS(%s) * %s) / %s ELSE 0 END), 0)",
+		rechargeRatio, entryType, modelCost, adjustment, rechargeRatio,
+	)
+}
+
+func supplierLedgerAdminMarkupUSD(entry *dbent.SupplierLedger) float64 {
+	amount := math.Abs(entry.ModelCostUsd) * entry.AdminAdjustment
+	if entry.EntryType == supplierledger.EntryTypeReversal {
+		return -amount
+	}
+	return amount
+}
+
+func supplierAmountSummaryFromRow(row supplierAmountAggregateRow) SupplierAdminBillSummary {
+	return SupplierAdminBillSummary{
+		SupplierEarningCNY:    row.SupplierEarningCNY,
+		AdminMarkupEarningCNY: row.AdminMarkupEarningCNY,
+		SettlementTotalCNY:    row.SupplierEarningCNY + row.AdminMarkupEarningCNY,
+	}
+}
+
+func (s *SupplierService) adminBillSummary(ctx context.Context, query *dbent.SupplierLedgerQuery) (SupplierAdminBillSummary, error) {
+	var rows []supplierAmountAggregateRow
+	err := query.Clone().Aggregate(
+		dbent.As(sumSupplierEarningCNY, "supplier_earning_cny"),
+		dbent.As(sumAdminMarkupEarningCNY, "admin_markup_earning_cny"),
+	).Scan(ctx, &rows)
+	if err != nil {
+		return SupplierAdminBillSummary{}, err
+	}
+	if len(rows) == 0 {
+		return SupplierAdminBillSummary{}, nil
+	}
+	return supplierAmountSummaryFromRow(rows[0]), nil
+}
+
 // AdminBills lists a supplier's immutable ledger snapshots and enriches usage
 // entries with the originating user. It is only called by admin routes.
-func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, bucket string, limit, offset int) ([]SupplierAdminBillItem, int, error) {
+func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, bucket string, limit, offset int) ([]SupplierAdminBillItem, int, SupplierAdminBillSummary, error) {
 	if supplierID <= 0 {
-		return nil, 0, fmt.Errorf("invalid supplier id")
+		return nil, 0, SupplierAdminBillSummary{}, fmt.Errorf("invalid supplier id")
 	}
 	if bucket != "" && bucket != string(supplierledger.BucketPending) && bucket != string(supplierledger.BucketAvailable) && bucket != string(supplierledger.BucketFrozen) {
-		return nil, 0, fmt.Errorf("invalid bill status")
+		return nil, 0, SupplierAdminBillSummary{}, fmt.Errorf("invalid bill status")
 	}
 	if limit <= 0 || limit > 500 {
 		limit = 100
@@ -1421,7 +1511,7 @@ func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, buck
 		offset = 0
 	}
 	if _, err := s.db.Supplier.Get(ctx, supplierID); err != nil {
-		return nil, 0, err
+		return nil, 0, SupplierAdminBillSummary{}, err
 	}
 	q := s.db.SupplierLedger.Query().Where(supplierledger.SupplierID(supplierID)).Order(dbent.Desc(supplierledger.FieldCreatedAt), dbent.Desc(supplierledger.FieldID))
 	if bucket != "" {
@@ -1429,30 +1519,45 @@ func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, buck
 	}
 	total, err := q.Clone().Count(ctx)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, SupplierAdminBillSummary{}, err
+	}
+	summary, err := s.adminBillSummary(ctx, q)
+	if err != nil {
+		return nil, 0, SupplierAdminBillSummary{}, err
 	}
 	entries, err := q.Offset(offset).Limit(limit).All(ctx)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, SupplierAdminBillSummary{}, err
 	}
 	out := make([]SupplierAdminBillItem, 0, len(entries))
 	for _, entry := range entries {
+		adminMarkupUSD := supplierLedgerAdminMarkupUSD(entry)
+		adminMarkupCNY, amountErr := supplierCNYFromUSD(adminMarkupUSD, entry.RechargeRatio)
+		if amountErr != nil {
+			return nil, 0, SupplierAdminBillSummary{}, fmt.Errorf("ledger %d: %w", entry.ID, amountErr)
+		}
 		item := SupplierAdminBillItem{
-			ID:              entry.ID,
-			SupplierID:      entry.SupplierID,
-			GroupID:         entry.GroupID,
-			UsageLogID:      entry.UsageLogID,
-			BaseRate:        entry.BaseRate,
-			AdminAdjustment: entry.AdminAdjustment,
-			EffectiveRate:   entry.EffectiveRate,
-			ModelCostUSD:    entry.ModelCostUsd,
-			RechargeRatio:   entry.RechargeRatio,
-			EarningUSD:      entry.EarningUsd,
-			AmountCNY:       entry.AmountCny,
-			EntryType:       string(entry.EntryType),
-			Status:          string(entry.Bucket),
-			AvailableAt:     entry.AvailableAt,
-			CreatedAt:       entry.CreatedAt,
+			ID:                    entry.ID,
+			SupplierID:            entry.SupplierID,
+			GroupID:               entry.GroupID,
+			UsageLogID:            entry.UsageLogID,
+			BaseRate:              entry.BaseRate,
+			AdminAdjustment:       entry.AdminAdjustment,
+			EffectiveRate:         entry.EffectiveRate,
+			ModelCostUSD:          entry.ModelCostUsd,
+			RechargeRatio:         entry.RechargeRatio,
+			EarningUSD:            entry.EarningUsd,
+			AmountCNY:             entry.AmountCny,
+			SupplierEarningUSD:    entry.EarningUsd,
+			SupplierEarningCNY:    entry.AmountCny,
+			AdminMarkupEarningUSD: adminMarkupUSD,
+			AdminMarkupEarningCNY: adminMarkupCNY,
+			SettlementTotalUSD:    entry.EarningUsd + adminMarkupUSD,
+			SettlementTotalCNY:    entry.AmountCny + adminMarkupCNY,
+			EntryType:             string(entry.EntryType),
+			Status:                string(entry.Bucket),
+			AvailableAt:           entry.AvailableAt,
+			CreatedAt:             entry.CreatedAt,
 		}
 		if g, e := s.db.Group.Get(ctx, entry.GroupID); e == nil && g.SupplierID != nil && *g.SupplierID == supplierID {
 			item.GroupName = g.Name
@@ -1475,7 +1580,7 @@ func (s *SupplierService) AdminBills(ctx context.Context, supplierID int64, buck
 		}
 		out = append(out, item)
 	}
-	return out, total, nil
+	return out, total, summary, nil
 }
 
 func (s *SupplierService) Bills(ctx context.Context, supplierID int64, bucket string, limit int) ([]SupplierBillItem, error) {
@@ -1495,7 +1600,20 @@ func (s *SupplierService) Bills(ctx context.Context, supplierID int64, bucket st
 	}
 	out := make([]SupplierBillItem, 0, len(entries))
 	for _, entry := range entries {
-		item := SupplierBillItem{ID: entry.ID, GroupID: entry.GroupID, BaseRate: entry.BaseRate, EffectiveRate: entry.EffectiveRate, AmountCNY: entry.AmountCny, Status: string(entry.Bucket), AvailableAt: entry.AvailableAt, CreatedAt: entry.CreatedAt}
+		item := SupplierBillItem{
+			ID:            entry.ID,
+			GroupID:       entry.GroupID,
+			BaseRate:      entry.BaseRate,
+			EffectiveRate: entry.EffectiveRate,
+			ModelCostUSD:  entry.ModelCostUsd,
+			RechargeRatio: entry.RechargeRatio,
+			EarningUSD:    entry.EarningUsd,
+			AmountCNY:     entry.AmountCny,
+			EntryType:     string(entry.EntryType),
+			Status:        string(entry.Bucket),
+			AvailableAt:   entry.AvailableAt,
+			CreatedAt:     entry.CreatedAt,
+		}
 		if g, err := s.db.Group.Get(ctx, entry.GroupID); err == nil && g.SupplierID != nil && *g.SupplierID == supplierID {
 			item.GroupName = g.Name
 		}
@@ -1537,6 +1655,9 @@ func (s *SupplierService) UpdateSettings(ctx context.Context, in SupplierSetting
 	if math.IsNaN(in.GlobalRateAdjustment) || math.IsInf(in.GlobalRateAdjustment, 0) || in.SettlementDelayDays < 0 || in.SettlementDelayDays > 365 {
 		return SupplierSettings{}, fmt.Errorf("invalid supplier settings")
 	}
+	if err := s.validateGlobalAdjustedResourceRates(ctx, in.GlobalRateAdjustment); err != nil {
+		return SupplierSettings{}, err
+	}
 	values := map[string]string{
 		SettingKeySupplierGlobalRateAdjustment: strconv.FormatFloat(in.GlobalRateAdjustment, 'f', -1, 64),
 		SettingKeySupplierSettlementDelayDays:  strconv.Itoa(in.SettlementDelayDays),
@@ -1559,6 +1680,26 @@ func (s *SupplierService) UpdateSettings(ctx context.Context, in SupplierSetting
 	return s.GetSettings(ctx)
 }
 
+func (s *SupplierService) validateGlobalAdjustedResourceRates(ctx context.Context, adjustment float64) error {
+	requests, err := s.db.SupplierResourceRequest.Query().Where(
+		supplierresourcerequest.StatusEQ(supplierresourcerequest.StatusApproved),
+		supplierresourcerequest.GroupIDNotNil(),
+	).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, request := range requests {
+		g, groupErr := s.db.Group.Get(ctx, *request.GroupID)
+		if groupErr != nil || g.SupplierID == nil || g.SupplierAdminAdjustment != nil {
+			continue
+		}
+		if !validSupplierEffectiveRate(request.RateMultiplier, adjustment) {
+			return fmt.Errorf("global adjustment makes supplier group %d rate negative", g.ID)
+		}
+	}
+	return nil
+}
+
 func (s *SupplierService) syncGlobalAdjustedResourceRates(ctx context.Context, adjustment float64) error {
 	requests, err := s.db.SupplierResourceRequest.Query().
 		Where(
@@ -1575,6 +1716,9 @@ func (s *SupplierService) syncGlobalAdjustedResourceRates(ctx context.Context, a
 			continue
 		}
 		finalRate := request.RateMultiplier + adjustment
+		if !validSupplierEffectiveRate(request.RateMultiplier, adjustment) {
+			return fmt.Errorf("global adjustment makes supplier group %d rate negative", g.ID)
+		}
 		if _, err = g.Update().SetRateMultiplier(finalRate).Save(ctx); err != nil {
 			return err
 		}
@@ -1777,6 +1921,50 @@ func (s *SupplierService) List(ctx context.Context, status string) ([]*dbent.Sup
 	}
 	return q.All(ctx)
 }
+
+func (s *SupplierService) AdminList(ctx context.Context, status string) ([]SupplierAdminListItem, error) {
+	suppliers, err := s.List(ctx, status)
+	if err != nil {
+		return nil, err
+	}
+	if len(suppliers) == 0 {
+		return []SupplierAdminListItem{}, nil
+	}
+
+	ids := make([]int64, 0, len(suppliers))
+	for _, item := range suppliers {
+		ids = append(ids, item.ID)
+	}
+	var aggregateRows []supplierAmountAggregateRow
+	err = s.db.SupplierLedger.Query().
+		Where(supplierledger.SupplierIDIn(ids...)).
+		GroupBy(supplierledger.FieldSupplierID).
+		Aggregate(
+			dbent.As(sumSupplierEarningCNY, "supplier_earning_cny"),
+			dbent.As(sumAdminMarkupEarningCNY, "admin_markup_earning_cny"),
+		).
+		Scan(ctx, &aggregateRows)
+	if err != nil {
+		return nil, err
+	}
+
+	amountsBySupplier := make(map[int64]SupplierAdminBillSummary, len(aggregateRows))
+	for _, row := range aggregateRows {
+		amountsBySupplier[row.SupplierID] = supplierAmountSummaryFromRow(row)
+	}
+	out := make([]SupplierAdminListItem, 0, len(suppliers))
+	for _, item := range suppliers {
+		amounts := amountsBySupplier[item.ID]
+		out = append(out, SupplierAdminListItem{
+			Supplier:              item,
+			SupplierEarningCNY:    amounts.SupplierEarningCNY,
+			AdminMarkupEarningCNY: amounts.AdminMarkupEarningCNY,
+			SettlementTotalCNY:    amounts.SettlementTotalCNY,
+		})
+	}
+	return out, nil
+}
+
 func (s *SupplierService) Review(ctx context.Context, id, reviewer int64, status, note string) (*dbent.Supplier, error) {
 	if status != "approved" && status != "rejected" && status != "frozen" {
 		return nil, fmt.Errorf("invalid supplier status")
@@ -1861,6 +2049,9 @@ func (s *SupplierService) SetGroupModeration(ctx context.Context, groupID int64,
 		baseRate = request.RateMultiplier
 	}
 	finalRate := baseRate + newAdjustment
+	if !validSupplierEffectiveRate(baseRate, newAdjustment) {
+		return nil, fmt.Errorf("supplier effective rate must not be negative")
+	}
 	u.SetRateMultiplier(finalRate)
 	if forcedOffline != nil {
 		u.SetSupplierForcedOffline(*forcedOffline)
@@ -2038,36 +2229,129 @@ func (s *SupplierService) supplierSettlementDelayDays(ctx context.Context) int {
 	return days
 }
 
+func validSupplierFiniteValue(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func validSupplierSettlementValue(value float64) bool {
+	return validSupplierFiniteValue(value) && value >= 0
+}
+
+func validSupplierRechargeRatio(value float64) bool {
+	return validSupplierSettlementValue(value) && value > 0
+}
+
+func (s *SupplierService) supplierRechargeRatio(ctx context.Context) float64 {
+	const fallbackRatio = 1.0
+	row, err := s.db.Setting.Query().Where(setting.KeyEQ(SettingBalanceRechargeMult)).Only(ctx)
+	if err != nil {
+		return fallbackRatio
+	}
+	ratio, err := strconv.ParseFloat(strings.TrimSpace(row.Value), 64)
+	if err != nil || !validSupplierRechargeRatio(ratio) {
+		return fallbackRatio
+	}
+	return ratio
+}
+
+// supplierCNYFromUSD converts a USD balance amount using the same recharge
+// multiplier direction as payment credits: CNY * ratio = USD.
+func supplierCNYFromUSD(amountUSD, rechargeRatio float64) (float64, error) {
+	if !validSupplierFiniteValue(amountUSD) || !validSupplierRechargeRatio(rechargeRatio) {
+		return 0, fmt.Errorf("invalid supplier currency conversion")
+	}
+	amountCNY := amountUSD / rechargeRatio
+	if !validSupplierFiniteValue(amountCNY) {
+		return 0, fmt.Errorf("invalid supplier currency conversion")
+	}
+	return amountCNY, nil
+}
+
+// supplierBaseRateForGroup prefers the resource application's configured
+// supplier rate. The runtime group's rate includes the administrator's
+// adjustment, so deriving supplier income from it would pay the platform
+// increment to the supplier.
+func (s *SupplierService) supplierBaseRateForGroup(ctx context.Context, supplierID int64, g *dbent.Group, effectiveRate, adminAdjustment float64) (float64, error) {
+	baseRate := effectiveRate - adminAdjustment
+	request, err := s.db.SupplierResourceRequest.Query().Where(
+		supplierresourcerequest.SupplierID(supplierID),
+		supplierresourcerequest.GroupID(g.ID),
+		supplierresourcerequest.StatusEQ(supplierresourcerequest.StatusApproved),
+	).Only(ctx)
+	if err == nil {
+		baseRate = request.RateMultiplier
+	} else if !dbent.IsNotFound(err) {
+		return 0, err
+	}
+	if !validSupplierSettlementValue(baseRate) {
+		return 0, fmt.Errorf("invalid supplier base rate")
+	}
+	return baseRate, nil
+}
+
 // RecordEarning is idempotent and snapshots all mutable billing inputs.
 func (s *SupplierService) RecordEarning(ctx context.Context, eventKey string, usageID, supplierID, groupID int64, modelCostUSD, baseRate, adminAdjustment, rechargeRatio float64) error {
-	if _, err := s.db.SupplierLedger.Query().Where(supplierledger.EventKey(eventKey)).Only(ctx); err == nil {
-		return nil
+	if !validSupplierSettlementValue(modelCostUSD) || !validSupplierSettlementValue(baseRate) ||
+		math.IsNaN(adminAdjustment) || math.IsInf(adminAdjustment, 0) || !validSupplierRechargeRatio(rechargeRatio) {
+		return fmt.Errorf("invalid supplier earning inputs")
 	}
-	amount := modelCostUSD * baseRate * rechargeRatio
-	if math.IsNaN(amount) || amount < 0 {
+	earningUSD := modelCostUSD * baseRate
+	amount, amountErr := supplierCNYFromUSD(earningUSD, rechargeRatio)
+	if amountErr != nil || !validSupplierSettlementValue(earningUSD) || !validSupplierEffectiveRate(baseRate, adminAdjustment) {
 		return fmt.Errorf("invalid supplier earning")
+	}
+	_, err := s.recordEarningSnapshot(ctx, eventKey, usageID, supplierID, groupID, modelCostUSD, baseRate, adminAdjustment, rechargeRatio, amount)
+	return err
+}
+
+func (s *SupplierService) recordEarningSnapshot(ctx context.Context, eventKey string, usageID, supplierID, groupID int64, modelCostUSD, baseRate, adminAdjustment, rechargeRatio, amountCNY float64) (bool, error) {
+	if !validSupplierSettlementValue(modelCostUSD) || !validSupplierSettlementValue(baseRate) ||
+		!validSupplierSettlementValue(amountCNY) || math.IsNaN(adminAdjustment) || math.IsInf(adminAdjustment, 0) ||
+		!validSupplierRechargeRatio(rechargeRatio) {
+		return false, fmt.Errorf("invalid supplier earning snapshot")
+	}
+	earningUSD := modelCostUSD * baseRate
+	if !validSupplierSettlementValue(earningUSD) || !validSupplierEffectiveRate(baseRate, adminAdjustment) {
+		return false, fmt.Errorf("invalid supplier earning snapshot")
+	}
+	if _, err := s.db.SupplierLedger.Query().Where(supplierledger.EventKey(eventKey)).Only(ctx); err == nil {
+		return false, nil
+	} else if !dbent.IsNotFound(err) {
+		return false, err
 	}
 	tx, err := s.db.Tx(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback()
 	delayDays := s.supplierSettlementDelayDays(ctx)
-	if err = tx.SupplierLedger.Create().SetSupplierID(supplierID).SetGroupID(groupID).SetUsageLogID(usageID).SetEventKey(eventKey).SetEntryType(supplierledger.EntryTypeEarning).SetBucket(supplierledger.BucketPending).SetBaseRate(baseRate).SetAdminAdjustment(adminAdjustment).SetEffectiveRate(baseRate + adminAdjustment).SetModelCostUsd(modelCostUSD).SetRechargeRatio(rechargeRatio).SetEarningUsd(modelCostUSD * baseRate).SetAmountCny(amount).SetAvailableAt(time.Now().AddDate(0, 0, delayDays)).Exec(ctx); err != nil {
+	if err = tx.SupplierLedger.Create().SetSupplierID(supplierID).SetGroupID(groupID).SetUsageLogID(usageID).SetEventKey(eventKey).SetEntryType(supplierledger.EntryTypeEarning).SetBucket(supplierledger.BucketPending).SetBaseRate(baseRate).SetAdminAdjustment(adminAdjustment).SetEffectiveRate(baseRate + adminAdjustment).SetModelCostUsd(modelCostUSD).SetRechargeRatio(rechargeRatio).SetEarningUsd(earningUSD).SetAmountCny(amountCNY).SetAvailableAt(time.Now().AddDate(0, 0, delayDays)).Exec(ctx); err != nil {
 		// Multiple workers may reconcile the same usage row at once. A unique
 		// event-key conflict means another worker already completed the entry.
 		_ = tx.Rollback()
 		if dbent.IsConstraintError(err) {
 			if _, lookupErr := s.db.SupplierLedger.Query().Where(supplierledger.EventKey(eventKey)).Only(ctx); lookupErr == nil {
-				return nil
+				return false, nil
 			}
 		}
-		return err
+		return false, err
 	}
-	if err = tx.Supplier.UpdateOneID(supplierID).AddPendingBalanceCny(amount).Exec(ctx); err != nil {
-		return err
+	if err = tx.Supplier.UpdateOneID(supplierID).AddPendingBalanceCny(amountCNY).Exec(ctx); err != nil {
+		return false, err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func supplierUsageWithoutLedger(selector *entsql.Selector) {
+	ledger := entsql.Table(supplierledger.Table)
+	selector.Where(entsql.NotExists(
+		entsql.Select(ledger.C(supplierledger.FieldID)).
+			From(ledger).
+			Where(entsql.ColumnsEQ(ledger.C(supplierledger.FieldUsageLogID), selector.C(usagelog.FieldID))),
+	))
 }
 
 // ReconcileUsage converts persisted supplier-group usage into idempotent settlement entries.
@@ -2077,47 +2361,83 @@ func (s *SupplierService) ReconcileUsage(ctx context.Context, limit int) (int, e
 	if limit <= 0 || limit > 1000 {
 		limit = 200
 	}
-	// Ignore administrator-owned and orphaned groups at the SQL level. Keeping
-	// them in the first batch could starve supplier usage rows indefinitely.
+	// New rows already carry an immutable supplier snapshot from the usage-log
+	// insert trigger. Legacy rows are retained here for one-time compatibility
+	// reconciliation, but an existing ledger always wins the ownership race.
 	logs, err := s.db.UsageLog.Query().Where(
 		usagelog.GroupIDNotNil(),
-		usagelog.SupplierIDIsNil(),
-		usagelog.HasGroupWith(group.SupplierIDNotNil()),
+		usagelog.Or(
+			usagelog.SupplierIDNotNil(),
+			usagelog.HasGroupWith(group.SupplierIDNotNil()),
+		),
+		supplierUsageWithoutLedger,
 	).Order(dbent.Asc(usagelog.FieldID)).Limit(limit).All(ctx)
 	if err != nil {
 		return 0, err
-	}
-	ratio := 1.0
-	if row, e := s.db.Setting.Query().Where(setting.KeyEQ(SettingBalanceRechargeMult)).Only(ctx); e == nil {
-		_, _ = fmt.Sscanf(row.Value, "%f", &ratio)
-	}
-	if ratio <= 0 {
-		ratio = 1
 	}
 	count := 0
 	for _, log := range logs {
 		if log.GroupID == nil {
 			continue
 		}
-		g, e := s.db.Group.Get(ctx, *log.GroupID)
-		if e != nil || g.SupplierID == nil {
+
+		var supplierID int64
+		var baseRate, adjustment, modelCost, ratio, earningCNY float64
+		completeSnapshot := log.SupplierID != nil && log.SupplierBaseRate != nil &&
+			log.SupplierAdminAdjustment != nil && log.SupplierModelCostUsd != nil &&
+			log.SupplierRechargeRatio != nil && log.SupplierEarningCny != nil
+		if completeSnapshot {
+			supplierID = *log.SupplierID
+			baseRate = *log.SupplierBaseRate
+			adjustment = *log.SupplierAdminAdjustment
+			modelCost = *log.SupplierModelCostUsd
+			ratio = *log.SupplierRechargeRatio
+			earningCNY = *log.SupplierEarningCny
+		} else {
+			// Compatibility path for rows written before migration 201. These
+			// mutable lookups are never used for newly inserted usage rows.
+			g, e := s.db.Group.Get(ctx, *log.GroupID)
+			if e != nil || g.SupplierID == nil {
+				continue
+			}
+			supplierID = *g.SupplierID
+			effective, liveAdjustment, rateErr := s.EffectiveRate(ctx, g)
+			if rateErr != nil {
+				return count, rateErr
+			}
+			adjustment = liveAdjustment
+			baseRate, rateErr = s.supplierBaseRateForGroup(ctx, supplierID, g, effective, adjustment)
+			if rateErr != nil {
+				return count, rateErr
+			}
+			modelCost = log.TotalCost
+			if log.RateMultiplier > 0 {
+				modelCost = log.ActualCost / log.RateMultiplier
+			}
+			ratio = s.supplierRechargeRatio(ctx)
+			var conversionErr error
+			earningCNY, conversionErr = supplierCNYFromUSD(modelCost*baseRate, ratio)
+			if conversionErr != nil {
+				return count, conversionErr
+			}
+		}
+		if !validSupplierSettlementValue(modelCost) || !validSupplierSettlementValue(baseRate) || math.IsNaN(adjustment) || math.IsInf(adjustment, 0) {
+			return count, fmt.Errorf("invalid supplier usage settlement snapshot")
+		}
+		if !validSupplierRechargeRatio(ratio) || !validSupplierSettlementValue(earningCNY) {
+			return count, fmt.Errorf("invalid supplier recharge ratio")
+		}
+		created, e := s.recordEarningSnapshot(ctx, fmt.Sprintf("usage:%d", log.ID), log.ID, supplierID, *log.GroupID, modelCost, baseRate, adjustment, ratio, earningCNY)
+		if e != nil {
+			return count, e
+		}
+		if !created {
 			continue
 		}
-		effective, adjustment, _ := s.EffectiveRate(ctx, g)
-		baseRate := effective - adjustment
-		if baseRate < 0 {
-			baseRate = 0
-		}
-		modelCost := log.TotalCost
-		if log.RateMultiplier > 0 {
-			modelCost = log.ActualCost / log.RateMultiplier
-		}
-		earning := modelCost * baseRate * ratio
-		if e = s.RecordEarning(ctx, fmt.Sprintf("usage:%d", log.ID), log.ID, *g.SupplierID, g.ID, modelCost, baseRate, adjustment, ratio); e != nil {
-			return count, e
-		}
-		if e = s.db.UsageLog.UpdateOneID(log.ID).SetSupplierID(*g.SupplierID).SetSupplierBaseRate(baseRate).SetSupplierAdminAdjustment(adjustment).SetSupplierModelCostUsd(modelCost).SetSupplierRechargeRatio(ratio).SetSupplierEarningCny(earning).SetRateMultiplier(effective).Exec(ctx); e != nil {
-			return count, e
+		if !completeSnapshot {
+			if _, e = s.db.UsageLog.UpdateOneID(log.ID).SetSupplierID(supplierID).SetSupplierBaseRate(baseRate).SetSupplierAdminAdjustment(adjustment).SetSupplierModelCostUsd(modelCost).SetSupplierRechargeRatio(ratio).SetSupplierEarningCny(earningCNY).Save(ctx); e != nil {
+				return count, e
+			}
 		}
 		if e = s.addMetricBucket(ctx, log); e != nil {
 			return count, e
@@ -2138,10 +2458,21 @@ func (s *SupplierService) ReleaseDue(ctx context.Context, now time.Time) (int, e
 		if err != nil {
 			return count, err
 		}
-		if err = tx.SupplierLedger.UpdateOneID(e.ID).SetBucket(supplierledger.BucketAvailable).SetEntryType(supplierledger.EntryTypeRelease).Exec(ctx); err == nil {
-			err = tx.Supplier.UpdateOneID(e.SupplierID).AddPendingBalanceCny(-e.AmountCny).AddAvailableBalanceCny(e.AmountCny).Exec(ctx)
+		updated, updateErr := tx.SupplierLedger.Update().Where(
+			supplierledger.ID(e.ID),
+			supplierledger.BucketEQ(supplierledger.BucketPending),
+		).SetBucket(supplierledger.BucketAvailable).SetEntryType(supplierledger.EntryTypeRelease).Save(ctx)
+		if updateErr != nil {
+			_ = tx.Rollback()
+			return count, updateErr
 		}
-		if err != nil {
+		if updated == 0 {
+			_ = tx.Rollback()
+			continue
+		}
+		// The conditional ledger transition above is the ownership claim for
+		// this balance move. It prevents duplicate releases across processes.
+		if err = tx.Supplier.UpdateOneID(e.SupplierID).AddPendingBalanceCny(-e.AmountCny).AddAvailableBalanceCny(e.AmountCny).Exec(ctx); err != nil {
 			_ = tx.Rollback()
 			return count, err
 		}

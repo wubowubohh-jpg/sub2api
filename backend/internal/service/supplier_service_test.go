@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
+	"github.com/Wei-Shaw/sub2api/ent/supplierledger"
 	"github.com/Wei-Shaw/sub2api/ent/supplierresourcerequest"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
@@ -56,6 +58,26 @@ func TestSupplierResourceRequestSupplierViewRedactsInternalFields(t *testing.T) 
 	require.NotContains(t, encoded, "account_id")
 	require.NotContains(t, encoded, "monitor_id")
 	require.NotContains(t, encoded, "api_key_encrypted")
+}
+
+func TestSupplierBillItemDoesNotExposeConsumerIdentity(t *testing.T) {
+	body, err := json.Marshal(SupplierBillItem{
+		ID:           1,
+		GroupID:      2,
+		GroupName:    "A0001-settlement",
+		Model:        "gpt-5.5",
+		ModelCostUSD: 1.25,
+		AmountCNY:    0.4,
+	})
+	require.NoError(t, err)
+
+	encoded := string(body)
+	require.NotContains(t, encoded, "user_id")
+	require.NotContains(t, encoded, "user_email")
+	require.NotContains(t, encoded, "username")
+	require.NotContains(t, encoded, "api_key_id")
+	require.NotContains(t, encoded, "account_id")
+	require.NotContains(t, encoded, "request_id")
 }
 
 func newSupplierTestService(t *testing.T) (*SupplierService, context.Context) {
@@ -169,12 +191,19 @@ func TestReconcileUsageCreatesSupplierBill(t *testing.T) {
 	require.Len(t, bills, 1)
 	require.Equal(t, group.Name, bills[0].GroupName)
 	require.Equal(t, "gpt-5.5", bills[0].Model)
+	require.InDelta(t, 2, bills[0].ModelCostUSD, 0.000001)
+	require.InDelta(t, 1, bills[0].RechargeRatio, 0.000001)
+	require.InDelta(t, 0.08, bills[0].EarningUSD, 0.000001)
 	require.InDelta(t, 0.08, bills[0].AmountCNY, 0.000001)
+	require.Equal(t, "earning", bills[0].EntryType)
 	require.Equal(t, "pending", bills[0].Status)
-	adminBills, total, err := svc.AdminBills(ctx, supplier.ID, "", 20, 0)
+	adminBills, total, summary, err := svc.AdminBills(ctx, supplier.ID, "", 20, 0)
 	require.NoError(t, err)
 	require.Equal(t, 1, total)
 	require.Len(t, adminBills, 1)
+	require.InDelta(t, 0.08, summary.SupplierEarningCNY, 0.000001)
+	require.Zero(t, summary.AdminMarkupEarningCNY)
+	require.InDelta(t, 0.08, summary.SettlementTotalCNY, 0.000001)
 	require.Equal(t, user.ID, *adminBills[0].UserID)
 	require.Equal(t, user.Email, adminBills[0].UserEmail)
 	require.Equal(t, user.Username, adminBills[0].Username)
@@ -189,6 +218,193 @@ func TestReconcileUsageCreatesSupplierBill(t *testing.T) {
 	bills, err = svc.Bills(ctx, supplier.ID, "", 100)
 	require.NoError(t, err)
 	require.Len(t, bills, 1)
+}
+
+func TestReconcileUsageUsesSupplierBaseRateAndPreservesUsageRate(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	supplierUser := svc.db.User.Create().SetEmail("supplier-settlement-owner@example.com").SetPasswordHash("x").SaveX(ctx)
+	consumer := svc.db.User.Create().SetEmail("supplier-settlement-consumer@example.com").SetPasswordHash("x").SaveX(ctx)
+	sp := svc.db.Supplier.Create().SetUserID(supplierUser.ID).SetName("Settlement Supplier").SetRelayURL("https://supplier.example.com").SetStatus("approved").SaveX(ctx)
+	adminAdjustment := 0.02
+	group := svc.db.Group.Create().
+		SetSupplierID(sp.ID).
+		SetName("A0001-settlement").
+		SetPlatform(PlatformOpenAI).
+		SetRateMultiplier(0.06).
+		SetSupplierAdminAdjustment(adminAdjustment).
+		SaveX(ctx)
+	resourceRequest := svc.db.SupplierResourceRequest.Create().
+		SetSupplierID(sp.ID).
+		SetGroupName(group.Name).
+		SetRelayName("Settlement Relay").
+		SetRelayURL("https://supplier.example.com/v1").
+		SetAPIKeyEncrypted("encrypted:settlement").
+		SetModel("gpt-5.5").
+		SetRateMultiplier(0.04).
+		SetStatus(supplierresourcerequest.StatusApproved).
+		SetGroupID(group.ID).
+		SaveX(ctx)
+	account := svc.db.Account.Create().
+		SetSupplierID(sp.ID).
+		SetName("Settlement account").
+		SetPlatform(PlatformOpenAI).
+		SetType(AccountTypeAPIKey).
+		SetCredentials(map[string]any{"api_key": "sk-settlement"}).
+		SaveX(ctx)
+	apiKey := svc.db.APIKey.Create().
+		SetUserID(consumer.ID).
+		SetKey("sk-settlement-consumer").
+		SetName("Settlement consumer key").
+		SetGroupID(group.ID).
+		SaveX(ctx)
+	rechargeSetting := svc.db.Setting.Create().SetKey(SettingBalanceRechargeMult).SetValue("7").SaveX(ctx)
+
+	// The user was charged with a separate 0.09x snapshot. Settlement must
+	// retain that usage record while paying the supplier only at 0.04x.
+	usageRate := 0.09
+	log := svc.db.UsageLog.Create().
+		SetUserID(consumer.ID).
+		SetAPIKeyID(apiKey.ID).
+		SetAccountID(account.ID).
+		SetRequestID("supplier-base-rate-snapshot").
+		SetModel("gpt-5.5").
+		SetGroupID(group.ID).
+		SetTotalCost(2).
+		SetActualCost(0.18).
+		SetRateMultiplier(usageRate).
+		SetSupplierID(sp.ID).
+		SetSupplierBaseRate(0.04).
+		SetSupplierAdminAdjustment(adminAdjustment).
+		SetSupplierModelCostUsd(2).
+		SetSupplierRechargeRatio(7).
+		SetSupplierEarningCny(0.08 / 7).
+		SaveX(ctx)
+
+	// Change every mutable source before reconciliation. The ledger must use
+	// the call-time usage snapshot instead of these later settings.
+	svc.db.Group.UpdateOneID(group.ID).SetRateMultiplier(0.9).SetSupplierAdminAdjustment(0.5).ExecX(ctx)
+	svc.db.SupplierResourceRequest.UpdateOneID(resourceRequest.ID).SetRateMultiplier(0.4).ExecX(ctx)
+	svc.db.Setting.UpdateOneID(rechargeSetting.ID).SetValue("1").ExecX(ctx)
+
+	count, err := svc.ReconcileUsage(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+	ledger := svc.db.SupplierLedger.Query().OnlyX(ctx)
+	require.InDelta(t, 0.04, ledger.BaseRate, 0.000001)
+	require.InDelta(t, 0.02, ledger.AdminAdjustment, 0.000001)
+	require.InDelta(t, 0.06, ledger.EffectiveRate, 0.000001)
+	require.InDelta(t, 2, ledger.ModelCostUsd, 0.000001)
+	require.InDelta(t, 0.08, ledger.EarningUsd, 0.000001)
+	require.InDelta(t, 0.08/7, ledger.AmountCny, 0.000001)
+
+	persistedLog := svc.db.UsageLog.GetX(ctx, log.ID)
+	require.InDelta(t, usageRate, persistedLog.RateMultiplier, 0.000001)
+	require.NotNil(t, persistedLog.SupplierBaseRate)
+	require.InDelta(t, 0.04, *persistedLog.SupplierBaseRate, 0.000001)
+	require.NotNil(t, persistedLog.SupplierAdminAdjustment)
+	require.InDelta(t, 0.02, *persistedLog.SupplierAdminAdjustment, 0.000001)
+	require.InDelta(t, 0.08/7, *persistedLog.SupplierEarningCny, 0.000001)
+	require.InDelta(t, 0.08/7, svc.db.Supplier.GetX(ctx, sp.ID).PendingBalanceCny, 0.000001)
+	adminBills, total, summary, err := svc.AdminBills(ctx, sp.ID, "", 20, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, total)
+	require.Len(t, adminBills, 1)
+	require.InDelta(t, 0.08, adminBills[0].SupplierEarningUSD, 0.000001)
+	require.InDelta(t, 0.08/7, adminBills[0].SupplierEarningCNY, 0.000001)
+	require.InDelta(t, 0.04, adminBills[0].AdminMarkupEarningUSD, 0.000001)
+	require.InDelta(t, 0.04/7, adminBills[0].AdminMarkupEarningCNY, 0.000001)
+	require.InDelta(t, 0.12, adminBills[0].SettlementTotalUSD, 0.000001)
+	require.InDelta(t, 0.12/7, adminBills[0].SettlementTotalCNY, 0.000001)
+	require.InDelta(t, 0.08/7, summary.SupplierEarningCNY, 0.000001)
+	require.InDelta(t, 0.04/7, summary.AdminMarkupEarningCNY, 0.000001)
+	require.InDelta(t, 0.12/7, summary.SettlementTotalCNY, 0.000001)
+	adminList, err := svc.AdminList(ctx, "")
+	require.NoError(t, err)
+	require.Len(t, adminList, 1)
+	require.Equal(t, sp.ID, adminList[0].ID)
+	require.InDelta(t, 0.08/7, adminList[0].SupplierEarningCNY, 0.000001)
+	require.InDelta(t, 0.04/7, adminList[0].AdminMarkupEarningCNY, 0.000001)
+	require.InDelta(t, 0.12/7, adminList[0].SettlementTotalCNY, 0.000001)
+
+	reversal := svc.db.SupplierLedger.Create().
+		SetSupplierID(sp.ID).
+		SetGroupID(group.ID).
+		SetUsageLogID(log.ID).
+		SetReversalOfID(ledger.ID).
+		SetEventKey("reversal:supplier-base-rate-snapshot").
+		SetEntryType(supplierledger.EntryTypeReversal).
+		SetBucket(supplierledger.BucketPending).
+		SetBaseRate(0.04).
+		SetAdminAdjustment(0.02).
+		SetEffectiveRate(0.06).
+		SetModelCostUsd(2).
+		SetRechargeRatio(7).
+		SetEarningUsd(-0.08).
+		SetAmountCny(-0.08 / 7).
+		SaveX(ctx)
+	reversedBills, reversedTotal, reversedSummary, err := svc.AdminBills(ctx, sp.ID, "", 20, 0)
+	require.NoError(t, err)
+	require.Equal(t, 2, reversedTotal)
+	require.Len(t, reversedBills, 2)
+	require.Equal(t, reversal.ID, reversedBills[0].ID)
+	require.InDelta(t, -0.04, reversedBills[0].AdminMarkupEarningUSD, 0.000001)
+	require.InDelta(t, -0.04/7, reversedBills[0].AdminMarkupEarningCNY, 0.000001)
+	require.InDelta(t, -0.12/7, reversedBills[0].SettlementTotalCNY, 0.000001)
+	require.InDelta(t, 0, reversedSummary.SupplierEarningCNY, 0.000001)
+	require.InDelta(t, 0, reversedSummary.AdminMarkupEarningCNY, 0.000001)
+	require.InDelta(t, 0, reversedSummary.SettlementTotalCNY, 0.000001)
+
+	// Additional changes after settlement also leave both snapshots untouched.
+	svc.db.Group.UpdateOneID(group.ID).SetRateMultiplier(1.2).SetSupplierAdminAdjustment(0.7).ExecX(ctx)
+	svc.db.SupplierResourceRequest.UpdateOneID(resourceRequest.ID).SetRateMultiplier(0.5).ExecX(ctx)
+	svc.db.Setting.UpdateOneID(rechargeSetting.ID).SetValue("0.5").ExecX(ctx)
+	ledger = svc.db.SupplierLedger.GetX(ctx, ledger.ID)
+	require.InDelta(t, 0.04, ledger.BaseRate, 0.000001)
+	require.InDelta(t, 0.02, ledger.AdminAdjustment, 0.000001)
+	require.InDelta(t, 0.08/7, ledger.AmountCny, 0.000001)
+}
+
+func TestSupplierSettlementRejectsInvalidRechargeRatioAndEarningInput(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	svc.db.Setting.Create().SetKey(SettingBalanceRechargeMult).SetValue("NaN").SaveX(ctx)
+	require.Equal(t, 1.0, svc.supplierRechargeRatio(ctx))
+	converted, err := supplierCNYFromUSD(10, 0.14)
+	require.NoError(t, err)
+	require.InDelta(t, 10/0.14, converted, 0.000001)
+	converted, err = supplierCNYFromUSD(-1, 0.14)
+	require.NoError(t, err)
+	require.InDelta(t, -1/0.14, converted, 0.000001)
+
+	user := svc.db.User.Create().SetEmail("invalid-settlement@example.com").SetPasswordHash("x").SaveX(ctx)
+	sp := svc.db.Supplier.Create().SetUserID(user.ID).SetName("Invalid Settlement").SetRelayURL("https://supplier.example.com").SetStatus("approved").SaveX(ctx)
+	group := svc.db.Group.Create().SetSupplierID(sp.ID).SetName("A0001-invalid").SetPlatform(PlatformOpenAI).SaveX(ctx)
+	err = svc.RecordEarning(ctx, "invalid-supplier-earning", 1, sp.ID, group.ID, math.Inf(1), 0.04, 0.01, 1)
+	require.ErrorContains(t, err, "invalid supplier earning inputs")
+	err = svc.RecordEarning(ctx, "negative-effective-rate", 1, sp.ID, group.ID, 1, 0.01, -0.02, 1)
+	require.ErrorContains(t, err, "invalid supplier earning")
+	require.Equal(t, 0, svc.db.SupplierLedger.Query().CountX(ctx))
+}
+
+func TestSupplierReleaseDueMovesBalanceOnce(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	user := svc.db.User.Create().SetEmail("release-once@example.com").SetPasswordHash("x").SaveX(ctx)
+	sp := svc.db.Supplier.Create().SetUserID(user.ID).SetName("Release Once").SetRelayURL("https://supplier.example.com").SetStatus("approved").SaveX(ctx)
+	group := svc.db.Group.Create().SetSupplierID(sp.ID).SetName("A0001-release").SetPlatform(PlatformOpenAI).SaveX(ctx)
+	require.NoError(t, svc.RecordEarning(ctx, "release-once", 1, sp.ID, group.ID, 2, 0.04, 0.01, 7))
+	entry := svc.db.SupplierLedger.Query().OnlyX(ctx)
+	svc.db.SupplierLedger.UpdateOneID(entry.ID).SetAvailableAt(time.Now().Add(-time.Minute)).ExecX(ctx)
+
+	count, err := svc.ReleaseDue(ctx, time.Now())
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+	count, err = svc.ReleaseDue(ctx, time.Now())
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	updated := svc.db.Supplier.GetX(ctx, sp.ID)
+	require.InDelta(t, 0, updated.PendingBalanceCny, 0.000001)
+	require.InDelta(t, 0.08/7, updated.AvailableBalanceCny, 0.000001)
+	require.Equal(t, "available", string(svc.db.SupplierLedger.GetX(ctx, entry.ID).Bucket))
 }
 
 func TestSupplierGroupMetricsUsesBestModelAvailability(t *testing.T) {
@@ -253,6 +469,16 @@ func TestSupplierSettlementSettingsRemoveMinimumAndConfigureDelay(t *testing.T) 
 	require.InDelta(t, 0.02, settings.GlobalRateAdjustment, 0.000001)
 	require.Equal(t, 3, settings.SettlementDelayDays)
 	require.Equal(t, 3, svc.supplierSettlementDelayDays(ctx))
+
+	rateOwner := svc.db.User.Create().SetEmail("settings-rate-owner@example.com").SetPasswordHash("x").SaveX(ctx)
+	rateSupplier := svc.db.Supplier.Create().SetUserID(rateOwner.ID).SetName("Settings Rate Supplier").SetRelayURL("https://rate.example.com").SetStatus("approved").SaveX(ctx)
+	rateGroup := svc.db.Group.Create().SetSupplierID(rateSupplier.ID).SetName("A0001-settings-rate").SetPlatform(PlatformOpenAI).SetRateMultiplier(0.06).SaveX(ctx)
+	svc.db.SupplierResourceRequest.Create().SetSupplierID(rateSupplier.ID).SetGroupName(rateGroup.Name).SetRelayName("Settings Rate Relay").SetRelayURL("https://rate.example.com/v1").SetAPIKeyEncrypted("encrypted:settings-rate").SetModel("gpt-5.5").SetRateMultiplier(0.04).SetStatus(supplierresourcerequest.StatusApproved).SetGroupID(rateGroup.ID).SaveX(ctx)
+	_, err = svc.UpdateSettings(ctx, SupplierSettings{GlobalRateAdjustment: -0.05, SettlementDelayDays: 3})
+	require.ErrorContains(t, err, "rate negative")
+	settings, err = svc.GetSettings(ctx)
+	require.NoError(t, err)
+	require.InDelta(t, 0.02, settings.GlobalRateAdjustment, 0.000001)
 
 	user := svc.db.User.Create().SetEmail("small-withdrawal@example.com").SetPasswordHash("x").SaveX(ctx)
 	supplier := svc.db.Supplier.Create().SetUserID(user.ID).SetName("Small Withdrawal").SetRelayURL("https://example.com").SetStatus("approved").SetAvailableBalanceCny(1).SaveX(ctx)
