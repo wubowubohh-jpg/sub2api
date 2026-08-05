@@ -158,6 +158,7 @@ export const adminSupplierAPI = {
   async withdrawals(status='') { return (await apiClient.get<{items:SupplierWithdrawal[]}>('/admin/supplier-withdrawals',{params:{status}})).data },
   async reviewWithdrawal(id:number,status:'approved'|'rejected'|'paid',note='',payment_proof_key='') { return (await apiClient.put<SupplierWithdrawal>(`/admin/supplier-withdrawals/${id}`,{status,note,payment_proof_key})).data },
   async resourceRequests(status='') { return (await apiClient.get<{items:SupplierResourceRequest[]}>('/admin/suppliers/resource-requests',{params:{status}})).data },
+  async setGroupForcedOffline(groupID:number,forced_offline:boolean) { return (await apiClient.put<SupplierGroup>(`/admin/suppliers/groups/${groupID}/moderation`,{forced_offline})).data },
   async bills(supplierID:number, status='', limit=20, offset=0) { return (await apiClient.get<SupplierAdminBillResponse>(`/admin/suppliers/${supplierID}/bills`,{params:{status,limit,offset}})).data },
   async reviewResourceRequest(id:number,approved:boolean,note='') { return (await apiClient.put<SupplierResourceRequest>(`/admin/suppliers/resource-requests/${id}`,{approved,note})).data },
   async updateResourceRequest(id:number,payload:AdminUpdateSupplierResourceRequest) { return (await apiClient.put<SupplierResourceRequest>(`/admin/suppliers/resource-requests/${id}/details`,payload)).data },

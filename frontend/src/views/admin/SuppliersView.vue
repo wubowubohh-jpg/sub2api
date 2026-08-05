@@ -73,7 +73,7 @@
           <table class="w-full min-w-[980px] text-sm">
             <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-gray-950"><tr><th class="p-4">分组</th><th>中转站</th><th>地址</th><th>模型</th><th>状态</th><th class="pr-4 text-right">操作</th></tr></thead>
             <tbody>
-              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4"><div class="font-medium">{{ r.group_name }}</div><div class="mt-1 text-xs text-gray-500">供应商提交 {{ formatRate(r.rate_multiplier) }}</div><div class="mt-1 text-xs font-medium text-emerald-700">有效倍率 {{ formatRate(resourceEffectiveRate(r)) }}</div><div class="mt-1 max-w-64 text-xs text-gray-400">{{ resourceRateFormula(r) }}</div></td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td><div class="flex max-w-64 flex-wrap gap-1"><span v-for="model in resourceModels(r)" :key="model" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">{{ model }}</span></div><div class="mt-1 text-xs text-gray-400">监听 {{ r.monitor_model || r.probe_model || r.model }}</div></td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td><td class="space-x-3 pr-4 text-right"><button class="text-sky-700 hover:text-sky-800" @click="openResourceEdit(r)">编辑资源</button><button v-if="r.status === 'pending'" class="text-sky-700 hover:text-sky-800" @click="openResourceTest(r)">模型测试</button><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button></td></tr>
+              <tr v-for="r in resourcePage" :key="r.id" class="border-t transition hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/40"><td class="p-4"><div class="font-medium">{{ r.group_name }}</div><div class="mt-1 text-xs text-gray-500">供应商提交 {{ formatRate(r.rate_multiplier) }}</div><div class="mt-1 text-xs font-medium text-emerald-700">有效倍率 {{ formatRate(resourceEffectiveRate(r)) }}</div><div class="mt-1 max-w-64 text-xs text-gray-400">{{ resourceRateFormula(r) }}</div></td><td>{{ r.relay_name }}</td><td><a :href="r.relay_url" target="_blank" rel="noopener" class="text-sky-700 hover:underline">{{ r.relay_url }}</a></td><td><div class="flex max-w-64 flex-wrap gap-1"><span v-for="model in resourceModels(r)" :key="model" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">{{ model }}</span></div><div class="mt-1 text-xs text-gray-400">监听 {{ r.monitor_model || r.probe_model || r.model }}</div></td><td><span class="rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span><div v-if="r.status === 'approved'" class="mt-2 flex items-center gap-1.5 text-xs" :class="resourceRuntimeClass(r)"><span class="h-1.5 w-1.5 rounded-full bg-current" />{{ resourceRuntimeLabel(r) }}</div></td><td class="space-x-3 pr-4 text-right"><button class="text-sky-700 hover:text-sky-800" @click="openResourceEdit(r)">编辑资源</button><button v-if="r.status === 'approved' && r.group_id" class="hover:opacity-80 disabled:cursor-wait disabled:opacity-50" :class="r.forced_offline ? 'text-emerald-700' : 'text-rose-700'" :disabled="resourceModerationSavingId === r.id" data-resource-moderation @click="toggleResourceModeration(r)">{{ r.forced_offline ? '解除下架' : '强制下架' }}</button><button v-if="r.status === 'pending'" class="text-sky-700 hover:text-sky-800" @click="openResourceTest(r)">模型测试</button><button v-if="r.status === 'pending'" class="text-emerald-700" @click="reviewResource(r.id, true)">通过并创建</button><button v-if="r.status === 'pending'" class="text-rose-700" @click="reviewResource(r.id, false)">驳回</button></td></tr>
               <tr v-if="!resourcePage.length"><td colspan="6" class="p-16 text-center text-gray-400">暂无资源审核记录</td></tr>
             </tbody>
           </table>
@@ -286,6 +286,7 @@ const supplierBillsStatus = ref('')
 const testingResource = ref<SupplierResourceRequest | null>(null)
 const editingResource = ref<SupplierResourceRequest | null>(null)
 const resourceSaving = ref(false)
+const resourceModerationSavingId = ref<number | null>(null)
 const customResourceModel = ref('')
 const settingsSaving = ref(false)
 const builtInResourceModels = [
@@ -424,6 +425,20 @@ function resourceRateFormula(resource: SupplierResourceRequest) {
   return `设置倍率 ${formatRate(resourceAppliedRate(resource))} + 管理员增加 ${formatRate(resourceAdjustment(resource))}`
 }
 
+function resourceRuntimeLabel(resource: SupplierResourceRequest) {
+  if (resource.forced_offline) return '管理员下架'
+  return resourceIsOnline(resource) ? '已上架' : '供应商下架'
+}
+
+function resourceRuntimeClass(resource: SupplierResourceRequest) {
+  if (resource.forced_offline) return 'text-rose-600'
+  return resourceIsOnline(resource) ? 'text-emerald-600' : 'text-gray-500'
+}
+
+function resourceIsOnline(resource: SupplierResourceRequest) {
+  return resource.resource_online ?? (resource.status === 'approved' && !resource.forced_offline)
+}
+
 function statusClass(status: string) { return ['approved', 'available', 'paid', 'active'].includes(status) ? 'bg-emerald-50 text-emerald-700' : ['rejected', 'frozen'].includes(status) ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700' }
 function statusLabel(status: string) { return ({ pending: '待审核', approved: '已通过', rejected: '已驳回', frozen: '已冻结', paid: '已打款' } as Record<string, string>)[status] || status }
 function methodLabel(value: string) { return ({ alipay: '支付宝', wechat: '微信', bank: '银行卡' } as Record<string, string>)[value] || value }
@@ -514,6 +529,26 @@ async function reviewResource(id: number, approved: boolean) {
     await loadTab('resources', true)
   } catch (e) {
     error.value = extractApiErrorMessage(e, '资源审核失败')
+  }
+}
+
+async function toggleResourceModeration(resource: SupplierResourceRequest) {
+  if (!resource.group_id || resource.status !== 'approved' || resourceModerationSavingId.value !== null) return
+  const forcedOffline = !resource.forced_offline
+  const message = forcedOffline
+    ? `确认强制下架 ${resource.group_name} 吗？下架后将从供应商大厅移除并停止用户调用。`
+    : `确认解除 ${resource.group_name} 的管理员下架状态吗？`
+  if (!window.confirm(message)) return
+
+  resourceModerationSavingId.value = resource.id
+  error.value = ''
+  try {
+    await adminSupplierAPI.setGroupForcedOffline(resource.group_id, forcedOffline)
+    await loadTab('resources', true)
+  } catch (e) {
+    error.value = extractApiErrorMessage(e, '更新资源上下架状态失败')
+  } finally {
+    resourceModerationSavingId.value = null
   }
 }
 function openResourceTest(resource: SupplierResourceRequest) { testingResource.value = resource }

@@ -7,6 +7,7 @@ const {
   bills,
   list,
   resourceRequests,
+  setGroupForcedOffline,
   settings,
   updateResourceRequest,
   withdrawals,
@@ -14,6 +15,7 @@ const {
   bills: vi.fn(),
   list: vi.fn(),
   resourceRequests: vi.fn(),
+  setGroupForcedOffline: vi.fn(),
   settings: vi.fn(),
   updateResourceRequest: vi.fn(),
   withdrawals: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock('@/api/suppliers', () => ({
     bills,
     list,
     resourceRequests,
+    setGroupForcedOffline,
     settings,
     updateResourceRequest,
     withdrawals,
@@ -53,6 +56,8 @@ const resource = {
   group_id: 81,
   account_id: 91,
   monitor_id: 101,
+  resource_online: true,
+  forced_offline: false,
   upstream_billing_probe_enabled: true,
   created_at: '2026-08-05T00:00:00Z',
 }
@@ -84,6 +89,7 @@ describe('SuppliersView resource editor', () => {
     settings.mockResolvedValue({ global_rate_adjustment: 0.01, settlement_delay_days: 7 })
     list.mockResolvedValue({ items: [{ ...supplier }] })
     resourceRequests.mockResolvedValue({ items: [{ ...resource }] })
+    setGroupForcedOffline.mockResolvedValue({ id: 81, status: 'active', supplier_forced_offline: true })
     withdrawals.mockResolvedValue({ items: [] })
     updateResourceRequest.mockResolvedValue({
       ...resource,
@@ -204,5 +210,35 @@ describe('SuppliersView resource editor', () => {
     expect(wrapper.text()).toContain('账号 91')
     expect(wrapper.text()).toContain('Key 31')
     wrapper.unmount()
+  })
+
+  it('lets an administrator force an approved resource offline', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mount(SuppliersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          AccountTestModal: true,
+          BaseDialog: true,
+          Toggle: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.findAll('button').find(button => button.text().includes('资源审核'))!.trigger('click')
+    await flushPromises()
+
+    const moderationButton = wrapper.get('[data-resource-moderation]')
+    expect(moderationButton.text()).toContain('强制下架')
+    expect(wrapper.text()).toContain('已上架')
+    await moderationButton.trigger('click')
+    await flushPromises()
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(setGroupForcedOffline).toHaveBeenCalledWith(81, true)
+    expect(resourceRequests).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+    confirmSpy.mockRestore()
   })
 })
