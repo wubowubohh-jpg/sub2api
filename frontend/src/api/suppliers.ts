@@ -59,6 +59,8 @@ export interface SupplierResourceRequest {
   group_id?: number
   account_id?: number
   monitor_id?: number
+  resource_online?: boolean
+  forced_offline?: boolean
   upstream_billing_probe_enabled?: boolean
   probe_enabled?: boolean
   upstream_billing_probe?: SupplierResourceProbe
@@ -140,6 +142,7 @@ export const supplierAPI = {
   async updateResourceRequestAPIKey(id:number,api_key:string) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/api-key`,{api_key})).data },
   async updateResourceModels(id:number,payload:UpdateSupplierResourceModelsRequest) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/models`,payload)).data },
   async updateResourceProbe(id:number,enabled:boolean) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/probe`,{enabled})).data },
+  async setResourceRequestOnline(id:number,online:boolean) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/online`,{online})).data },
   async updateResourceRate(id:number,rate_multiplier:number) { return (await apiClient.put<SupplierResourceRequest>(`/suppliers/resource-requests/${id}/rate`,{rate_multiplier})).data },
   async bills(status='') { return (await apiClient.get<{items:SupplierBill[]}>('/suppliers/bills',{params:{status}})).data },
   async hall(window='6h') { return (await apiClient.get<{groups:HallGroup[]}>('/supplier-hall',{params:{window}})).data },

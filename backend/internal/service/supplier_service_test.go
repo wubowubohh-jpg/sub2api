@@ -455,6 +455,62 @@ func TestSupplierResourceProbeAndCredentialUpdatesAreOwnerScoped(t *testing.T) {
 	require.Equal(t, "enc:v1:encrypted:sk-owner-rotated", storedRequest.APIKeyEncrypted)
 }
 
+func TestSupplierResourceAvailabilityUpdatesRuntimeResources(t *testing.T) {
+	svc, ctx := newSupplierTestService(t)
+	svc.encryptor = supplierTestEncryptor{}
+	invalidator := &authCacheInvalidatorStub{}
+	svc.authCacheInvalidator = invalidator
+	ownerUser := svc.db.User.Create().SetEmail("availability-owner@example.com").SetPasswordHash("x").SaveX(ctx)
+	otherUser := svc.db.User.Create().SetEmail("availability-other@example.com").SetPasswordHash("x").SaveX(ctx)
+	owner := svc.db.Supplier.Create().SetUserID(ownerUser.ID).SetName("Availability Owner").SetRelayURL("https://owner.example.com").SetStatus("approved").SaveX(ctx)
+	other := svc.db.Supplier.Create().SetUserID(otherUser.ID).SetName("Availability Other").SetRelayURL("https://other.example.com").SetStatus("approved").SaveX(ctx)
+	req := svc.db.SupplierResourceRequest.Create().
+		SetSupplierID(owner.ID).
+		SetGroupName("Availability Resource").
+		SetRelayName("Availability Relay").
+		SetRelayURL("https://relay.example.com/v1").
+		SetAPIKeyEncrypted("encrypted:sk-availability-secret").
+		SetModel("gpt-5.5").
+		SaveX(ctx)
+	approved, err := svc.ReviewResourceRequest(ctx, req.ID, ownerUser.ID, true, "approved")
+	require.NoError(t, err)
+
+	_, err = svc.SetResourceRequestOnline(ctx, other.ID, approved.ID, false)
+	require.Error(t, err)
+	view, err := svc.SetResourceRequestOnline(ctx, owner.ID, approved.ID, false)
+	require.NoError(t, err)
+	require.False(t, view.ResourceOnline)
+	require.False(t, view.ForcedOffline)
+	require.Equal(t, "disabled", svc.db.Group.GetX(ctx, *approved.GroupID).Status)
+	require.False(t, svc.db.Account.GetX(ctx, *approved.AccountID).Schedulable)
+	require.False(t, svc.db.ChannelMonitor.GetX(ctx, *approved.MonitorID).Enabled)
+	require.Equal(t, []int64{*approved.GroupID}, invalidator.groupIDs)
+
+	view, err = svc.SetResourceRequestOnline(ctx, owner.ID, approved.ID, true)
+	require.NoError(t, err)
+	require.True(t, view.ResourceOnline)
+	require.Equal(t, "active", svc.db.Group.GetX(ctx, *approved.GroupID).Status)
+	require.True(t, svc.db.Account.GetX(ctx, *approved.AccountID).Schedulable)
+	require.True(t, svc.db.ChannelMonitor.GetX(ctx, *approved.MonitorID).Enabled)
+	require.Equal(t, []int64{*approved.GroupID, *approved.GroupID}, invalidator.groupIDs)
+
+	svc.db.Group.UpdateOneID(*approved.GroupID).SetSupplierForcedOffline(true).ExecX(ctx)
+	_, err = svc.SetResourceRequestOnline(ctx, owner.ID, approved.ID, false)
+	require.NoError(t, err)
+	supplierView, err := svc.ResourceRequestForSupplier(ctx, owner.ID, approved.ID)
+	require.NoError(t, err)
+	require.True(t, supplierView.ForcedOffline)
+	require.False(t, supplierView.ResourceOnline)
+	_, err = svc.SetResourceRequestOnline(ctx, owner.ID, approved.ID, true)
+	require.Error(t, err)
+	require.Equal(t, "disabled", svc.db.Group.GetX(ctx, *approved.GroupID).Status)
+
+	_, err = svc.UpdateResourceRequestAPIKey(ctx, owner.ID, approved.ID, "sk-availability-rotated")
+	require.NoError(t, err)
+	require.False(t, svc.db.Account.GetX(ctx, *approved.AccountID).Schedulable)
+	require.False(t, svc.db.ChannelMonitor.GetX(ctx, *approved.MonitorID).Enabled)
+}
+
 func TestSupplierResourceModelUpdatesAreImmediateAndOwnerScoped(t *testing.T) {
 	svc, ctx := newSupplierTestService(t)
 	svc.encryptor = supplierTestEncryptor{}

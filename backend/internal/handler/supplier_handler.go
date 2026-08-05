@@ -261,6 +261,41 @@ func (h *SupplierHandler) UpdateResourceRequestProbe(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
+func (h *SupplierHandler) SetResourceRequestOnline(c *gin.Context) {
+	uid, ok := subject(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	sp, err := h.svc.UserIsSupplier(c, uid)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "supplier approval required"})
+		return
+	}
+	id, parseErr := strconv.ParseInt(c.Param("id"), 10, 64)
+	if parseErr != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource application id"})
+		return
+	}
+	var in struct {
+		Online *bool `json:"online"`
+	}
+	if c.ShouldBindJSON(&in) != nil || in.Online == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "online is required"})
+		return
+	}
+	if _, err = h.svc.SetResourceRequestOnline(c, sp.ID, id, *in.Online); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.svc.ResourceRequestForSupplier(c, sp.ID, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
 func (h *SupplierHandler) UpdateResourceRequestRate(c *gin.Context) {
 	uid, ok := subject(c)
 	if !ok {

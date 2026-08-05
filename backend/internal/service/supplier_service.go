@@ -98,6 +98,8 @@ type SupplierResourceRequestView struct {
 	*dbent.SupplierResourceRequest
 	GroupNameSuffix             string                     `json:"group_name_suffix,omitempty"`
 	MonitorModel                string                     `json:"monitor_model,omitempty"`
+	ResourceOnline              bool                       `json:"resource_online"`
+	ForcedOffline               bool                       `json:"forced_offline"`
 	RateSource                  string                     `json:"rate_source"`
 	AppliedRateMultiplier       float64                    `json:"applied_rate_multiplier"`
 	AdminRateAdjustment         float64                    `json:"admin_rate_adjustment"`
@@ -124,6 +126,8 @@ type SupplierResourceRequestSupplierView struct {
 	Model                       string                             `json:"model"`
 	SupportedModels             []string                           `json:"supported_models,omitempty"`
 	ProbeEnabled                bool                               `json:"probe_enabled"`
+	ResourceOnline              bool                               `json:"resource_online"`
+	ForcedOffline               bool                               `json:"forced_offline"`
 	RateMultiplier              float64                            `json:"rate_multiplier"`
 	RateSource                  string                             `json:"rate_source"`
 	AppliedRateMultiplier       float64                            `json:"applied_rate_multiplier"`
@@ -154,6 +158,8 @@ func supplierResourceRequestForSupplier(view SupplierResourceRequestView) Suppli
 		Model:                       view.Model,
 		SupportedModels:             append([]string(nil), view.SupportedModels...),
 		ProbeEnabled:                view.ProbeEnabled,
+		ResourceOnline:              view.ResourceOnline,
+		ForcedOffline:               view.ForcedOffline,
 		RateMultiplier:              view.RateMultiplier,
 		RateSource:                  view.RateSource,
 		AppliedRateMultiplier:       view.AppliedRateMultiplier,
@@ -366,6 +372,8 @@ func (s *SupplierService) ResourceRequests(ctx context.Context, supplierID *int6
 		configuredRate := request.RateMultiplier
 		if request.GroupID != nil {
 			if item := groupsByID[*request.GroupID]; item != nil && item.SupplierID != nil && *item.SupplierID == request.SupplierID {
+				view.ResourceOnline = item.Status == "active" && !item.SupplierForcedOffline
+				view.ForcedOffline = item.SupplierForcedOffline
 				if item.SupplierAdminAdjustment != nil {
 					view.AdminRateAdjustment = *item.SupplierAdminAdjustment
 				}
@@ -422,7 +430,7 @@ func (s *SupplierService) UpdateResourceRequestAPIKey(ctx context.Context, suppl
 		}
 		return s.resourceRequestView(ctx, supplierID, requestID)
 	}
-	if req.AccountID == nil || req.MonitorID == nil {
+	if req.GroupID == nil || req.AccountID == nil || req.MonitorID == nil {
 		return nil, fmt.Errorf("approved resource is missing its runtime resources")
 	}
 	models, _, modelErr := normalizeSupplierResourceModels(req.SupportedModels, req.Model)
@@ -442,6 +450,11 @@ func (s *SupplierService) UpdateResourceRequestAPIKey(ctx context.Context, suppl
 		return nil, err
 	}
 	defer tx.Rollback()
+	g, err := tx.Group.Query().Where(group.ID(*req.GroupID), group.SupplierID(supplierID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier group not found")
+	}
+	resourceOnline := g.Status == "active" && !g.SupplierForcedOffline
 	a, err := tx.Account.Query().Where(account.ID(*req.AccountID), account.SupplierID(supplierID)).Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("supplier account not found")
@@ -453,14 +466,17 @@ func (s *SupplierService) UpdateResourceRequestAPIKey(ctx context.Context, suppl
 	credentials["api_key"] = apiKey
 	credentials["base_url"] = req.RelayURL
 	credentials["model_mapping"] = mapping
-	if _, err = tx.Account.UpdateOne(a).SetCredentials(credentials).SetStatus(StatusActive).SetSchedulable(true).Save(ctx); err != nil {
+	if _, err = tx.Account.UpdateOne(a).SetCredentials(credentials).SetStatus(StatusActive).SetSchedulable(resourceOnline).Save(ctx); err != nil {
 		return nil, err
 	}
-	monitor, err := tx.ChannelMonitor.Query().Where(channelmonitor.ID(*req.MonitorID)).Only(ctx)
+	monitor, err := tx.ChannelMonitor.Query().Where(
+		channelmonitor.ID(*req.MonitorID),
+		channelmonitor.GroupID(*req.GroupID),
+	).Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("supplier monitor not found")
 	}
-	if _, err = tx.ChannelMonitor.UpdateOne(monitor).SetAPIKeyEncrypted(monitorCiphertext).SetEnabled(true).Save(ctx); err != nil {
+	if _, err = tx.ChannelMonitor.UpdateOne(monitor).SetAPIKeyEncrypted(monitorCiphertext).SetEnabled(resourceOnline).Save(ctx); err != nil {
 		return nil, err
 	}
 	if _, err = tx.SupplierResourceRequest.UpdateOneID(requestID).SetAPIKeyEncrypted(encrypted).Save(ctx); err != nil {
@@ -468,6 +484,11 @@ func (s *SupplierService) UpdateResourceRequestAPIKey(ctx context.Context, suppl
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
+	}
+	if s.schedulerSnapshot != nil {
+		if err = s.schedulerSnapshot.RefreshAccount(ctx, *req.AccountID); err != nil {
+			return nil, fmt.Errorf("refresh supplier account scheduler: %w", err)
+		}
 	}
 	return s.resourceRequestView(ctx, supplierID, requestID)
 }
@@ -582,6 +603,77 @@ func (s *SupplierService) UpdateResourceRequestProbe(ctx context.Context, suppli
 	extra[UpstreamBillingRateSyncEnabledExtraKey] = enabled
 	if _, err = a.Update().SetExtra(extra).Save(ctx); err != nil {
 		return nil, err
+	}
+	return s.resourceRequestView(ctx, supplierID, requestID)
+}
+
+// SetResourceRequestOnline lets a supplier temporarily take an approved relay
+// resource offline and bring it back once it is ready. The group, account and
+// monitor are updated together so a downed resource is neither public nor
+// dispatched or actively probed. An administrator force-offline remains the
+// authoritative restriction on re-enabling a resource.
+func (s *SupplierService) SetResourceRequestOnline(ctx context.Context, supplierID, requestID int64, online bool) (*SupplierResourceRequestView, error) {
+	req, err := s.db.SupplierResourceRequest.Query().Where(
+		supplierresourcerequest.ID(requestID),
+		supplierresourcerequest.SupplierID(supplierID),
+	).Only(ctx)
+	if err != nil || req.Status != supplierresourcerequest.StatusApproved || req.GroupID == nil || req.AccountID == nil {
+		return nil, fmt.Errorf("approved resource application not found")
+	}
+
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	g, err := tx.Group.Query().Where(group.ID(*req.GroupID), group.SupplierID(supplierID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier group not found")
+	}
+	if online && g.SupplierForcedOffline {
+		return nil, fmt.Errorf("resource is forced offline by administrator")
+	}
+	a, err := tx.Account.Query().Where(account.ID(*req.AccountID), account.SupplierID(supplierID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("supplier account not found")
+	}
+	if online && a.Status != StatusActive {
+		return nil, fmt.Errorf("supplier account is inactive")
+	}
+
+	groupStatus := "disabled"
+	if online {
+		groupStatus = "active"
+	}
+	if _, err = tx.Group.UpdateOne(g).SetStatus(groupStatus).Save(ctx); err != nil {
+		return nil, err
+	}
+	if _, err = tx.Account.UpdateOne(a).SetSchedulable(online).Save(ctx); err != nil {
+		return nil, err
+	}
+	if req.MonitorID != nil {
+		monitor, monitorErr := tx.ChannelMonitor.Query().Where(
+			channelmonitor.ID(*req.MonitorID),
+			channelmonitor.GroupID(*req.GroupID),
+		).Only(ctx)
+		if monitorErr != nil {
+			return nil, fmt.Errorf("supplier monitor not found")
+		}
+		if _, err = tx.ChannelMonitor.UpdateOne(monitor).SetEnabled(online).Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, *req.GroupID)
+	}
+	if s.schedulerSnapshot != nil {
+		if err = s.schedulerSnapshot.RefreshAccount(ctx, *req.AccountID); err != nil {
+			return nil, fmt.Errorf("refresh supplier account scheduler: %w", err)
+		}
 	}
 	return s.resourceRequestView(ctx, supplierID, requestID)
 }

@@ -68,6 +68,14 @@
                 </td>
                 <td class="px-4 py-4 align-top">
                   <StatusBadge :status="request.status" />
+                  <div
+                    v-if="request.status === 'approved'"
+                    class="mt-2 flex items-center gap-1.5 text-xs"
+                    :class="resourceAvailabilityClass(request)"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full bg-current" />
+                    {{ resourceAvailabilityLabel(request) }}
+                  </div>
                   <p v-if="request.review_note" class="mt-2 max-w-[220px] text-xs text-gray-500 dark:text-dark-400">
                     {{ request.review_note }}
                   </p>
@@ -109,6 +117,19 @@
                 <td class="px-4 py-4 text-right align-top">
                   <div class="flex flex-wrap justify-end gap-2">
                     <button
+                      v-if="request.status === 'approved'"
+                      type="button"
+                      class="btn btn-sm"
+                      :class="resourceOnline(request) ? 'btn-secondary text-rose-600 hover:text-rose-700' : 'btn-primary'"
+                      :disabled="availabilitySavingId === request.id || request.forced_offline"
+                      data-resource-availability
+                      @click="setResourceOnline(request, !resourceOnline(request))"
+                    >
+                      <LoadingSpinner v-if="availabilitySavingId === request.id" size="sm" />
+                      <Icon v-else :name="resourceOnline(request) ? 'ban' : 'play'" size="xs" />
+                      {{ resourceOnline(request) ? '下架资源' : (request.forced_offline ? '管理员已下架' : '重新上架') }}
+                    </button>
+                    <button
                       v-if="canUpdateAPIKey(request)"
                       type="button"
                       class="btn btn-secondary btn-sm"
@@ -147,6 +168,14 @@
               <div class="min-w-0">
                 <h3 class="truncate font-medium text-gray-900 dark:text-white">{{ request.group_name }}</h3>
                 <p class="mt-1 truncate text-xs text-gray-500 dark:text-dark-400">{{ request.relay_name }}</p>
+                <p
+                  v-if="request.status === 'approved'"
+                  class="mt-1 inline-flex items-center gap-1.5 text-xs"
+                  :class="resourceAvailabilityClass(request)"
+                >
+                  <span class="h-1.5 w-1.5 rounded-full bg-current" />
+                  {{ resourceAvailabilityLabel(request) }}
+                </p>
               </div>
               <StatusBadge :status="request.status" />
             </div>
@@ -187,6 +216,19 @@
                 倍率探测
               </div>
               <div class="flex flex-wrap justify-end gap-2">
+                <button
+                  v-if="request.status === 'approved'"
+                  type="button"
+                  class="btn btn-sm"
+                  :class="resourceOnline(request) ? 'btn-secondary text-rose-600 hover:text-rose-700' : 'btn-primary'"
+                  :disabled="availabilitySavingId === request.id || request.forced_offline"
+                  data-resource-availability
+                  @click="setResourceOnline(request, !resourceOnline(request))"
+                >
+                  <LoadingSpinner v-if="availabilitySavingId === request.id" size="sm" />
+                  <Icon v-else :name="resourceOnline(request) ? 'ban' : 'play'" size="xs" />
+                  {{ resourceOnline(request) ? '下架' : (request.forced_offline ? '管理员已下架' : '上架') }}
+                </button>
                 <button
                   v-if="canUpdateAPIKey(request)"
                   type="button"
@@ -383,6 +425,7 @@ const newAPIKey = ref('')
 const apiKeyInput = ref<HTMLInputElement | null>(null)
 const keySaving = ref(false)
 const probeSavingId = ref<number | null>(null)
+const availabilitySavingId = ref<number | null>(null)
 const editingRateRequest = ref<SupplierResourceRequest | null>(null)
 const newRateMultiplier = ref<number | string>(0)
 const rateSaving = ref(false)
@@ -511,6 +554,22 @@ function probeUpdatedAt(request: SupplierResourceRequest) {
   return request.upstream_rate_updated_at || request.upstream_billing_probe?.snapshot?.received_at || request.upstream_billing_probe?.snapshot?.last_attempt_at
 }
 
+function resourceOnline(request: SupplierResourceRequest) {
+  return request.resource_online ?? request.status === 'approved'
+}
+
+function resourceAvailabilityLabel(request: SupplierResourceRequest) {
+  if (request.forced_offline) return '管理员下架'
+  return resourceOnline(request) ? '已上架' : '已下架'
+}
+
+function resourceAvailabilityClass(request: SupplierResourceRequest) {
+  if (request.forced_offline) return 'text-rose-600 dark:text-rose-400'
+  return resourceOnline(request)
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-gray-500 dark:text-dark-400'
+}
+
 function canUpdateAPIKey(request: SupplierResourceRequest) {
   const snapshot = request.upstream_billing_probe?.snapshot
   const credentialFailure = snapshot?.status === 'failed' &&
@@ -541,6 +600,25 @@ async function loadRequests() {
     appStore.showError(extractApiErrorMessage(error, '加载资源申请失败'))
   } finally {
     loading.value = false
+  }
+}
+
+async function setResourceOnline(request: SupplierResourceRequest, online: boolean) {
+  if (request.status !== 'approved' || request.forced_offline) return
+  if (!online && !window.confirm(`确认下架 ${request.group_name} 吗？下架后将停止接入与主动监控。`)) return
+
+  const previous = request.resource_online
+  request.resource_online = online
+  availabilitySavingId.value = request.id
+  try {
+    const updated = await supplierAPI.setResourceRequestOnline(request.id, online)
+    Object.assign(request, updated)
+    appStore.showSuccess(online ? '资源已重新上架并恢复调度和监控' : '资源已下架并停止调度和监控')
+  } catch (error) {
+    request.resource_online = previous
+    appStore.showError(extractApiErrorMessage(error, '更新资源状态失败'))
+  } finally {
+    availabilitySavingId.value = null
   }
 }
 
