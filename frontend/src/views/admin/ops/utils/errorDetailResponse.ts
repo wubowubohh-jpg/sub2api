@@ -32,14 +32,14 @@ export function resolvePrimaryResponseBody(
 ): string {
   if (!detail) return ''
 
-  const upstreamPayload = resolveUpstreamPayload(detail)
   const errorBody = String(detail.error_body || '').trim()
 
   if (errorType === 'upstream') {
+    const upstreamPayload = resolveUpstreamPayload(detail)
     return upstreamPayload || errorBody
   }
 
   // Request details must reflect the actual client-visible response. Raw
   // provider diagnostics remain available in the dedicated upstream section.
-  return errorBody || upstreamPayload
+  return errorBody
 }
