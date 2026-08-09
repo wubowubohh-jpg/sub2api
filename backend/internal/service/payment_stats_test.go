@@ -73,6 +73,22 @@ func TestPaymentDashboardBreakdownsGroupAmountsAndRankingsByCurrency(t *testing.
 	}, users)
 }
 
+func TestBuildDailySeriesForCustomRangeIncludesBoundaryDays(t *testing.T) {
+	t.Parallel()
+
+	location := time.FixedZone("UTC+8", 8*60*60)
+	start := time.Date(2026, time.July, 24, 18, 30, 0, 0, location)
+	end := time.Date(2026, time.July, 26, 9, 15, 0, 0, location)
+	paidAt := time.Date(2026, time.July, 25, 1, 0, 0, 0, location)
+	orders := []*dbent.PaymentOrder{paymentStatsTestOrder(1, "alice@example.com", "CNY", 12, &paidAt)}
+
+	require.Equal(t, []DailyStats{
+		{Date: "2026-07-24", Amount: CurrencyAmounts{}},
+		{Date: "2026-07-25", Amount: CurrencyAmounts{"CNY": 12}, Count: 1},
+		{Date: "2026-07-26", Amount: CurrencyAmounts{}},
+	}, buildDailySeriesForRange(orders, start, end))
+}
+
 func paymentStatsTestOrder(userID int64, email, currency string, amount float64, paidAt *time.Time) *dbent.PaymentOrder {
 	return &dbent.PaymentOrder{
 		UserID:           userID,

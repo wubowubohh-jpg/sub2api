@@ -2,24 +2,49 @@
   <AppLayout>
     <div class="space-y-6">
       <!-- Header with Day Switcher -->
-      <div class="flex items-center justify-end">
-        <div class="flex items-center gap-2">
+      <div class="flex flex-col items-end gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
           <div class="flex rounded-lg border border-gray-200 dark:border-dark-600">
             <button
               v-for="d in DAYS_OPTIONS"
               :key="d"
               type="button"
               class="px-3 py-1.5 text-xs font-medium transition-colors first:rounded-l-lg last:rounded-r-lg"
-              :class="days === d
+              :class="activeRange === d
                 ? 'bg-primary-600 text-white'
                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700'"
-              @click="days = d"
+              @click="selectDays(d)"
             >
               {{ d }}{{ t('payment.admin.daySuffix') }}
             </button>
           </div>
+          <button
+            type="button"
+            class="btn btn-secondary px-2.5"
+            :class="activeRange === 'custom' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : ''"
+            :title="t('payment.admin.customRange')"
+            @click="showCustomRange = !showCustomRange"
+          >
+            <Icon name="calendar" size="md" />
+          </button>
           <button @click="loadDashboard" :disabled="loading" class="btn btn-secondary" :title="t('common.refresh')">
             <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
+          </button>
+        </div>
+        <div
+          v-if="showCustomRange"
+          class="flex w-full flex-wrap items-end justify-end gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-dark-600 dark:bg-dark-800"
+        >
+          <label class="flex min-w-52 flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('payment.admin.startTime') }}
+            <input v-model="customStart" type="datetime-local" :max="customEnd || maxDateTime" class="input py-1.5 text-sm" />
+          </label>
+          <label class="flex min-w-52 flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('payment.admin.endTime') }}
+            <input v-model="customEnd" type="datetime-local" :min="customStart" :max="maxDateTime" class="input py-1.5 text-sm" />
+          </label>
+          <button type="button" class="btn btn-primary" :disabled="!customRangeValid || loading" @click="applyCustomRange">
+            {{ t('payment.admin.applyRange') }}
           </button>
         </div>
       </div>
@@ -71,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
@@ -86,8 +111,27 @@ import DailyRevenueChart from '@/components/admin/payment/DailyRevenueChart.vue'
 const { t } = useI18n()
 const appStore = useAppStore()
 
-const DAYS_OPTIONS = [7, 30, 90] as const
+const DAYS_OPTIONS = [7, 30, 90, 120] as const
 const days = ref<number>(30)
+const activeRange = ref<number | 'custom'>(30)
+const showCustomRange = ref(false)
+
+function toLocalDateTimeInput(date: Date): string {
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
+const now = new Date()
+const customEnd = ref(toLocalDateTimeInput(now))
+const customStart = ref(toLocalDateTimeInput(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)))
+const appliedCustomStart = ref(customStart.value)
+const appliedCustomEnd = ref(customEnd.value)
+const maxDateTime = computed(() => toLocalDateTimeInput(new Date()))
+const customRangeValid = computed(() => {
+  const start = new Date(customStart.value)
+  const end = new Date(customEnd.value)
+  return customStart.value !== '' && customEnd.value !== '' && !Number.isNaN(start.getTime()) && start < end
+})
 const loading = ref(false)
 const stats = ref<DashboardStats | null>(null)
 
@@ -126,7 +170,10 @@ function formatMoney(currency: string, amount: number): string {
 async function loadDashboard() {
   loading.value = true
   try {
-    const res = await adminPaymentAPI.getDashboard(days.value)
+    const params = activeRange.value === 'custom'
+      ? { start_time: new Date(appliedCustomStart.value).toISOString(), end_time: new Date(appliedCustomEnd.value).toISOString() }
+      : { days: days.value }
+    const res = await adminPaymentAPI.getDashboard(params)
     stats.value = res.data
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
@@ -135,6 +182,20 @@ async function loadDashboard() {
   }
 }
 
-watch(days, () => loadDashboard())
+function selectDays(value: number) {
+  days.value = value
+  activeRange.value = value
+  void loadDashboard()
+}
+
+function applyCustomRange() {
+  if (!customRangeValid.value) return
+  appliedCustomStart.value = customStart.value
+  appliedCustomEnd.value = customEnd.value
+  activeRange.value = 'custom'
+  showCustomRange.value = false
+  void loadDashboard()
+}
+
 onMounted(() => loadDashboard())
 </script>
