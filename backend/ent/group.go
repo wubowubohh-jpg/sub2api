@@ -11,7 +11,6 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/group"
-	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
@@ -32,12 +31,6 @@ type Group struct {
 	Description *string `json:"description,omitempty"`
 	// RateMultiplier holds the value of the "rate_multiplier" field.
 	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
-	// SupplierID holds the value of the "supplier_id" field.
-	SupplierID *int64 `json:"supplier_id,omitempty"`
-	// SupplierAdminAdjustment holds the value of the "supplier_admin_adjustment" field.
-	SupplierAdminAdjustment *float64 `json:"supplier_admin_adjustment,omitempty"`
-	// SupplierForcedOffline holds the value of the "supplier_forced_offline" field.
-	SupplierForcedOffline bool `json:"supplier_forced_offline,omitempty"`
 	// 是否启用高峰时段倍率
 	PeakRateEnabled bool `json:"peak_rate_enabled,omitempty"`
 	// 高峰开始时间 HH:MM（含），如 14:00；空表示未配置；不支持跨天
@@ -92,8 +85,22 @@ type Group struct {
 	VideoPrice720p *float64 `json:"video_price_720p,omitempty"`
 	// VideoPrice1080p holds the value of the "video_price_1080p" field.
 	VideoPrice1080p *float64 `json:"video_price_1080p,omitempty"`
+	// 按模型族和分辨率覆盖视频每秒价格
+	VideoModelPrices map[string]map[string]float64 `json:"video_model_prices,omitempty"`
 	// Codex alpha/search 网页搜索单次价格（USD/次）；nil 表示使用默认价 0.01（官方 $10/1000 次）
 	WebSearchPricePerCall *float64 `json:"web_search_price_per_call,omitempty"`
+	// 搜索工具价格 per 1000 calls（web_search 等）
+	SearchPricePer1k *float64 `json:"search_price_per_1k,omitempty"`
+	// Voice realtime 每分钟价格（USD）
+	AudioRealtimePricePerMin *float64 `json:"audio_realtime_price_per_min,omitempty"`
+	// TTS 每百万字符价格（USD）
+	AudioTtsPricePerMillionChars *float64 `json:"audio_tts_price_per_million_chars,omitempty"`
+	// STT 每小时价格（USD）
+	AudioSttPricePerHour *float64 `json:"audio_stt_price_per_hour,omitempty"`
+	// 是否按上下文长度应用模型阶梯价格；默认开启以保持官方/渠道长上下文价
+	LongContextPricingEnabled bool `json:"long_context_pricing_enabled,omitempty"`
+	// 分组逐模型定价；优先级高于渠道和内置定价
+	ModelPricing json.RawMessage `json:"model_pricing,omitempty"`
 	// 是否仅允许 Claude Code 客户端
 	ClaudeCodeOnly bool `json:"claude_code_only,omitempty"`
 	// 非 Claude Code 请求降级使用的分组 ID
@@ -156,15 +163,13 @@ type GroupEdges struct {
 	Accounts []*Account `json:"accounts,omitempty"`
 	// AllowedUsers holds the value of the allowed_users edge.
 	AllowedUsers []*User `json:"allowed_users,omitempty"`
-	// Supplier holds the value of the supplier edge.
-	Supplier *Supplier `json:"supplier,omitempty"`
 	// AccountGroups holds the value of the account_groups edge.
 	AccountGroups []*AccountGroup `json:"account_groups,omitempty"`
 	// UserAllowedGroups holds the value of the user_allowed_groups edge.
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [9]bool
+	loadedTypes [8]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -221,21 +226,10 @@ func (e GroupEdges) AllowedUsersOrErr() ([]*User, error) {
 	return nil, &NotLoadedError{edge: "allowed_users"}
 }
 
-// SupplierOrErr returns the Supplier value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e GroupEdges) SupplierOrErr() (*Supplier, error) {
-	if e.Supplier != nil {
-		return e.Supplier, nil
-	} else if e.loadedTypes[6] {
-		return nil, &NotFoundError{label: supplier.Label}
-	}
-	return nil, &NotLoadedError{edge: "supplier"}
-}
-
 // AccountGroupsOrErr returns the AccountGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e GroupEdges) AccountGroupsOrErr() ([]*AccountGroup, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[6] {
 		return e.AccountGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "account_groups"}
@@ -244,7 +238,7 @@ func (e GroupEdges) AccountGroupsOrErr() ([]*AccountGroup, error) {
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e GroupEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[8] {
+	if e.loadedTypes[7] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -255,13 +249,13 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldMessagesDispatchModelConfig, group.FieldModelsListConfig, group.FieldReasoningEffortMappings:
+		case group.FieldVideoModelPrices, group.FieldModelPricing, group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldMessagesDispatchModelConfig, group.FieldModelsListConfig, group.FieldReasoningEffortMappings:
 			values[i] = new([]byte)
-		case group.FieldSupplierForcedOffline, group.FieldPeakRateEnabled, group.FieldIsExclusive, group.FieldAllowImageGeneration, group.FieldAllowBatchImageGeneration, group.FieldImageRateIndependent, group.FieldVideoRateIndependent, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldAllowLive, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet, group.FieldProfitControlEnabled:
+		case group.FieldPeakRateEnabled, group.FieldIsExclusive, group.FieldAllowImageGeneration, group.FieldAllowBatchImageGeneration, group.FieldImageRateIndependent, group.FieldVideoRateIndependent, group.FieldLongContextPricingEnabled, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldAllowLive, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet, group.FieldProfitControlEnabled:
 			values[i] = new(sql.NullBool)
-		case group.FieldRateMultiplier, group.FieldSupplierAdminAdjustment, group.FieldPeakRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImageRateMultiplier, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldBatchImageDiscountMultiplier, group.FieldBatchImageHoldMultiplier, group.FieldVideoRateMultiplier, group.FieldVideoPrice480p, group.FieldVideoPrice720p, group.FieldVideoPrice1080p, group.FieldWebSearchPricePerCall, group.FieldProfitMinMargin, group.FieldProfitSafetyBuffer:
+		case group.FieldRateMultiplier, group.FieldPeakRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImageRateMultiplier, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldBatchImageDiscountMultiplier, group.FieldBatchImageHoldMultiplier, group.FieldVideoRateMultiplier, group.FieldVideoPrice480p, group.FieldVideoPrice720p, group.FieldVideoPrice1080p, group.FieldWebSearchPricePerCall, group.FieldSearchPricePer1k, group.FieldAudioRealtimePricePerMin, group.FieldAudioTtsPricePerMillionChars, group.FieldAudioSttPricePerHour, group.FieldProfitMinMargin, group.FieldProfitSafetyBuffer:
 			values[i] = new(sql.NullFloat64)
-		case group.FieldID, group.FieldSupplierID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSortOrder, group.FieldRpmLimit:
+		case group.FieldID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSortOrder, group.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
 		case group.FieldName, group.FieldDescription, group.FieldPeakStart, group.FieldPeakEnd, group.FieldStatus, group.FieldDuplicateOperationID, group.FieldPlatform, group.FieldSubscriptionType, group.FieldDefaultMappedModel, group.FieldMaxReasoningEffort:
 			values[i] = new(sql.NullString)
@@ -325,26 +319,6 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field rate_multiplier", values[i])
 			} else if value.Valid {
 				_m.RateMultiplier = value.Float64
-			}
-		case group.FieldSupplierID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field supplier_id", values[i])
-			} else if value.Valid {
-				_m.SupplierID = new(int64)
-				*_m.SupplierID = value.Int64
-			}
-		case group.FieldSupplierAdminAdjustment:
-			if value, ok := values[i].(*sql.NullFloat64); !ok {
-				return fmt.Errorf("unexpected type %T for field supplier_admin_adjustment", values[i])
-			} else if value.Valid {
-				_m.SupplierAdminAdjustment = new(float64)
-				*_m.SupplierAdminAdjustment = value.Float64
-			}
-		case group.FieldSupplierForcedOffline:
-			if value, ok := values[i].(*sql.NullBool); !ok {
-				return fmt.Errorf("unexpected type %T for field supplier_forced_offline", values[i])
-			} else if value.Valid {
-				_m.SupplierForcedOffline = value.Bool
 			}
 		case group.FieldPeakRateEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -518,12 +492,62 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				_m.VideoPrice1080p = new(float64)
 				*_m.VideoPrice1080p = value.Float64
 			}
+		case group.FieldVideoModelPrices:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field video_model_prices", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.VideoModelPrices); err != nil {
+					return fmt.Errorf("unmarshal field video_model_prices: %w", err)
+				}
+			}
 		case group.FieldWebSearchPricePerCall:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field web_search_price_per_call", values[i])
 			} else if value.Valid {
 				_m.WebSearchPricePerCall = new(float64)
 				*_m.WebSearchPricePerCall = value.Float64
+			}
+		case group.FieldSearchPricePer1k:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field search_price_per_1k", values[i])
+			} else if value.Valid {
+				_m.SearchPricePer1k = new(float64)
+				*_m.SearchPricePer1k = value.Float64
+			}
+		case group.FieldAudioRealtimePricePerMin:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field audio_realtime_price_per_min", values[i])
+			} else if value.Valid {
+				_m.AudioRealtimePricePerMin = new(float64)
+				*_m.AudioRealtimePricePerMin = value.Float64
+			}
+		case group.FieldAudioTtsPricePerMillionChars:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field audio_tts_price_per_million_chars", values[i])
+			} else if value.Valid {
+				_m.AudioTtsPricePerMillionChars = new(float64)
+				*_m.AudioTtsPricePerMillionChars = value.Float64
+			}
+		case group.FieldAudioSttPricePerHour:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field audio_stt_price_per_hour", values[i])
+			} else if value.Valid {
+				_m.AudioSttPricePerHour = new(float64)
+				*_m.AudioSttPricePerHour = value.Float64
+			}
+		case group.FieldLongContextPricingEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field long_context_pricing_enabled", values[i])
+			} else if value.Valid {
+				_m.LongContextPricingEnabled = value.Bool
+			}
+		case group.FieldModelPricing:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field model_pricing", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ModelPricing); err != nil {
+					return fmt.Errorf("unmarshal field model_pricing: %w", err)
+				}
 			}
 		case group.FieldClaudeCodeOnly:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -706,11 +730,6 @@ func (_m *Group) QueryAllowedUsers() *UserQuery {
 	return NewGroupClient(_m.config).QueryAllowedUsers(_m)
 }
 
-// QuerySupplier queries the "supplier" edge of the Group entity.
-func (_m *Group) QuerySupplier() *SupplierQuery {
-	return NewGroupClient(_m.config).QuerySupplier(_m)
-}
-
 // QueryAccountGroups queries the "account_groups" edge of the Group entity.
 func (_m *Group) QueryAccountGroups() *AccountGroupQuery {
 	return NewGroupClient(_m.config).QueryAccountGroups(_m)
@@ -765,19 +784,6 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("rate_multiplier=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RateMultiplier))
-	builder.WriteString(", ")
-	if v := _m.SupplierID; v != nil {
-		builder.WriteString("supplier_id=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
-	builder.WriteString(", ")
-	if v := _m.SupplierAdminAdjustment; v != nil {
-		builder.WriteString("supplier_admin_adjustment=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
-	builder.WriteString(", ")
-	builder.WriteString("supplier_forced_offline=")
-	builder.WriteString(fmt.Sprintf("%v", _m.SupplierForcedOffline))
 	builder.WriteString(", ")
 	builder.WriteString("peak_rate_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PeakRateEnabled))
@@ -880,10 +886,39 @@ func (_m *Group) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
+	builder.WriteString("video_model_prices=")
+	builder.WriteString(fmt.Sprintf("%v", _m.VideoModelPrices))
+	builder.WriteString(", ")
 	if v := _m.WebSearchPricePerCall; v != nil {
 		builder.WriteString("web_search_price_per_call=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	if v := _m.SearchPricePer1k; v != nil {
+		builder.WriteString("search_price_per_1k=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AudioRealtimePricePerMin; v != nil {
+		builder.WriteString("audio_realtime_price_per_min=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AudioTtsPricePerMillionChars; v != nil {
+		builder.WriteString("audio_tts_price_per_million_chars=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AudioSttPricePerHour; v != nil {
+		builder.WriteString("audio_stt_price_per_hour=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("long_context_pricing_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LongContextPricingEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("model_pricing=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelPricing))
 	builder.WriteString(", ")
 	builder.WriteString("claude_code_only=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ClaudeCodeOnly))

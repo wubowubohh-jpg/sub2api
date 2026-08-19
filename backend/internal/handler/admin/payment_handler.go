@@ -30,6 +30,27 @@ func NewPaymentHandler(paymentService *service.PaymentService, configService *se
 // GetDashboard returns payment dashboard statistics.
 // GET /api/v1/admin/payment/dashboard
 func (h *PaymentHandler) GetDashboard(c *gin.Context) {
+	startRaw, endRaw := c.Query("start_time"), c.Query("end_time")
+	if startRaw != "" || endRaw != "" {
+		if startRaw == "" || endRaw == "" {
+			response.BadRequest(c, "start_time and end_time must be provided together")
+			return
+		}
+		start, startErr := time.Parse(time.RFC3339, startRaw)
+		end, endErr := time.Parse(time.RFC3339, endRaw)
+		if startErr != nil || endErr != nil || !start.Before(end) {
+			response.BadRequest(c, "invalid time range")
+			return
+		}
+		stats, err := h.paymentService.GetDashboardStatsForRange(c.Request.Context(), start, end)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		response.Success(c, stats)
+		return
+	}
+
 	days := 30
 	if d := c.Query("days"); d != "" {
 		if v, err := strconv.Atoi(d); err == nil && v > 0 {
