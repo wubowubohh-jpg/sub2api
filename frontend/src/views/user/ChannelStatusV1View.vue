@@ -82,7 +82,7 @@ const overallStatus = computed<OverallStatus>(() => {
 })
 
 const detailTitle = computed(() => {
-  return detailTarget.value?.name || t('channelStatus.detailTitle')
+  return detailTarget.value?.group_name || t('channelStatus.detailTitle')
 })
 
 // ── Loaders ──
