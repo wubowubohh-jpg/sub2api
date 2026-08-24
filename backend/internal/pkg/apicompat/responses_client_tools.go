@@ -153,6 +153,16 @@ func stripResponsesDeferredToolFlags(tools []any) bool {
 	return changed
 }
 
+func hasResponsesToolSearchDeclaration(tools []any) bool {
+	for _, raw := range tools {
+		tool, ok := raw.(map[string]any)
+		if ok && strings.TrimSpace(stringValue(tool["type"])) == "tool_search" {
+			return true
+		}
+	}
+	return false
+}
+
 // AdaptResponsesClientToolsWithInheritedMapping lowers client-tool history on
 // a follow-up request that omits the session-level tools declaration. An
 // explicitly present tools field, including an empty or malformed value,

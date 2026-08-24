@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -164,6 +165,29 @@ func (s *ProxyProbeServiceSuite) TestParseIPify_NoIP() {
 	_, _, err := s.prober.parseIPify(body, 50)
 	require.Error(s.T(), err)
 	require.ErrorContains(s.T(), err, "no IP found")
+}
+
+func (s *ProxyProbeServiceSuite) TestParseChatGPTTrace() {
+	info, latencyMs, err := s.prober.parseChatGPTTrace([]byte("ip=1.2.3.4\nloc=CN\n"), 50)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), int64(50), latencyMs)
+	require.Equal(s.T(), "1.2.3.4", info.IP)
+	require.Equal(s.T(), "CN", info.CountryCode)
+}
+
+func TestNewProxyExitInfoProberUsesConfiguredURLs(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Security.ProxyProbe.URLs = []config.ProbeURLConfig{{
+		URL:    "https://chatgpt.com/cdn-cgi/trace",
+		Parser: "chatgpt-trace",
+	}}
+
+	prober, ok := NewProxyExitInfoProber(cfg).(*proxyProbeService)
+	require.True(t, ok)
+	require.Equal(t, []configuredProbeTarget{{
+		url:    "https://chatgpt.com/cdn-cgi/trace",
+		parser: "chatgpt-trace",
+	}}, prober.configuredProbeURLs)
 }
 
 func TestProxyProbeServiceSuite(t *testing.T) {
