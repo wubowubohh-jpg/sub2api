@@ -382,32 +382,8 @@ func (h *GatewayHandler) handleResponsesFailoverExhausted(c *gin.Context, lastEr
 	} else if lastErr != nil && service.IsOpenAISilentRefusalErrorBody(lastErr.ResponseBody) {
 		service.SetOpsUpstreamError(c, statusCode, service.OpenAISilentRefusalClientMessage(), "")
 		status, code, message = http.StatusBadGateway, "upstream_error", service.OpenAISilentRefusalClientMessage()
-	} else {
-		passthroughMatched := false
-		if lastErr != nil && h.errorPassthroughService != nil && len(lastErr.ResponseBody) > 0 {
-			platform := service.PlatformAnthropic
-			if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && forcedPlatform != "" {
-				platform = forcedPlatform
-			} else if apiKey, ok := middleware2.GetAPIKeyFromContext(c); ok && apiKey.Group != nil && apiKey.Group.Platform != "" {
-				platform = apiKey.Group.Platform
-			}
-			service.BindErrorPassthroughService(c, h.errorPassthroughService)
-			if responseCode, responseErrType, responseMessage, matched := service.ApplyErrorPassthroughRule(
-				c,
-				platform,
-				statusCode,
-				lastErr.ResponseBody,
-				http.StatusBadGateway,
-				"upstream_error",
-				"Upstream request failed",
-			); matched {
-				status, code, message = responseCode, responseErrType, responseMessage
-				passthroughMatched = true
-			}
-		}
-		if !passthroughMatched && statusCode == http.StatusTooManyRequests {
-			status, code, message = http.StatusTooManyRequests, "rate_limit_error", "All available accounts are currently rate-limited. Please retry later."
-		}
+	} else if lastErr != nil && statusCode == http.StatusTooManyRequests {
+		status, code, message = http.StatusTooManyRequests, "rate_limit_error", "All available accounts are currently rate-limited. Please retry later."
 	}
 	if streamStarted {
 		// A slot-wait heartbeat commits HTTP 200 before any upstream response.
@@ -419,6 +395,27 @@ func (h *GatewayHandler) handleResponsesFailoverExhausted(c *gin.Context, lastEr
 			writeResponsesFailedSSE(c, code, message)
 		}
 		return
+	}
+	if lastErr != nil && h.errorPassthroughService != nil && len(lastErr.ResponseBody) > 0 {
+		platform := service.PlatformAnthropic
+		if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && forcedPlatform != "" {
+			platform = forcedPlatform
+		} else if apiKey, ok := middleware2.GetAPIKeyFromContext(c); ok && apiKey.Group != nil && apiKey.Group.Platform != "" {
+			platform = apiKey.Group.Platform
+		}
+		service.BindErrorPassthroughService(c, h.errorPassthroughService)
+		if responseCode, errType, message, matched := service.ApplyErrorPassthroughRule(
+			c,
+			platform,
+			statusCode,
+			lastErr.ResponseBody,
+			http.StatusBadGateway,
+			"upstream_error",
+			"Upstream request failed",
+		); matched {
+			h.responsesErrorResponse(c, responseCode, errType, message)
+			return
+		}
 	}
 	h.responsesErrorResponse(c, status, code, message)
 }
