@@ -797,7 +797,7 @@ func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverE
 			c, service.PlatformGemini, statusCode, responseBody,
 			http.StatusBadGateway, "upstream_error", "Upstream request failed",
 		); matched {
-			googleError(c, respCode, msg)
+			googleErrorWithType(c, respCode, "", "", msg)
 			return
 		}
 	}
